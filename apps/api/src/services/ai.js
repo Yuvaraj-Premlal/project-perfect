@@ -1,40 +1,42 @@
 const { AzureOpenAI } = require('openai');
 
-const client = new AzureOpenAI({
-  endpoint:   process.env.AZURE_OPENAI_ENDPOINT,
-  apiKey:     process.env.AZURE_OPENAI_KEY,
-  apiVersion: '2024-10-21',
-  deployment: process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o'
-});
+let client;
+try {
+  client = new AzureOpenAI({
+    endpoint:   process.env.AZURE_OPENAI_ENDPOINT,
+    apiKey:     process.env.AZURE_OPENAI_KEY,
+    apiVersion: '2024-08-01-preview',
+    deployment: process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o'
+  });
+} catch (err) {
+  console.error('Failed to initialize Azure OpenAI client:', err.message);
+}
 
-// ─────────────────────────────────────────────
-// Core AI call — all AI features route through here
-// ─────────────────────────────────────────────
 async function callAI(systemPrompt, userPrompt, maxTokens = 500) {
   try {
+    if (!client) throw new Error('OpenAI client not initialized');
+    if (!process.env.AZURE_OPENAI_KEY) throw new Error('AZURE_OPENAI_KEY not set');
+
+    console.log('AI call — endpoint:', process.env.AZURE_OPENAI_ENDPOINT);
+    console.log('AI call — deployment:', process.env.AZURE_OPENAI_DEPLOYMENT);
+    console.log('AI call — key prefix:', process.env.AZURE_OPENAI_KEY?.substring(0, 8));
+
     const response = await client.chat.completions.create({
-      model: process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o',
+      model:       process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user',   content: userPrompt }
       ],
       max_tokens:  maxTokens,
-      temperature: 0.3  // low temperature = consistent, professional output
+      temperature: 0.3
     });
     return response.choices[0].message.content.trim();
   } catch (err) {
-    console.error('AI call failed:', err.message);
-    return null;  // graceful fallback — never crash the API because AI failed
+    console.error('AI call failed:', err.status, err.message, JSON.stringify(err.error || ''));
+    return null;
   }
 }
 
-// ─────────────────────────────────────────────
-// Nudge message generator
-// Called when a task is delayed and owner needs a nudge
-// CN=1 (internal): direct but professional
-// CN=10 (supplier): firm, references commercial relationship
-// CN=100 (sub-supplier): urgent, escalation-aware tone
-// ─────────────────────────────────────────────
 async function generateNudgeMessage({ taskName, ownerName, delayDays, plannedEndDate, currentEcd, slippageCount, controlType, projectName, acceptanceCriteria }) {
   const toneGuide = {
     internal:     'professional and direct, written as a colleague',
@@ -60,11 +62,6 @@ Write 2-3 sentences maximum. Be specific. Ask for a concrete update or action.`;
   return await callAI(system, user, 200);
 }
 
-// ─────────────────────────────────────────────
-// ECD explanation generator
-// Explains in plain English why the algorithm
-// predicted this completion date
-// ─────────────────────────────────────────────
 async function generateECDExplanation({ taskName, plannedEndDate, algorithmicEcd, delayDays, slippageCount, cnValue, tcr }) {
   const cnLabel = cnValue === 1 ? 'internal' : cnValue === 10 ? 'supplier-controlled' : 'sub-supplier-controlled';
 
@@ -84,10 +81,6 @@ Explain the prediction in plain English in 2-3 sentences.`;
   return await callAI(system, user, 200);
 }
 
-// ─────────────────────────────────────────────
-// Escalation brief generator
-// Replaces the placeholder in reviews.js
-// ─────────────────────────────────────────────
 async function generateEscalationBrief({ projectName, customerName, opv, lfv, tier, highRiskTasks, totalTasks, ecdAlgorithmic, plannedEndDate }) {
   const system = `You are a project management assistant writing escalation briefs for senior leadership in a manufacturing company.
 Be factual, concise, and action-oriented. No fluff. Maximum 4 sentences.`;
@@ -109,10 +102,6 @@ Write the brief in 3-4 sentences. State the problem, the impact, and what action
   return await callAI(system, user, 300);
 }
 
-// ─────────────────────────────────────────────
-// Pre-review brief generator
-// Gives PM a summary before they open a review
-// ─────────────────────────────────────────────
 async function generatePreReviewBrief({ projectName, opv, lfv, momentum, highRiskTasks, tasks }) {
   const system = `You are a project management assistant preparing a pre-review briefing note for a programme manager.
 Be concise. Highlight what needs attention. Maximum 4 sentences.`;
