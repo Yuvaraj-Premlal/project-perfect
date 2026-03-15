@@ -14,7 +14,7 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// ── Public routes — no auth required ──
+// Public
 app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
@@ -23,14 +23,13 @@ app.get('/health', (req, res) => {
   });
 });
 
-// ── Protected routes — tenant middleware runs first ──
+// Protected — tenant middleware on all /api routes
 app.use('/api', tenantMiddleware);
+app.use('/api/projects',                      require('./routes/projects'));
+app.use('/api/projects/:projectId/tasks',     require('./routes/tasks'));
+app.use('/api/suppliers',                     require('./routes/suppliers'));
 
-// Route files (added as we build each phase)
-app.use('/api/projects',  require('./routes/projects'));
-app.use('/api/suppliers', require('./routes/suppliers'));
-
-// ── Global error handler ──
+// Global error handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(err.status || 500).json({
