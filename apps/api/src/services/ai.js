@@ -1,11 +1,10 @@
 const { AzureOpenAI } = require('openai');
 
 const client = new AzureOpenAI({
-  azureADTokenProvider: undefined,
-  apiKey:      process.env.AZURE_OPENAI_KEY,
-  baseURL:     `${process.env.AZURE_OPENAI_ENDPOINT}openai/deployments/${process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o'}`,
-  defaultQuery: { 'api-version': '2024-08-01-preview' },
-  defaultHeaders: { 'api-key': process.env.AZURE_OPENAI_KEY }
+  apiKey:     process.env.AZURE_OPENAI_KEY,
+  endpoint:   process.env.AZURE_OPENAI_ENDPOINT,
+  apiVersion: '2024-08-01-preview',
+  deployment: process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o'
 });
 
 async function callAI(systemPrompt, userPrompt, maxTokens = 500) {
