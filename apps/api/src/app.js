@@ -1,7 +1,9 @@
 const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
+const cors    = require('cors');
+const helmet  = require('helmet');
 require('express-async-errors');
+
+const { tenantMiddleware } = require('./middleware/tenant');
 
 const app = express();
 
@@ -12,7 +14,7 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Health check — no auth required
+// ── Public routes — no auth required ──
 app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
@@ -21,7 +23,14 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Global error handler
+// ── Protected routes — tenant middleware runs first ──
+app.use('/api', tenantMiddleware);
+
+// Route files (added as we build each phase)
+app.use('/api/projects',  require('./routes/projects'));
+app.use('/api/suppliers', require('./routes/suppliers'));
+
+// ── Global error handler ──
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(err.status || 500).json({
