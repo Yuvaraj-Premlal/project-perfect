@@ -10,10 +10,9 @@ async function tenantMiddleware(req, res, next) {
     }
 
     const token = authHeader.split(' ')[1];
-
-    // Decode without signature verification
-    // Full Entra verification added in Phase 7
     const decoded = jwt.decode(token);
+
+    console.log('Decoded token:', JSON.stringify(decoded));
 
     if (!decoded) {
       return res.status(401).json({ error: 'Invalid token' });
@@ -24,16 +23,10 @@ async function tenantMiddleware(req, res, next) {
     const userRole = decoded.role || decoded['extension_role'] || 'team_member';
     const email    = decoded.email || decoded.preferred_username;
 
+    console.log('tenantId:', tenantId, 'userId:', userId, 'role:', userRole);
+
     if (!tenantId) {
       return res.status(401).json({ error: 'Token missing tenant_id claim' });
-    }
-
-    // Set tenant context on DB session for RLS
-    const client = await pool.connect();
-    try {
-      await client.query(`SET LOCAL app.tenant_id = '${tenantId}'`);
-    } finally {
-      client.release();
     }
 
     req.tenantId = tenantId;
