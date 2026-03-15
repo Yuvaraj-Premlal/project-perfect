@@ -25,10 +25,11 @@ app.get('/health', (req, res) => {
 
 // Protected
 app.use('/api', tenantMiddleware);
-app.use('/api/projects',                         require('./routes/projects'));
-app.use('/api/projects/:projectId/tasks',        require('./routes/tasks'));
-app.use('/api/projects/:projectId/reviews',      require('./routes/reviews'));
-app.use('/api/suppliers',                        require('./routes/suppliers'));
+app.use('/api/projects',                              require('./routes/projects'));
+app.use('/api/projects/:projectId/tasks',             require('./routes/tasks'));
+app.use('/api/projects/:projectId/reviews',           require('./routes/reviews'));
+app.use('/api/projects/:projectId/nudges',            require('./routes/nudges'));
+app.use('/api/suppliers',                             require('./routes/suppliers'));
 
 // Global error handler
 app.use((err, req, res, next) => {
