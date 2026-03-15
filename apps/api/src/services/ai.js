@@ -1,17 +1,13 @@
-const { AzureOpenAI } = require('openai');
-
-const client = new AzureOpenAI({
-  apiKey:     process.env.AZURE_OPENAI_KEY,
-  endpoint:   process.env.AZURE_OPENAI_ENDPOINT,
-  apiVersion: '2024-08-01-preview',
-  deployment: process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o'
-});
+const https = require('https');
 
 async function callAI(systemPrompt, userPrompt, maxTokens = 500) {
-  try {
-    console.log('AI call — key prefix:', process.env.AZURE_OPENAI_KEY?.substring(0, 8));
-    const response = await client.chat.completions.create({
-      model:    process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o',
+  return new Promise((resolve) => {
+    const endpoint  = process.env.AZURE_OPENAI_ENDPOINT?.replace(/\/$/, '');
+    const deployment = process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o';
+    const apiKey    = process.env.AZURE_OPENAI_KEY;
+    const apiVersion = '2024-08-01-preview';
+
+    const body = JSON.stringify({
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user',   content: userPrompt }
@@ -19,12 +15,51 @@ async function callAI(systemPrompt, userPrompt, maxTokens = 500) {
       max_tokens:  maxTokens,
       temperature: 0.3
     });
-    console.log('AI call succeeded');
-    return response.choices[0].message.content.trim();
-  } catch (err) {
-    console.error('AI call failed:', err.status, err.message);
-    return null;
-  }
+
+    const path = `/openai/deployments/${deployment}/chat/completions?api-version=${apiVersion}`;
+
+    console.log('AI calling:', endpoint + path);
+    console.log('AI key prefix:', apiKey?.substring(0, 8));
+
+    const options = {
+      hostname: 'project-perfect-ai.openai.azure.com',
+      port: 443,
+      path: path,
+      method: 'POST',
+      headers: {
+        'Content-Type':   'application/json',
+        'api-key':         apiKey,
+        'Content-Length':  Buffer.byteLength(body)
+      }
+    };
+
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        console.log('AI status:', res.statusCode);
+        if (res.statusCode !== 200) {
+          console.error('AI error:', data);
+          return resolve(null);
+        }
+        try {
+          const parsed = JSON.parse(data);
+          resolve(parsed.choices?.[0]?.message?.content?.trim() || null);
+        } catch (e) {
+          console.error('AI parse error:', e.message);
+          resolve(null);
+        }
+      });
+    });
+
+    req.on('error', (e) => {
+      console.error('AI request error:', e.message);
+      resolve(null);
+    });
+
+    req.write(body);
+    req.end();
+  });
 }
 
 async function generateNudgeMessage({ taskName, ownerName, delayDays, plannedEndDate, currentEcd, slippageCount, controlType, projectName, acceptanceCriteria }) {
@@ -55,13 +90,13 @@ Originally planned: ${plannedEndDate}
 Current delay: ${delayDays} days
 Times slipped previously: ${slippageCount}
 Task type: ${cnLabel}
-Project external dependency ratio (TCR): ${(tcr * 100).toFixed(0)}%
+TCR: ${(tcr * 100).toFixed(0)}%
 Explain in plain English in 2-3 sentences.`;
   return await callAI(system, user, 200);
 }
 
 async function generateEscalationBrief({ projectName, customerName, opv, lfv, tier, highRiskTasks, totalTasks, ecdAlgorithmic, plannedEndDate }) {
-  const system = `You are a project management assistant writing escalation briefs for senior leadership in a manufacturing company. Be factual, concise, action-oriented. No fluff.`;
+  const system = `You are a project management assistant writing escalation briefs for senior leadership in a manufacturing company. Be factual, concise, action-oriented.`;
   const urgency = tier === 1 ? 'requires attention' : 'requires IMMEDIATE leadership intervention';
   const user = `Write a Tier ${tier} escalation brief:
 Project: ${projectName}
@@ -71,7 +106,7 @@ LFV: ${(lfv * 100).toFixed(1)}% (target: below 120%)
 High risk tasks: ${highRiskTasks} of ${totalTasks}
 Planned completion: ${plannedEndDate}
 Predicted completion: ${ecdAlgorithmic || 'recalculating'}
-This project ${urgency}. Write 3-4 sentences. State problem, impact, action needed.`;
+This project ${urgency}. Write 3-4 sentences.`;
   return await callAI(system, user, 300);
 }
 
