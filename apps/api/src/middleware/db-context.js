@@ -1,19 +1,16 @@
 const { pool } = require('../db');
 
-// ─────────────────────────────────────────────
-// Tenant-scoped DB query helper
-// Use this in all route handlers instead of
-// calling pool.query() directly.
-// Automatically sets app.tenant_id on every
-// query so RLS policies are always enforced.
-// ─────────────────────────────────────────────
-
 async function dbQuery(tenantId, text, params) {
   const client = await pool.connect();
   try {
-    await client.query(`SET app.tenant_id = '${tenantId}'`);
+    await client.query('BEGIN');
+    await client.query(`SET LOCAL app.tenant_id = '${tenantId}'`);
     const result = await client.query(text, params);
+    await client.query('COMMIT');
     return result;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
   } finally {
     client.release();
   }
