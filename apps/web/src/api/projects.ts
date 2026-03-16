@@ -1,0 +1,14 @@
+import { api } from './client'
+
+export const getProjects        = () => api.get('/api/projects').then(r => r.data)
+export const getProject         = (id: string) => api.get(`/api/projects/${id}`).then(r => r.data)
+export const createProject      = (data: any) => api.post('/api/projects', data).then(r => r.data)
+export const getTasks           = (pid: string) => api.get(`/api/projects/${pid}/tasks`).then(r => r.data)
+export const createTask         = (pid: string, data: any) => api.post(`/api/projects/${pid}/tasks`, data).then(r => r.data)
+export const getReviews         = (pid: string) => api.get(`/api/projects/${pid}/reviews`).then(r => r.data)
+export const createReview       = (pid: string, data: any) => api.post(`/api/projects/${pid}/reviews`, data).then(r => r.data)
+export const getWeeklyReports   = (pid: string) => api.get(`/api/projects/${pid}/weekly-reports`).then(r => r.data)
+export const generateWeeklyReport = (pid: string) => api.post(`/api/projects/${pid}/weekly-reports`).then(r => r.data)
+export const getPreReviewBrief  = (pid: string) => api.get(`/api/projects/${pid}/nudges/pre-review-brief`).then(r => r.data)
+export const sendNudge          = (pid: string, taskId: string) => api.post(`/api/projects/${pid}/nudges/${taskId}`).then(r => r.data)
+export const closeProject       = (pid: string, data: any) => api.post(`/api/projects/${pid}/close`, data).then(r => r.data)
