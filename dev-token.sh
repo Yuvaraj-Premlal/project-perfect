@@ -8,4 +8,6 @@ const token = jwt.sign(
 );
 console.log(token);
 ")
-echo "Ready. API=$API"
+export PROJECT_ID="a8cf6686-f2df-4626-bba7-a61026dde888"
+export TASK_ID="469ee8e1-08ea-4b36-81fe-e624b63f76d7"
+echo "Ready. API=$API | PROJECT=$PROJECT_ID"
