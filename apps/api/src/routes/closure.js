@@ -71,7 +71,6 @@ Write a 5-6 sentence closure summary covering: delivery outcome, performance sum
 
 // ─────────────────────────────────────────────
 // POST /api/projects/:projectId/close
-// Formally close a project
 // ─────────────────────────────────────────────
 router.post('/', async (req, res) => {
   const { projectId } = req.params;
@@ -95,8 +94,7 @@ router.post('/', async (req, res) => {
     const completedTasks = tasksResult.rows.filter(t => t.completion_status === 'complete').length;
 
     const slippageResult = await client.query(
-      `SELECT COUNT(*) FROM task_slippage_history 
-       WHERE project_id = $1 AND tenant_id = $2`,
+      `SELECT COUNT(*) FROM task_slippage_history WHERE project_id = $1 AND tenant_id = $2`,
       [projectId, req.tenantId]
     );
     const totalSlippages = parseInt(slippageResult.rows[0].count);
@@ -119,12 +117,12 @@ router.post('/', async (req, res) => {
 
     const updatedProject = await client.query(
       `UPDATE projects SET
-        status         = 'closed',
+        status          = 'closed',
         actual_end_date = $1,
-        closure_notes  = $2,
-        closure_report = $3,
-        closed_by      = $4,
-        closed_at      = NOW()
+        closure_notes   = $2,
+        closure_report  = $3,
+        closed_by       = $4,
+        closed_at       = NOW()
        WHERE project_id = $5 AND tenant_id = $6
        RETURNING *`,
       [actualEnd, closure_notes, closureReport, req.userId, projectId, req.tenantId]
@@ -137,11 +135,11 @@ router.post('/', async (req, res) => {
         JSON.stringify({ actual_end_date: actualEnd, closure_notes })]);
 
     res.json({
-      message:        'Project closed successfully',
-      project_id:     projectId,
+      message:         'Project closed successfully',
+      project_id:      projectId,
       actual_end_date: actualEnd,
-      closure_report: closureReport,
-      closed_at:      updatedProject.rows[0].closed_at
+      closure_report:  closureReport,
+      closed_at:       updatedProject.rows[0].closed_at
     });
 
   } finally {
@@ -151,7 +149,6 @@ router.post('/', async (req, res) => {
 
 // ─────────────────────────────────────────────
 // GET /api/projects/:projectId/closure-report
-// Get closure report for a closed project
 // ─────────────────────────────────────────────
 router.get('/closure-report', async (req, res) => {
   const { projectId } = req.params;
