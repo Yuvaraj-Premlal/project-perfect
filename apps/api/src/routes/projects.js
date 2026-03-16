@@ -208,7 +208,7 @@ router.post('/:projectId/close', async (req, res) => {
   const completedTasks = tasksResult.rows.filter(t => t.completion_status === 'complete').length;
 
   const slippageResult = await dbQuery(req.tenantId,
-    `SELECT COUNT(*) FROM task_slippage_history WHERE project_id = $1 AND tenant_id = $2`,
+    `SELECT COUNT(*) FROM task_slippage_history tsh JOIN tasks t ON t.task_id = tsh.task_id WHERE t.project_id = $1 AND tsh.tenant_id = $2`,
     [projectId, req.tenantId]
   );
   const totalSlippages = parseInt(slippageResult.rows[0].count);
