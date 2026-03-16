@@ -29,6 +29,8 @@ app.use('/api/projects',                              require('./routes/projects
 app.use('/api/projects/:projectId/tasks',             require('./routes/tasks'));
 app.use('/api/projects/:projectId/reviews',           require('./routes/reviews'));
 app.use('/api/projects/:projectId/nudges',            require('./routes/nudges'));
+app.use('/api/projects/:projectId/weekly-reports',    require('./routes/weekly-reports'));
+app.use('/api/projects/:projectId',                   require('./routes/closure'));
 app.use('/api/suppliers',                             require('./routes/suppliers'));
 
 // Global error handler
