@@ -85,7 +85,7 @@ router.post('/', async (req, res) => {
 
     const projectResult = await client.query(
       `SELECT p.*, u.full_name as pm_name FROM projects p
-       LEFT JOIN users u ON u.user_id = p.created_by
+       LEFT JOIN users u ON u.user_id = p.pm_user_id
        WHERE p.project_id = $1 AND p.tenant_id = $2`,
       [projectId, req.tenantId]
     );
