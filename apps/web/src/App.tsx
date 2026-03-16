@@ -1,8 +1,7 @@
-import React from "react"
+import React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import LoginPage from './pages/LoginPage'
-import DashboardPage from './pages/DashboardPage'
-import ProjectPage from './pages/ProjectPage'
+import AppShell from './pages/AppShell'
 
 function RequireAuth({ children }: { children: React.ReactElement }) {
   const token = localStorage.getItem('pp_token')
@@ -14,9 +13,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/" element={<RequireAuth><DashboardPage /></RequireAuth>} />
-      <Route path="/projects/:projectId" element={<RequireAuth><ProjectPage /></RequireAuth>} />
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="/*" element={<RequireAuth><AppShell /></RequireAuth>} />
     </Routes>
   )
 }
