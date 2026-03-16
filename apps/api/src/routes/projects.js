@@ -1,3 +1,5 @@
+const { body, param } = require("express-validator");
+const { validate } = require("../middleware/validate");
 const router = require('express').Router();
 const { dbQuery } = require('../middleware/db-context');
 const { requireRole } = require('../middleware/tenant');
@@ -94,7 +96,13 @@ router.get('/:id', async (req, res) => {
 // Create a new project with charter, phases, and team
 // Access: PM only
 // ─────────────────────────────────────────────
-router.post('/', requireRole('pm'), async (req, res) => {
+router.post("/", [
+  body("project_name").notEmpty().withMessage("project_name is required"),
+  body("start_date").isISO8601().withMessage("start_date must be a valid date"),
+  body("planned_end_date").isISO8601().withMessage("planned_end_date must be a valid date"),
+  body("risk_tier").isIn(["high", "moderate", "low"]).withMessage("risk_tier must be high, moderate, or low"),
+  validate
+], requireRole("pm"), async (req, res) => {
   const {
     project_name, project_code, customer_name, customer_ref,
     primary_supplier_id, start_date, planned_end_date,
@@ -215,66 +223,21 @@ router.post('/:projectId/close', async (req, res) => {
 
   const actualEnd = actual_end_date || new Date().toISOString().split('T')[0];
 
-  // Generate AI closure report
-  const { DefaultAzureCredential } = require('@azure/identity');
-  const credential = new DefaultAzureCredential();
-  const tokenResponse = await credential.getToken('https://cognitiveservices.azure.com/.default');
-  const aiToken = tokenResponse.token;
-
-  const daysVariance = Math.round((new Date(actualEnd) - new Date(p.planned_end_date)) / (1000 * 60 * 60 * 24));
-  const varianceNote = daysVariance > 0 ? `${daysVariance} days late` : daysVariance < 0 ? `${Math.abs(daysVariance)} days early` : 'on time';
-  const completionRate = tasksResult.rows.length > 0 ? ((completedTasks / tasksResult.rows.length) * 100).toFixed(0) : 0;
-
-  const aiBody = JSON.stringify({
-    messages: [
-      { role: 'system', content: 'You are a project management assistant writing formal project closure reports for manufacturing programmes. Be professional, factual, and constructive. Write in third person.' },
-      { role: 'user', content: `Write a project closure report:
-Project: ${p.project_name}
-Customer: ${p.customer_name || 'Customer'}
-Start date: ${p.start_date}
-Planned completion: ${p.planned_end_date}
-Actual completion: ${actualEnd} (${varianceNote})
-Final OPV: ${(parseFloat(p.opv) * 100).toFixed(1)}%
-Final LFV: ${(parseFloat(p.lfv) * 100).toFixed(1)}%
-Tasks completed: ${completedTasks} of ${tasksResult.rows.length} (${completionRate}%)
-Total slippages recorded: ${totalSlippages}
-PM lessons learned: ${closure_notes || 'None provided'}
-Write a 5-6 sentence closure summary covering: delivery outcome, performance summary, key challenges, and one forward-looking recommendation.` }
-    ],
-    max_tokens: 500,
-    temperature: 0.3
+  // Generate AI closure report via service
+  const { generateClosureReport } = require('../services/ai');
+  const closureReport = await generateClosureReport({
+    projectName:    p.project_name,
+    customerName:   p.customer_name,
+    startDate:      p.start_date,
+    plannedEndDate: p.planned_end_date,
+    actualEndDate:  actualEnd,
+    finalOpv:       parseFloat(p.opv),
+    finalLfv:       parseFloat(p.lfv),
+    totalTasks:     tasksResult.rows.length,
+    completedTasks,
+    totalSlippages,
+    closureNotes:   closure_notes
   });
-
-  const closureReport = await new Promise((resolve) => {
-    const https = require('https');
-    const deployment = process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o';
-    const options = {
-      hostname: 'project-perfect-ai-india.openai.azure.com',
-      port: 443,
-      path: `/openai/deployments/${deployment}/chat/completions?api-version=2024-08-01-preview`,
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${aiToken}`,
-        'Content-Length': Buffer.byteLength(aiBody)
-      }
-    };
-    const req2 = https.request(options, (r) => {
-      let d = '';
-      r.on('data', c => d += c);
-      r.on('end', () => {
-        try {
-          if (r.statusCode !== 200) return resolve(null);
-          const parsed = JSON.parse(d);
-          resolve(parsed.choices?.[0]?.message?.content?.trim() || null);
-        } catch (e) { resolve(null); }
-      });
-    });
-    req2.on('error', () => resolve(null));
-    req2.write(aiBody);
-    req2.end();
-  });
-
   const updated = await dbQuery(req.tenantId,
     `UPDATE projects SET
       status          = 'closed',

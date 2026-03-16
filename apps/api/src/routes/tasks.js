@@ -1,3 +1,5 @@
+const { body } = require("express-validator");
+const { validate } = require("../middleware/validate");
 const router  = require('express').Router({ mergeParams: true });
 const { pool } = require('../db');
 const { requireRole } = require('../middleware/tenant');
@@ -35,7 +37,13 @@ router.get('/', async (req, res) => {
 // Create a new task
 // Access: PM only
 // ─────────────────────────────────────────────
-router.post('/', requireRole('pm'), async (req, res) => {
+router.post("/", [
+  body("task_name").notEmpty().withMessage("task_name is required"),
+  body("planned_end_date").isISO8601().withMessage("planned_end_date must be a valid date"),
+  body("control_type").isIn(["internal","supplier","sub_supplier"]).withMessage("control_type must be internal, supplier, or sub_supplier"),
+  body("acceptance_criteria").notEmpty().withMessage("acceptance_criteria is required"),
+  validate
+], requireRole("pm"), async (req, res) => {
   const { projectId } = req.params;
   const {
     task_name, owner_user_id, owner_email, owner_department,

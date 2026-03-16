@@ -1,6 +1,7 @@
-const express = require('express');
-const cors    = require('cors');
-const helmet  = require('helmet');
+const express     = require('express');
+const cors        = require('cors');
+const helmet      = require('helmet');
+const rateLimit   = require('express-rate-limit');
 require('express-async-errors');
 
 const { tenantMiddleware } = require('./middleware/tenant');
@@ -13,6 +14,29 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
+
+// ─────────────────────────────────────────────
+// Rate limiting — per IP
+// 200 requests per 15 minutes on all routes
+// Tighter limit on AI routes (60 per 15 min)
+// ─────────────────────────────────────────────
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests — please try again later' }
+});
+
+const aiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many AI requests — please try again later' }
+});
+
+app.use(globalLimiter);
 
 // Public
 app.get('/health', (req, res) => {
@@ -27,8 +51,8 @@ app.get('/health', (req, res) => {
 app.use('/api', tenantMiddleware);
 app.use('/api/projects/:projectId/tasks',             require('./routes/tasks'));
 app.use('/api/projects/:projectId/reviews',           require('./routes/reviews'));
-app.use('/api/projects/:projectId/nudges',            require('./routes/nudges'));
-app.use('/api/projects/:projectId/weekly-reports',    require('./routes/weekly-reports'));
+app.use('/api/projects/:projectId/nudges',            aiLimiter, require('./routes/nudges'));
+app.use('/api/projects/:projectId/weekly-reports',    aiLimiter, require('./routes/weekly-reports'));
 app.use('/api/projects',                              require('./routes/projects'));
 app.use('/api/suppliers',                             require('./routes/suppliers'));
 

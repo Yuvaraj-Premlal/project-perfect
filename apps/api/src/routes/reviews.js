@@ -1,3 +1,5 @@
+const { body } = require("express-validator");
+const { validate } = require("../middleware/validate");
 const router  = require('express').Router({ mergeParams: true });
 const { pool } = require('../db');
 const { requireRole } = require('../middleware/tenant');
@@ -30,7 +32,11 @@ router.get('/', async (req, res) => {
 // Save a review — snapshots metrics, checks escalation
 // Access: PM only
 // ─────────────────────────────────────────────
-router.post('/', requireRole('pm'), async (req, res) => {
+router.post("/", [
+  body("review_date").isISO8601().withMessage("review_date must be a valid date"),
+  body("discussion_points").notEmpty().withMessage("discussion_points is required"),
+  validate
+], requireRole("pm"), async (req, res) => {
   const { projectId } = req.params;
   const { discussion_points, blockers, actions_agreed, review_date } = req.body;
 
