@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getProjects } from '../api/projects'
 import PortfolioView from './PortfolioView'
+import CreateProjectModal from './CreateProjectModal'
 import ProjectView from './ProjectView'
 
 function getOPVColor(opv: number) {
@@ -19,6 +20,7 @@ function getDelayPct(p: any): string {
 
 export default function AppShell() {
   const [view, setView]       = useState<'portfolio' | 'project'>('portfolio')
+  const [showCreate, setShowCreate] = useState(false)
   const [activeProject, setActiveProject] = useState<string | null>(null)
 
   const { data: projects } = useQuery({ queryKey: ['projects'], queryFn: getProjects })
@@ -116,7 +118,7 @@ export default function AppShell() {
                 Portfolio
               </button>
             )}
-            <button className="tb-btn primary">
+            <button className="tb-btn primary" onClick={()=>setShowCreate(true)}>
               <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><line x1="8" y1="3" x2="8" y2="13" stroke="white" strokeWidth="1.5" strokeLinecap="round"/><line x1="3" y1="8" x2="13" y2="8" stroke="white" strokeWidth="1.5" strokeLinecap="round"/></svg>
               New Project
             </button>
@@ -130,6 +132,12 @@ export default function AppShell() {
           }
         </div>
       </div>
+
+      <CreateProjectModal
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        onCreated={(id) => { setShowCreate(false); openProject(id) }}
+      />
     </div>
   )
 }
