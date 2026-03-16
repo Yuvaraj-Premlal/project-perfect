@@ -1,64 +1,79 @@
 const https = require('https');
+const { DefaultAzureCredential } = require('@azure/identity');
+
+const credential = new DefaultAzureCredential();
+
+async function getToken() {
+  const tokenResponse = await credential.getToken('https://cognitiveservices.azure.com/.default');
+  return tokenResponse.token;
+}
 
 async function callAI(systemPrompt, userPrompt, maxTokens = 500) {
-  return new Promise((resolve) => {
-    const endpoint  = process.env.AZURE_OPENAI_ENDPOINT?.replace(/\/$/, '');
-    const deployment = process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o';
-    const apiKey    = process.env.AZURE_OPENAI_KEY;
-    const apiVersion = '2024-08-01-preview';
+  return new Promise(async (resolve) => {
+    try {
+      const endpoint  = process.env.AZURE_OPENAI_ENDPOINT?.replace(/\/$/, '');
+      const deployment = process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o';
+      const apiVersion = '2024-08-01-preview';
 
-    const body = JSON.stringify({
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user',   content: userPrompt }
-      ],
-      max_tokens:  maxTokens,
-      temperature: 0.3
-    });
+      const token = await getToken();
+      console.log('AI token acquired — prefix:', token?.substring(0, 10));
 
-    const path = `/openai/deployments/${deployment}/chat/completions?api-version=${apiVersion}`;
-
-    console.log('AI calling:', endpoint + path);
-    console.log('AI key prefix:', apiKey?.substring(0, 8));
-
-    const options = {
-      hostname: 'project-perfect-ai.openai.azure.com',
-      port: 443,
-      path: path,
-      method: 'POST',
-      headers: {
-        'Content-Type':   'application/json',
-        'api-key':         apiKey,
-        'Content-Length':  Buffer.byteLength(body)
-      }
-    };
-
-    const req = https.request(options, (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => {
-        console.log('AI status:', res.statusCode);
-        if (res.statusCode !== 200) {
-          console.error('AI error:', data);
-          return resolve(null);
-        }
-        try {
-          const parsed = JSON.parse(data);
-          resolve(parsed.choices?.[0]?.message?.content?.trim() || null);
-        } catch (e) {
-          console.error('AI parse error:', e.message);
-          resolve(null);
-        }
+      const body = JSON.stringify({
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user',   content: userPrompt }
+        ],
+        max_tokens:  maxTokens,
+        temperature: 0.3
       });
-    });
 
-    req.on('error', (e) => {
-      console.error('AI request error:', e.message);
+      const path = `/openai/deployments/${deployment}/chat/completions?api-version=${apiVersion}`;
+
+      const options = {
+        hostname: 'project-perfect-ai-india.openai.azure.com',
+        port: 443,
+        path: path,
+        method: 'POST',
+        headers: {
+          'Content-Type':   'application/json',
+          'Authorization':  `Bearer ${token}`,
+          'Content-Length':  Buffer.byteLength(body)
+        }
+      };
+
+      console.log('AI calling:', options.hostname + path);
+
+      const req = https.request(options, (res) => {
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => {
+          console.log('AI status:', res.statusCode);
+          if (res.statusCode !== 200) {
+            console.error('AI error:', data);
+            return resolve(null);
+          }
+          try {
+            const parsed = JSON.parse(data);
+            resolve(parsed.choices?.[0]?.message?.content?.trim() || null);
+          } catch (e) {
+            console.error('AI parse error:', e.message);
+            resolve(null);
+          }
+        });
+      });
+
+      req.on('error', (e) => {
+        console.error('AI request error:', e.message);
+        resolve(null);
+      });
+
+      req.write(body);
+      req.end();
+
+    } catch (err) {
+      console.error('AI call setup error:', err.message);
       resolve(null);
-    });
-
-    req.write(body);
-    req.end();
+    }
   });
 }
 
