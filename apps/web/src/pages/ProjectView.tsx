@@ -5,9 +5,24 @@ import { api } from '../api/client'
 import TasksTab from './TasksTab'
 import ReviewsTab from './ReviewsTab'
 
+interface ActionItem {
+  key_issue: string
+  action_agreed: string
+  responsible: string
+  due_date: string
+}
+
+function emptyAction(): ActionItem {
+  return { key_issue: '', action_agreed: '', responsible: '', due_date: '' }
+}
+
 const TABS = ['Summary','Tasks','Kanban','Reviews','Reports','Closure'] as const
 type Tab = typeof TABS[number]
 
+function monoColor(val: number, good: number, bad: number, hib=true): string {
+  if (hib) return val>=good?'var(--green)':val<=bad?'var(--red)':'var(--amber)'
+  return val<=good?'var(--green)':val>=bad?'var(--red)':'var(--amber)'
+}
 
 function KPIRow({ project, tasks }: { project:any, tasks:any[] }) {
   const opv  = parseFloat(project.opv)
@@ -225,6 +240,10 @@ function ClosureTab({ project }: { project:any }) {
 
 export default function ProjectView({ projectId }: { projectId:string }) {
   const [activeTab, setActiveTab] = useState<Tab>('Summary')
+  // Lifted review state — persists across tab switches
+  const [reviewAiSummary, setReviewAiSummary]     = useState('')
+  const [reviewActionItems, setReviewActionItems] = useState<ActionItem[]>([emptyAction()])
+  const [reviewAttendedBy, setReviewAttendedBy]   = useState('')
   const { data:project, isLoading } = useQuery({ queryKey:['project',projectId], queryFn:()=>getProject(projectId) })
   const { data:tasks=[], refetch:refetchTasks } = useQuery({ queryKey:['tasks',projectId], queryFn:()=>getTasks(projectId) })
   if (isLoading || !project) return <div style={{ textAlign:'center', padding:60, color:'var(--text4)' }}>Loading project...</div>
@@ -237,7 +256,16 @@ export default function ProjectView({ projectId }: { projectId:string }) {
       {activeTab==='Summary'  && <SummaryTab project={project} tasks={tasks as any[]} />}
       {activeTab==='Tasks'    && <TasksTab projectId={projectId} project={project} tasks={tasks as any[]} refetch={refetchTasks} />}
       {activeTab==='Kanban'   && <KanbanTab tasks={tasks as any[]} />}
-      {activeTab==='Reviews'  && <ReviewsTab projectId={projectId} project={project} />}
+      {activeTab==='Reviews'  && <ReviewsTab
+        projectId={projectId}
+        project={project}
+        aiSummary={reviewAiSummary}
+        setAiSummary={setReviewAiSummary}
+        actionItems={reviewActionItems}
+        setActionItems={setReviewActionItems}
+        attendedBy={reviewAttendedBy}
+        setAttendedBy={setReviewAttendedBy}
+      />}
       {activeTab==='Reports'  && <ReportsTab projectId={projectId} />}
       {activeTab==='Closure'  && <ClosureTab project={project} />}
     </div>
