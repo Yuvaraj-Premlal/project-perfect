@@ -19,10 +19,6 @@ function emptyAction(): ActionItem {
 const TABS = ['Summary','Tasks','Status Kanban','Weekly Kanban','Function Kanban','Reviews','Reports','Closure'] as const
 type Tab = typeof TABS[number]
 
-function monoColor(val: number, good: number, bad: number, hib=true): string {
-  if (hib) return val>=good?'var(--green)':val<=bad?'var(--red)':'var(--amber)'
-  return val<=good?'var(--green)':val>=bad?'var(--red)':'var(--amber)'
-}
 
 function KPIRow({ project, tasks }: { project:any, tasks:any[] }) {
   const opv  = parseFloat(project.opv)
