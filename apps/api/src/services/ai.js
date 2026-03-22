@@ -192,6 +192,90 @@ Write a 5-6 sentence closure summary covering: delivery outcome, performance sum
   return await callAI(system, user, 500);
 }
 
+// ─────────────────────────────────────────────
+// Review agenda generator
+// Reads tasks + latest task updates to produce
+// a structured, prioritised meeting agenda
+// ─────────────────────────────────────────────
+async function generateReviewAgenda({ projectName, opv, lfv, momentum, tasks, lastReviewDate }) {
+  const today = new Date().toISOString().split('T')[0]
+
+  // Build rich task context including latest update
+  const taskContext = tasks
+    .filter(t => t.completion_status !== 'complete')
+    .sort((a, b) => (b.risk_number || 0) - (a.risk_number || 0))
+    .map(t => {
+      const lastUpdate = t.last_update_pending
+        ? `Last update (${t.last_update_at ? new Date(t.last_update_at).toLocaleDateString('en-GB', { day:'2-digit', month:'short' }) : 'unknown'}): ${t.last_update_pending}`
+        : 'No updates posted yet'
+      const ecdOverdue = t.current_ecd && t.current_ecd < today ? ` — ECD OVERDUE (${t.current_ecd})` : ''
+      return `- ${t.task_name} [${t.control_type}, RN:${t.risk_number || 0}, ${t.slippage_count || 0} slippages, phase: ${t.phase_name || 'unassigned'}${ecdOverdue}]
+  ${lastUpdate}`
+    }).join('
+')
+
+  const completedSince = lastReviewDate
+    ? tasks.filter(t => t.completion_status === 'complete').map(t => t.task_name).join(', ')
+    : ''
+
+  const system = `You are a project management AI preparing a structured review agenda for a programme manager in a manufacturing company. 
+Your job is to analyse task data and generate a prioritised, time-boxed agenda with specific, context-aware questions for each item.
+Respond ONLY with valid JSON. No markdown, no explanation, no preamble.`
+
+  const user = `Generate a review agenda for project: ${projectName}
+OPV: ${(opv * 100).toFixed(1)}% | LFV: ${(lfv * 100).toFixed(1)}% | Momentum: ${momentum > 0 ? '+' : ''}${(momentum * 100).toFixed(1)}%
+Last review: ${lastReviewDate || 'None'}
+Today: ${today}
+
+Active tasks (sorted by risk):
+${taskContext}
+
+${completedSince ? `Completed since last review: ${completedSince}` : ''}
+
+Return JSON with this exact structure:
+{
+  "suggested_duration_minutes": <number>,
+  "critical": [
+    {
+      "task_id": "<uuid or null for phase-level>",
+      "task_name": "<name>",
+      "reason": "<why this is critical - one sentence>",
+      "context": "<key facts: RN, slippages, last update summary>",
+      "ai_question": "<specific question referencing actual data from last update>",
+      "suggested_minutes": <number>
+    }
+  ],
+  "watch": [
+    {
+      "task_id": "<uuid or null>",
+      "task_name": "<name>",
+      "reason": "<why watching>",
+      "context": "<key facts>",
+      "ai_question": "<specific question>",
+      "suggested_minutes": <number>
+    }
+  ],
+  "quick_wins": ["<task name> · completed <date>"]
+}`
+
+  const raw = await callAI(system, user, 1000)
+
+  // Strip any markdown fences if model adds them
+  const clean = raw.replace(/```json|```/g, '').trim()
+  try {
+    return JSON.parse(clean)
+  } catch {
+    // Fallback if AI returns non-JSON
+    return {
+      suggested_duration_minutes: 30,
+      critical: [],
+      watch: [],
+      quick_wins: [],
+      error: 'Agenda generation failed — please review tasks manually'
+    }
+  }
+}
+
 module.exports = {
   callAI,
   generateNudgeMessage,
@@ -199,5 +283,6 @@ module.exports = {
   generateEscalationBrief,
   generatePreReviewBrief,
   generateWeeklyNarrative,
-  generateClosureReport
+  generateClosureReport,
+  generateReviewAgenda
 };
