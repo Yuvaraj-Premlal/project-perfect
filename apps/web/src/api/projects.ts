@@ -16,3 +16,6 @@ export const closeProject         = (pid: string, data: any) => api.post(`/api/p
 
 export const getTaskUpdates  = (pid: string, tid: string) => api.get(`/api/projects/${pid}/tasks/${tid}/updates`).then(r => r.data)
 export const createTaskUpdate = (pid: string, tid: string, data: any) => api.post(`/api/projects/${pid}/tasks/${tid}/updates`, data).then(r => r.data)
+
+export const getReviewAgenda   = (pid: string) => api.get(`/api/projects/${pid}/nudges/review-agenda`).then(r => r.data)
+export const createReviewFull  = (pid: string, data: any) => api.post(`/api/projects/${pid}/reviews`, data).then(r => r.data)
