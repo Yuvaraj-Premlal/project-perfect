@@ -18,10 +18,19 @@ router.get('/', async (req, res) => {
       SELECT
         t.*,
         pp.phase_name,
-        s.supplier_name
+        s.supplier_name,
+        latest_u.what_pending   AS last_update_pending,
+        latest_u.created_at     AS last_update_at
       FROM tasks t
       LEFT JOIN project_phases pp ON pp.phase_id = t.phase_id
       LEFT JOIN suppliers s       ON s.supplier_id = t.supplier_id
+      LEFT JOIN LATERAL (
+        SELECT what_pending, created_at
+        FROM task_updates
+        WHERE task_id = t.task_id
+        ORDER BY created_at DESC
+        LIMIT 1
+      ) latest_u ON true
       WHERE t.project_id = $1 AND t.tenant_id = $2
       ORDER BY t.risk_number DESC, t.planned_end_date ASC
     `, [projectId, req.tenantId]);
