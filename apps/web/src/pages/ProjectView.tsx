@@ -19,6 +19,10 @@ function emptyAction(): ActionItem {
 const TABS = ['Summary','Tasks','Status Kanban','Weekly Kanban','Function Kanban','Reviews','Reports','Closure'] as const
 type Tab = typeof TABS[number]
 
+function monoColor(val: number, good: number, bad: number, hib=true): string {
+  if (hib) return val>=good?'var(--green)':val<=bad?'var(--red)':'var(--amber)'
+  return val<=good?'var(--green)':val>=bad?'var(--red)':'var(--amber)'
+}
 
 function KPIRow({ project, tasks }: { project:any, tasks:any[] }) {
   const opv  = parseFloat(project.opv)
@@ -446,7 +450,7 @@ export default function ProjectView({ projectId }: { projectId:string }) {
   const [reviewActionItems, setReviewActionItems] = useState<ActionItem[]>([emptyAction()])
   const [reviewAttendedBy, setReviewAttendedBy]   = useState('')
 
-  const { data:project, isLoading } = useQuery({ queryKey:['project',projectId], queryFn:()=>getProject(projectId) })
+  const { data:project, isLoading, refetch:refetchProject } = useQuery({ queryKey:['project',projectId], queryFn:()=>getProject(projectId) })
   const { data:tasks=[], refetch:refetchTasks } = useQuery({ queryKey:['tasks',projectId], queryFn:()=>getTasks(projectId) })
   if (isLoading || !project) return <div style={{ textAlign:'center', padding:60, color:'var(--text4)' }}>Loading project...</div>
 
@@ -481,7 +485,7 @@ export default function ProjectView({ projectId }: { projectId:string }) {
         ))}
       </div>
       {activeTab==='Summary'       && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <SummaryTab project={project} tasks={tasks as any[]} />)}
-      {activeTab==='Tasks'         && <TasksTab projectId={projectId} project={project} tasks={tasks as any[]} refetch={refetchTasks} />}
+      {activeTab==='Tasks'         && <TasksTab projectId={projectId} project={project} tasks={tasks as any[]} refetch={()=>{ refetchTasks(); refetchProject(); }} />}
       {activeTab==='Status Kanban' && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <StatusKanban tasks={tasks as any[]} />)}
       {activeTab==='Weekly Kanban' && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <WeeklyKanban tasks={tasks as any[]} />)}
       {activeTab==='Function Kanban' && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <FunctionKanban tasks={tasks as any[]} />)}
