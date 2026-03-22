@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { createTask, updateTask } from '../api/projects'
+import { createTask, updateTask, getTaskUpdates, createTaskUpdate } from '../api/projects'
 
 // ─── Types ────────────────────────────────────────────────────────
 interface Phase {
@@ -29,6 +29,21 @@ interface Task {
   risk_number: number
   completion_status: string
   comments: string | null
+  last_update_pending: string | null
+  last_update_at: string | null
+}
+
+interface TaskUpdate {
+  update_id: string
+  task_id: string
+  what_done: string
+  what_pending: string
+  issue_blocker: string | null
+  action_owner: string
+  action_due_date: string
+  impact_if_not_done: string
+  created_by_name: string
+  created_at: string
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────
@@ -274,6 +289,7 @@ function AddTaskModal({
 }
 
 // ─── Task Update Slide-Out Panel ──────────────────────────────────
+// ─── Task Update Panel ───────────────────────────────────────────
 function TaskPanel({
   task,
   projectId,
@@ -285,247 +301,330 @@ function TaskPanel({
   onClose: () => void
   onSaved: () => void
 }) {
-  const [saving, setSaving]         = useState(false)
-  const [error, setError]           = useState<string | null>(null)
-  const [confirmComplete, setConfirm] = useState(false)
-  const [form, setForm] = useState({
+  const [updates, setUpdates]           = useState<TaskUpdate[]>([])
+  const [loadingUpdates, setLoadingUpdates] = useState(true)
+  const [savingUpdate, setSavingUpdate] = useState(false)
+  const [savingTask, setSavingTask]     = useState(false)
+  const [error, setError]               = useState<string | null>(null)
+  const [confirmComplete, setConfirm]   = useState(false)
+
+  const [taskForm, setTaskForm] = useState({
     current_ecd:       task.current_ecd || task.planned_end_date,
     completion_status: task.completion_status,
-    comments:          task.comments || '',
   })
 
-  function set(field: string, value: string) {
-    setForm(f => ({ ...f, [field]: value }))
+  const [updateForm, setUpdateForm] = useState({
+    what_done:          '',
+    what_pending:       '',
+    issue_blocker:      '',
+    action_owner:       '',
+    action_due_date:    '',
+    impact_if_not_done: '',
+  })
+
+  React.useEffect(() => {
+    setLoadingUpdates(true)
+    getTaskUpdates(projectId, task.task_id)
+      .then((data: TaskUpdate[]) => setUpdates(data))
+      .catch(() => setUpdates([]))
+      .finally(() => setLoadingUpdates(false))
+  }, [projectId, task.task_id])
+
+  function setTask(field: string, value: string) {
+    setTaskForm(f => ({ ...f, [field]: value }))
   }
 
-  async function handleSave() {
-    // Enforce acceptance criteria confirmation when completing
-    if (form.completion_status === 'complete' && !confirmComplete) {
+  function setUpdate(field: string, value: string) {
+    setUpdateForm(f => ({ ...f, [field]: value }))
+  }
+
+  async function handleSaveTask() {
+    if (taskForm.completion_status === 'complete' && !confirmComplete) {
       setError('You must confirm acceptance criteria before marking complete.')
       return
     }
-    setSaving(true); setError(null)
+    setSavingTask(true); setError(null)
     try {
-      await updateTask(projectId, task.task_id, form)
+      await updateTask(projectId, task.task_id, taskForm)
       onSaved()
       onClose()
     } catch (err: any) {
       setError(err?.response?.data?.error || 'Failed to update task.')
     } finally {
-      setSaving(false)
+      setSavingTask(false)
+    }
+  }
+
+  async function handlePostUpdate(e: React.FormEvent) {
+    e.preventDefault()
+    setSavingUpdate(true); setError(null)
+    try {
+      const newUpdate = await createTaskUpdate(projectId, task.task_id, updateForm)
+      setUpdates(prev => [newUpdate, ...prev])
+      setUpdateForm({
+        what_done: '', what_pending: '', issue_blocker: '',
+        action_owner: '', action_due_date: '', impact_if_not_done: '',
+      })
+    } catch (err: any) {
+      setError(err?.response?.data?.error || 'Failed to post update.')
+    } finally {
+      setSavingUpdate(false)
     }
   }
 
   const { cls: riskCls, text: riskText } = getRiskStyle(task.risk_label)
-  const isCompleting = form.completion_status === 'complete' && task.completion_status !== 'complete'
+  const isCompleting = taskForm.completion_status === 'complete' && task.completion_status !== 'complete'
 
   return (
     <>
-      {/* Backdrop */}
       <div
         onClick={onClose}
-        style={{
-          position: 'fixed', inset: 0,
-          background: 'rgba(15,30,46,0.3)',
-          zIndex: 900,
-        }}
+        style={{ position: 'fixed', inset: 0, background: 'rgba(15,30,46,0.3)', zIndex: 900 }}
       />
-      {/* Panel */}
-      <div
-        style={{
-          position: 'fixed', top: 0, right: 0, bottom: 0,
-          width: 440,
-          background: 'var(--white)',
-          borderLeft: '1px solid var(--border)',
-          zIndex: 901,
-          display: 'flex',
-          flexDirection: 'column',
-          boxShadow: '-8px 0 32px rgba(0,0,0,0.12)',
-        }}
-      >
+      <div style={{
+        position: 'fixed', top: 0, right: 0, bottom: 0, width: 520,
+        background: 'var(--white)', borderLeft: '1px solid var(--border)',
+        zIndex: 901, display: 'flex', flexDirection: 'column',
+        boxShadow: '-8px 0 32px rgba(0,0,0,0.12)',
+      }}>
+
         {/* Header */}
-        <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid var(--border)' }}>
+        <div style={{ padding: '16px 20px 12px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div style={{ flex: 1, paddingRight: 12 }}>
               <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', lineHeight: 1.3 }}>
                 {task.task_name}
               </div>
-              <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>
-                {task.phase_name || 'No phase'} ·{' '}
-                <span style={{ textTransform: 'capitalize' }}>
-                  {task.control_type.replace('_', ' ')}
-                </span>
+              <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 3 }}>
+                {task.phase_name || 'No phase'} · <span style={{ textTransform: 'capitalize' }}>{task.control_type.replace('_', ' ')}</span>
               </div>
             </div>
             <button className="modal-close" onClick={onClose}>×</button>
           </div>
-          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
             <span className={`status ${riskCls}`}>{riskText}</span>
             <span className={`status ${getStatusStyle(task.completion_status).cls}`}>
               {getStatusStyle(task.completion_status).text}
             </span>
             {task.delay_days > 0 && (
               <span className="mono" style={{ color: 'var(--red)', fontWeight: 600, fontSize: 11, alignSelf: 'center' }}>
-                +{task.delay_days}d delay
+                +{task.delay_days}d
               </span>
             )}
           </div>
         </div>
 
-        {/* Body */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '18px 20px' }}>
-          {error && (
-            <div className="alert-banner red" style={{ marginBottom: 14 }}>⚠ {error}</div>
-          )}
+        {/* Scrollable body */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {error && <div className="alert-banner red">⚠ {error}</div>}
 
-          {/* Read-only info */}
-          <div style={{ marginBottom: 18 }}>
-            <div className="section-label">Task details</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 0', fontSize: 12 }}>
-              {[
-                ['Planned end', fmt(task.planned_end_date)],
-                ['Slippages', task.slippage_count > 0 ? `${task.slippage_count}` : '—'],
-                ['Owner email', task.owner_email || '—'],
-                ['Department', task.owner_department || '—'],
-                ['RN', task.risk_number > 0 ? String(task.risk_number) : '—'],
-                ['CN', task.control_type === 'sub_supplier' ? '100' : task.control_type === 'supplier' ? '10' : '1'],
-              ].map(([label, val]) => (
-                <React.Fragment key={label}>
-                  <span style={{ color: 'var(--text3)' }}>{label}</span>
-                  <span
-                    style={{
-                      color: label === 'Slippages' && task.slippage_count > 0 ? 'var(--red)' : 'var(--text)',
-                      fontWeight: 500,
-                      fontFamily: ['Planned end','RN','CN','Slippages'].includes(label) ? 'var(--mono)' : 'inherit',
-                    }}
-                  >
-                    {val}
-                  </span>
-                </React.Fragment>
-              ))}
+          {/* Task details: ECD + Status */}
+          <div>
+            <div className="section-label" style={{ marginBottom: 10 }}>Task status</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+              <div className="form-group">
+                <label className="form-label">Current ECD</label>
+                <input
+                  className="form-input" type="date"
+                  value={taskForm.current_ecd}
+                  onChange={e => setTask('current_ecd', e.target.value)}
+                />
+                {taskForm.current_ecd > task.planned_end_date && (
+                  <div style={{ fontSize: 11, color: 'var(--amber)', marginTop: 3 }}>
+                    ⚠ Past planned end — slippage will be recorded
+                  </div>
+                )}
+              </div>
+              <div className="form-group">
+                <label className="form-label">Status</label>
+                <select
+                  className="form-input"
+                  value={taskForm.completion_status}
+                  onChange={e => { setTask('completion_status', e.target.value); if (e.target.value !== 'complete') setConfirm(false) }}
+                >
+                  <option value="not_started">Not Started</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="blocked">Blocked</option>
+                  <option value="complete">Complete</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Acceptance confirmation */}
+            {isCompleting && (
+              <div style={{ background: 'var(--green-bg)', border: '1px solid #B3D9C7', borderRadius: 8, padding: '12px 14px' }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--green)', marginBottom: 6 }}>
+                  ✓ Confirm acceptance criteria met
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 10, lineHeight: 1.5 }}>
+                  {task.acceptance_criteria}
+                </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox" checked={confirmComplete}
+                    onChange={e => setConfirm(e.target.checked)}
+                    style={{ width: 15, height: 15, accentColor: 'var(--green)' }}
+                  />
+                  I confirm the acceptance criteria have been met
+                </label>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+              <button
+                className="tb-btn primary"
+                onClick={handleSaveTask}
+                disabled={savingTask || (isCompleting && !confirmComplete)}
+              >
+                {savingTask ? 'Saving...' : 'Save changes'}
+              </button>
             </div>
           </div>
 
-          {/* Acceptance criteria (read-only) */}
-          <div style={{ marginBottom: 18 }}>
-            <div className="section-label">Acceptance criteria</div>
-            <div
-              style={{
-                fontSize: 12,
-                color: 'var(--text2)',
-                background: 'var(--bg)',
-                border: '1px solid var(--border)',
-                borderRadius: 7,
-                padding: '10px 12px',
-                lineHeight: 1.6,
-              }}
-            >
-              {task.acceptance_criteria}
-            </div>
+          <div style={{ borderTop: '1px solid var(--border)' }} />
+
+          {/* Add update form — PM only */}
+          <div>
+            <div className="section-label" style={{ marginBottom: 10 }}>Post update</div>
+            <form onSubmit={handlePostUpdate} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div className="form-group">
+                <label className="form-label">What has been done *</label>
+                <textarea
+                  className="form-input" rows={2} required
+                  value={updateForm.what_done}
+                  onChange={e => setUpdate('what_done', e.target.value)}
+                  placeholder="Progress since last update..."
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">What is yet to be done *</label>
+                <textarea
+                  className="form-input" rows={2} required
+                  value={updateForm.what_pending}
+                  onChange={e => setUpdate('what_pending', e.target.value)}
+                  placeholder="Remaining work..."
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Issue / blocker</label>
+                <textarea
+                  className="form-input" rows={2}
+                  value={updateForm.issue_blocker}
+                  onChange={e => setUpdate('issue_blocker', e.target.value)}
+                  placeholder="What is blocking or at risk? (optional)"
+                />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div className="form-group">
+                  <label className="form-label">Action owner *</label>
+                  <input
+                    className="form-input" required
+                    value={updateForm.action_owner}
+                    onChange={e => setUpdate('action_owner', e.target.value)}
+                    placeholder="Name or email"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Action due by *</label>
+                  <input
+                    className="form-input" type="date" required
+                    value={updateForm.action_due_date}
+                    onChange={e => setUpdate('action_due_date', e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Impact if not done *</label>
+                <textarea
+                  className="form-input" rows={2} required
+                  value={updateForm.impact_if_not_done}
+                  onChange={e => setUpdate('impact_if_not_done', e.target.value)}
+                  placeholder="What happens if this action is missed?"
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button type="submit" className="tb-btn primary" disabled={savingUpdate}>
+                  {savingUpdate ? 'Posting...' : '+ Post update'}
+                </button>
+              </div>
+            </form>
           </div>
 
-          {/* Editable fields */}
-          <div className="form-group" style={{ marginBottom: 14 }}>
-            <label className="form-label">Current ECD</label>
-            <input
-              className="form-input"
-              type="date"
-              value={form.current_ecd}
-              onChange={e => set('current_ecd', e.target.value)}
-            />
-            {form.current_ecd > task.planned_end_date && (
-              <div style={{ fontSize: 11, color: 'var(--amber)', marginTop: 4 }}>
-                ⚠ ECD is past planned end date — this will record a slippage
+          <div style={{ borderTop: '1px solid var(--border)' }} />
+
+          {/* Update history */}
+          <div>
+            <div className="section-label" style={{ marginBottom: 10 }}>
+              Update history · {updates.length} {updates.length === 1 ? 'entry' : 'entries'}
+            </div>
+            {loadingUpdates ? (
+              <div style={{ textAlign: 'center', padding: 20, color: 'var(--text4)', fontSize: 12 }}>Loading...</div>
+            ) : updates.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: 20, color: 'var(--text4)', fontSize: 12 }}>
+                No updates yet. Post the first update above.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {updates.map((u: TaskUpdate) => {
+                  const dueDate  = new Date(u.action_due_date)
+                  const today    = new Date()
+                  const isOverdue = dueDate < today
+                  return (
+                    <div key={u.update_id} style={{
+                      border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden',
+                    }}>
+                      {/* Update card header */}
+                      <div style={{
+                        padding: '8px 14px', background: 'var(--bg)',
+                        borderBottom: '1px solid var(--border)',
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      }}>
+                        <span style={{ fontSize: 11, color: 'var(--text3)', fontFamily: 'var(--mono)' }}>
+                          {new Date(u.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </span>
+                        <span style={{ fontSize: 11, color: 'var(--text3)' }}>
+                          Raised by <strong style={{ color: 'var(--text2)' }}>{u.created_by_name}</strong>
+                        </span>
+                      </div>
+
+                      {/* Update card body */}
+                      <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {[
+                          { key: 'What was done',    val: u.what_done,          danger: false },
+                          { key: 'Yet to be done',   val: u.what_pending,       danger: false },
+                          { key: 'Issue / blocker',  val: u.issue_blocker,      danger: false },
+                          { key: 'Impact if missed', val: u.impact_if_not_done, danger: true  },
+                        ].filter(row => row.val).map(row => (
+                          <div key={row.key} style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 8, alignItems: 'start' }}>
+                            <span style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 500, paddingTop: 1 }}>{row.key}</span>
+                            <span style={{ fontSize: 12, color: row.danger ? 'var(--red)' : 'var(--text)', lineHeight: 1.5 }}>{row.val}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Action footer */}
+                      <div style={{
+                        padding: '8px 14px', background: 'var(--bg)',
+                        borderTop: '1px solid var(--border)',
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      }}>
+                        <span style={{ fontSize: 12, color: 'var(--text2)' }}>
+                          Owner: <strong>{u.action_owner}</strong>
+                        </span>
+                        <span className="mono" style={{
+                          fontSize: 11, fontWeight: 600,
+                          color: isOverdue ? 'var(--red)' : 'var(--text2)',
+                        }}>
+                          Due: {new Date(u.action_due_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          {isOverdue ? ' ⚠' : ''}
+                        </span>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>
-
-          <div className="form-group" style={{ marginBottom: 14 }}>
-            <label className="form-label">Status</label>
-            <select
-              className="form-input"
-              value={form.completion_status}
-              onChange={e => {
-                set('completion_status', e.target.value)
-                if (e.target.value !== 'complete') setConfirm(false)
-              }}
-            >
-              <option value="not_started">Not Started</option>
-              <option value="in_progress">In Progress</option>
-              <option value="blocked">Blocked</option>
-              <option value="complete">Complete</option>
-            </select>
-          </div>
-
-          <div className="form-group" style={{ marginBottom: 14 }}>
-            <label className="form-label">Comments</label>
-            <textarea
-              className="form-input"
-              value={form.comments}
-              onChange={e => set('comments', e.target.value)}
-              placeholder="Latest update, blockers, or notes..."
-              rows={3}
-            />
-          </div>
-
-          {/* Acceptance confirmation — only shown when marking complete */}
-          {isCompleting && (
-            <div
-              style={{
-                background: 'var(--green-bg)',
-                border: '1px solid #B3D9C7',
-                borderRadius: 8,
-                padding: '12px 14px',
-                marginBottom: 14,
-              }}
-            >
-              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--green)', marginBottom: 8 }}>
-                ✓ Confirm acceptance criteria met
-              </div>
-              <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 10, lineHeight: 1.5 }}>
-                {task.acceptance_criteria}
-              </div>
-              <label
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  fontSize: 12,
-                  fontWeight: 500,
-                  color: 'var(--text)',
-                  cursor: 'pointer',
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={confirmComplete}
-                  onChange={e => setConfirm(e.target.checked)}
-                  style={{ width: 15, height: 15, accentColor: 'var(--green)' }}
-                />
-                I confirm the acceptance criteria have been met
-              </label>
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div
-          style={{
-            padding: '14px 20px',
-            borderTop: '1px solid var(--border)',
-            display: 'flex',
-            justifyContent: 'flex-end',
-            gap: 8,
-          }}
-        >
-          <button className="tb-btn" onClick={onClose}>Cancel</button>
-          <button
-            className="tb-btn primary"
-            onClick={handleSave}
-            disabled={saving || (isCompleting && !confirmComplete)}
-          >
-            {saving ? 'Saving...' : 'Save Changes'}
-          </button>
         </div>
       </div>
     </>
@@ -703,7 +802,7 @@ function PhaseSection({
                     <th style={{ width: '9%' }}>Risk</th>
                     <th style={{ width: '5%' }}>RN</th>
                     <th style={{ width: '9%' }}>Status</th>
-                    <th style={{ width: '14%' }}>Comments</th>
+                    <th style={{ width: '14%' }}>Last update</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -833,14 +932,19 @@ function PhaseSection({
                           <span className={`status ${stsCls}`}>{stsText}</span>
                         </td>
 
-                        {/* Comments */}
+                        {/* Last update */}
                         <td style={{ maxWidth: 160 }}>
-                          {task.comments ? (
-                            <div style={{ fontSize: 11, color: 'var(--text3)', lineHeight: 1.4 }}>
-                              {task.comments.substring(0, 60)}{task.comments.length > 60 ? '…' : ''}
+                          {task.last_update_pending ? (
+                            <div>
+                              <div style={{ fontSize: 10, color: 'var(--text4)', marginBottom: 2, fontFamily: 'var(--mono)' }}>
+                                {new Date(task.last_update_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                              </div>
+                              <div style={{ fontSize: 11, color: 'var(--text3)', lineHeight: 1.4 }}>
+                                {task.last_update_pending.substring(0, 55)}{task.last_update_pending.length > 55 ? '…' : ''}
+                              </div>
                             </div>
                           ) : (
-                            <span style={{ color: 'var(--text4)' }}>—</span>
+                            <span style={{ fontSize: 11, color: 'var(--text4)' }}>—</span>
                           )}
                         </td>
                       </tr>
