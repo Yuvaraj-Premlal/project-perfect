@@ -38,6 +38,7 @@ interface Review {
   discussion_points: string | null
   blockers: string | null
   actions_agreed: string | null
+  review_responses: any[] | null
   opv_snapshot: string
   lfv_snapshot: string
   vr_snapshot: string
@@ -336,27 +337,60 @@ function ReviewHistoryRow({ r }: { r: Review }) {
       {expanded && (
         <tr>
           <td colSpan={7} style={{ padding: 0, background: 'var(--bg)' }}>
-            <div style={{ padding: '14px 20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, borderTop: '1px solid var(--border)' }}>
-              {r.discussion_points && (
+            <div style={{ padding: '14px 20px', display: 'flex', flexDirection: 'column', gap: 14, borderTop: '1px solid var(--border)' }}>
+
+              {/* Narrative fields */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
+                {r.discussion_points && (
+                  <div>
+                    <div className="section-label" style={{ marginBottom: 6 }}>Discussion points</div>
+                    <div style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.6 }}>{r.discussion_points}</div>
+                  </div>
+                )}
+                {r.blockers && (
+                  <div>
+                    <div className="section-label" style={{ marginBottom: 6 }}>Blockers</div>
+                    <div style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.6 }}>{r.blockers}</div>
+                  </div>
+                )}
+                {r.actions_agreed && (
+                  <div>
+                    <div className="section-label" style={{ marginBottom: 6 }}>Actions agreed</div>
+                    <div style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.6 }}>{r.actions_agreed}</div>
+                  </div>
+                )}
+              </div>
+
+              {/* Per-item responses */}
+              {r.review_responses && r.review_responses.length > 0 && (
                 <div>
-                  <div className="section-label" style={{ marginBottom: 6 }}>Discussion points</div>
-                  <div style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.6 }}>{r.discussion_points}</div>
+                  <div className="section-label" style={{ marginBottom: 8 }}>Item responses</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {r.review_responses.filter((item: any) => item.what_pending || item.new_ecd).map((item: any, i: number) => (
+                      <div key={i} style={{ border: '1px solid var(--border)', borderRadius: 7, overflow: 'hidden' }}>
+                        <div style={{ padding: '8px 12px', background: 'var(--bg2)', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text2)' }}>Task update</span>
+                          {item.new_ecd && (
+                            <span className="mono" style={{ fontSize: 11, color: 'var(--amber)', fontWeight: 600 }}>
+                              ECD → {new Date(item.new_ecd).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ padding: '10px 12px', display: 'grid', gridTemplateColumns: '120px 1fr', gap: 6, fontSize: 12 }}>
+                          {item.what_done && <><span style={{ color: 'var(--text3)', fontWeight: 500 }}>What was done</span><span style={{ color: 'var(--text)' }}>{item.what_done}</span></>}
+                          {item.what_pending && <><span style={{ color: 'var(--text3)', fontWeight: 500 }}>Yet to be done</span><span style={{ color: 'var(--text)' }}>{item.what_pending}</span></>}
+                          {item.issue_blocker && <><span style={{ color: 'var(--text3)', fontWeight: 500 }}>Blocker</span><span style={{ color: 'var(--text)' }}>{item.issue_blocker}</span></>}
+                          {item.action_owner && <><span style={{ color: 'var(--text3)', fontWeight: 500 }}>Action owner</span><span style={{ color: 'var(--text)' }}>{item.action_owner}</span></>}
+                          {item.impact_if_not_done && <><span style={{ color: 'var(--text3)', fontWeight: 500 }}>Impact</span><span style={{ color: 'var(--red)' }}>{item.impact_if_not_done}</span></>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
-              {r.blockers && (
-                <div>
-                  <div className="section-label" style={{ marginBottom: 6 }}>Blockers</div>
-                  <div style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.6 }}>{r.blockers}</div>
-                </div>
-              )}
-              {r.actions_agreed && (
-                <div>
-                  <div className="section-label" style={{ marginBottom: 6 }}>Actions agreed</div>
-                  <div style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.6 }}>{r.actions_agreed}</div>
-                </div>
-              )}
-              {!r.discussion_points && !r.blockers && !r.actions_agreed && (
-                <div style={{ fontSize: 12, color: 'var(--text4)', gridColumn: '1 / -1' }}>No narrative recorded for this review.</div>
+
+              {!r.discussion_points && !r.blockers && !r.actions_agreed && (!r.review_responses || r.review_responses.length === 0) && (
+                <div style={{ fontSize: 12, color: 'var(--text4)' }}>No details recorded for this review.</div>
               )}
             </div>
           </td>
@@ -461,8 +495,10 @@ export default function ReviewsTab({
         ...(data.agenda?.watch || []).map((item: AgendaItem, i: number) => ({ item, key: `watch_${i}` })),
       ]
       allItems.forEach(({ item, key }) => {
+        // Always use task_id from verified taskMap, not AI output
+        const verifiedTaskId = item.task_id && taskMap[item.task_id] ? item.task_id : ''
         initResponses[key] = {
-          task_id:            item.task_id || '',
+          task_id:            verifiedTaskId,
           new_ecd:            '',
           what_done:          '',
           what_pending:       '',
