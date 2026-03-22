@@ -52,10 +52,6 @@ function fmt(date: string | null) {
   return new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
-function fmtShort(date: string | null) {
-  if (!date) return '—'
-  return new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
-}
 
 function monoColor(val: number, good: number, bad: number, higherIsBetter = true): string {
   if (higherIsBetter) return val >= good ? 'var(--green)' : val <= bad ? 'var(--red)' : 'var(--amber)'
@@ -619,7 +615,7 @@ export default function ReviewsTab({
                     <AgendaItemCard
                       key={`critical_${i}`}
                       item={item}
-                      index={i}
+                      
                       priority="critical"
                       response={responses[`critical_${i}`] || {
                         task_id: '', new_ecd: '', what_done: '', what_pending: '',
@@ -643,7 +639,7 @@ export default function ReviewsTab({
                     <AgendaItemCard
                       key={`watch_${i}`}
                       item={item}
-                      index={i}
+                      
                       priority="watch"
                       response={responses[`watch_${i}`] || {
                         task_id: '', new_ecd: '', what_done: '', what_pending: '',
