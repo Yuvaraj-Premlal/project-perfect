@@ -13,3 +13,6 @@ export const generateWeeklyReport = (pid: string) => api.post(`/api/projects/${p
 export const getPreReviewBrief    = (pid: string) => api.get(`/api/projects/${pid}/nudges/pre-review-brief`).then(r => r.data)
 export const sendNudge            = (pid: string, taskId: string) => api.post(`/api/projects/${pid}/nudges/${taskId}`).then(r => r.data)
 export const closeProject         = (pid: string, data: any) => api.post(`/api/projects/${pid}/close`, data).then(r => r.data)
+
+export const getTaskUpdates  = (pid: string, tid: string) => api.get(`/api/projects/${pid}/tasks/${tid}/updates`).then(r => r.data)
+export const createTaskUpdate = (pid: string, tid: string, data: any) => api.post(`/api/projects/${pid}/tasks/${tid}/updates`, data).then(r => r.data)
