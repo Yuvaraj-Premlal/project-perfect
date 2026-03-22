@@ -1055,7 +1055,6 @@ export default function TasksTab({
 
       {/* Last review summary banner */}
       {(() => {
-        const lastReview = project?.reviews?.[0] || null
         const lastReviewAt = project?.last_review_at
         const nextReviewDue = project?.next_review_due
         if (!lastReviewAt && !nextReviewDue) return null
