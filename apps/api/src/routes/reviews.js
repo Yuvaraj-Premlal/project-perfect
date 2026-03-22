@@ -82,10 +82,10 @@ router.post("/", [
       INSERT INTO reviews (
         project_id, tenant_id, review_date,
         discussion_points, blockers, actions_agreed,
-        attended_by,
+        attended_by, review_responses,
         opv_snapshot, lfv_snapshot, vr_snapshot, momentum_snapshot,
         escalation_triggered, conducted_by
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
       RETURNING *
     `, [
       projectId, req.tenantId,
@@ -94,6 +94,7 @@ router.post("/", [
       blockers || null,
       actions_agreed || null,
       attended_by || null,
+      reviewTaskUpdates ? JSON.stringify(reviewTaskUpdates) : null,
       currentOPV.toFixed(4),
       currentLFV.toFixed(4),
       parseFloat(project.vr).toFixed(4),
