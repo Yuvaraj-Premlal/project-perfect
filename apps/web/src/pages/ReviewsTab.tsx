@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { getReviewAgenda, createReviewFull, getReviews } from '../api/projects'
 
 // ─── Types ────────────────────────────────────────────────────────
@@ -52,10 +52,6 @@ function fmt(date: string | null) {
   return new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
-function fmtShort(date: string | null) {
-  if (!date) return '—'
-  return new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
-}
 
 function monoColor(val: number, good: number, bad: number, higherIsBetter = true): string {
   if (higherIsBetter) return val >= good ? 'var(--green)' : val <= bad ? 'var(--red)' : 'var(--amber)'
@@ -73,7 +69,6 @@ function daysDiff(dateStr: string) {
 // ─── Agenda Item Component ────────────────────────────────────────
 function AgendaItemCard({
   item,
-  index,
   priority,
   response,
   onChange,
