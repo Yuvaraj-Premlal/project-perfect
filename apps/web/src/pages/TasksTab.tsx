@@ -937,7 +937,7 @@ function PhaseSection({
                           {task.last_update_pending ? (
                             <div>
                               <div style={{ fontSize: 10, color: 'var(--text4)', marginBottom: 2, fontFamily: 'var(--mono)' }}>
-                                {new Date(task.last_update_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                                {task.last_update_at ? new Date(task.last_update_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : ''}
                               </div>
                               <div style={{ fontSize: 11, color: 'var(--text3)', lineHeight: 1.4 }}>
                                 {task.last_update_pending.substring(0, 55)}{task.last_update_pending.length > 55 ? '…' : ''}
