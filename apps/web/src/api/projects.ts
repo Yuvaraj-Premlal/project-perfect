@@ -19,3 +19,5 @@ export const createTaskUpdate = (pid: string, tid: string, data: any) => api.pos
 
 export const getReviewAgenda   = (pid: string) => api.get(`/api/projects/${pid}/nudges/review-agenda`).then(r => r.data)
 export const createReviewFull  = (pid: string, data: any) => api.post(`/api/projects/${pid}/reviews`, data).then(r => r.data)
+
+export const getReviewSummary = (pid: string) => api.get(`/api/projects/${pid}/nudges/review-summary`).then(r => r.data)
