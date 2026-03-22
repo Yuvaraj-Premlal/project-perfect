@@ -693,16 +693,17 @@ function PhaseSection({
               <table className="tbl">
                 <thead>
                   <tr>
-                    <th style={{ padding: '10px 16px', width: '22%' }}>Task name</th>
-                    <th style={{ width: '9%' }}>Control</th>
-                    <th style={{ width: '13%' }}>Owner</th>
-                    <th style={{ width: '8%' }}>Due date</th>
-                    <th style={{ width: '8%' }}>ECD</th>
-                    <th style={{ width: '7%' }}>Delay</th>
-                    <th style={{ width: '6%' }}>Slips</th>
-                    <th style={{ width: '10%' }}>Risk</th>
-                    <th style={{ width: '6%' }}>RN</th>
-                    <th style={{ width: '11%' }}>Status</th>
+                    <th style={{ padding: '10px 16px', width: '20%' }}>Task name</th>
+                    <th style={{ width: '8%' }}>Control</th>
+                    <th style={{ width: '10%' }}>Owner</th>
+                    <th style={{ width: '7%' }}>Due date</th>
+                    <th style={{ width: '7%' }}>ECD</th>
+                    <th style={{ width: '6%' }}>Delay</th>
+                    <th style={{ width: '5%' }}>Slips</th>
+                    <th style={{ width: '9%' }}>Risk</th>
+                    <th style={{ width: '5%' }}>RN</th>
+                    <th style={{ width: '9%' }}>Status</th>
+                    <th style={{ width: '14%' }}>Comments</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -711,11 +712,18 @@ function PhaseSection({
                     const { cls: stsCls, text: stsText }   = getStatusStyle(task.completion_status)
                     const rn = task.risk_number || 0
                     const ecdDiffers = task.current_ecd && task.current_ecd !== task.planned_end_date
+                    const today = new Date().toISOString().split('T')[0]
+                    const isOverdue = task.current_ecd
+                      && task.current_ecd < today
+                      && task.completion_status !== 'complete'
 
                     return (
                       <tr
                         key={task.task_id}
-                        style={{ cursor: 'pointer' }}
+                        style={{
+                          cursor: 'pointer',
+                          background: isOverdue ? 'var(--red-bg)' : undefined,
+                        }}
                         onClick={() => setSelectedTask(task)}
                       >
                         {/* Task name + criteria */}
@@ -824,6 +832,17 @@ function PhaseSection({
                         <td>
                           <span className={`status ${stsCls}`}>{stsText}</span>
                         </td>
+
+                        {/* Comments */}
+                        <td style={{ maxWidth: 160 }}>
+                          {task.comments ? (
+                            <div style={{ fontSize: 11, color: 'var(--text3)', lineHeight: 1.4 }}>
+                              {task.comments.substring(0, 60)}{task.comments.length > 60 ? '…' : ''}
+                            </div>
+                          ) : (
+                            <span style={{ color: 'var(--text4)' }}>—</span>
+                          )}
+                        </td>
                       </tr>
                     )
                   })}
@@ -929,6 +948,34 @@ export default function TasksTab({
           Click any task row to update
         </span>
       </div>
+
+      {/* Overdue warning banner */}
+      {(() => {
+        const today = new Date().toISOString().split('T')[0]
+        const overdueTasks = tasks.filter(t =>
+          t.current_ecd && t.current_ecd < today && t.completion_status !== 'complete'
+        )
+        if (overdueTasks.length === 0) return null
+        return (
+          <div className="alert-banner red" style={{ marginBottom: 16, alignItems: 'flex-start' }}>
+            <span style={{ fontSize: 16, lineHeight: 1, flexShrink: 0 }}>⚠</span>
+            <div>
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                {overdueTasks.length} task{overdueTasks.length > 1 ? 's' : ''} need updating — ECD has passed today
+              </div>
+              <div style={{ fontSize: 11, lineHeight: 1.8 }}>
+                {overdueTasks.map((t, i) => (
+                  <span key={t.task_id}>
+                    <strong>{t.task_name}</strong>
+                    {t.phase_name ? ` (${t.phase_name})` : ''}
+                    {i < overdueTasks.length - 1 ? ' · ' : ''}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* No phases state */}
       {phases.length === 0 && (
