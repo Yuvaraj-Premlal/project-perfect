@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getProject, getTasks, getReviews, getWeeklyReports, getPreReviewBrief, sendNudge, generateWeeklyReport, createTask, createReview } from '../api/projects'
 import { api } from '../api/client'
+import TasksTab from './TasksTab'
 
 const TABS = ['Summary','Tasks','Kanban','Reviews','Reports','Closure'] as const
 type Tab = typeof TABS[number]
@@ -246,126 +247,7 @@ function SummaryTab({ project, tasks }: { project:any, tasks:any[] }) {
   )
 }
 
-// ── Tasks Tab ─────────────────────────────────────────────────────
-function TasksTab({ projectId, tasks, refetch }: { projectId:string, tasks:any[], refetch:()=>void }) {
-  const [showModal, setShowModal] = useState(false)
-  const [nudging, setNudging]     = useState<string|null>(null)
-  const [nudgeMap, setNudgeMap]   = useState<Record<string,string>>({})
-  const [saving, setSaving]       = useState(false)
-  const [form, setForm] = useState({ task_name:'', control_type:'internal', planned_end_date:'', acceptance_criteria:'' })
-
-  async function handleNudge(taskId: string) {
-    setNudging(taskId)
-    try { const d = await sendNudge(projectId, taskId); setNudgeMap(p=>({...p,[taskId]:d.message})) }
-    finally { setNudging(null) }
-  }
-
-  async function handleAddTask(e: React.FormEvent) {
-    e.preventDefault(); setSaving(true)
-    try {
-      await createTask(projectId, form)
-      setShowModal(false)
-      setForm({ task_name:'', control_type:'internal', planned_end_date:'', acceptance_criteria:'' })
-      refetch()
-    } finally { setSaving(false) }
-  }
-
-  return (
-    <div>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
-        <div style={{ fontSize:11, color:'var(--text3)' }}>{tasks.length} tasks · {tasks.filter((t:any)=>t.completion_status==='complete').length} complete</div>
-        <button className="tb-btn primary" onClick={()=>setShowModal(true)}>
-          <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><line x1="8" y1="3" x2="8" y2="13" stroke="white" strokeWidth="1.5" strokeLinecap="round"/><line x1="3" y1="8" x2="13" y2="8" stroke="white" strokeWidth="1.5" strokeLinecap="round"/></svg>
-          Add Task
-        </button>
-      </div>
-
-      <div className="card" style={{ padding:0, overflow:'hidden' }}>
-        <table className="tbl">
-          <thead>
-            <tr>
-              <th style={{ padding:'12px 14px' }}>Task name</th>
-              <th>Control</th><th>Due</th><th>Delay</th><th>RN</th><th>Status</th><th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {tasks.length===0 && <tr><td colSpan={7} style={{ textAlign:'center', padding:32, color:'var(--text4)' }}>No tasks yet. Add your first task.</td></tr>}
-            {tasks.map((t:any) => {
-              const { cls, text } = getRiskStyle(t.risk_label)
-              const rn = t.rn || 0
-              return (
-                <React.Fragment key={t.task_id}>
-                  <tr>
-                    <td style={{ maxWidth:220 }}>
-                      <div style={{ fontWeight:500, color:'var(--text)' }}>{t.task_name}</div>
-                      <div style={{ fontSize:10, color:'var(--text4)', marginTop:2 }}>{t.acceptance_criteria?.substring(0,60)}{t.acceptance_criteria?.length>60?'…':''}</div>
-                    </td>
-                    <td><span className="tag">{t.control_type.replace('_',' ')}</span></td>
-                    <td><span className="mono">{new Date(t.planned_end_date).toLocaleDateString('en-GB',{day:'2-digit',month:'short'})}</span></td>
-                    <td>{t.delay_days>0 ? <span className="mono" style={{ color:'var(--red)',fontWeight:600 }}>+{t.delay_days}d</span> : <span style={{ color:'var(--text4)' }}>—</span>}</td>
-                    <td><span className="mono" style={{ color:rn===0?'var(--text4)':rn>=100?'var(--red)':rn>=50?'var(--amber)':'var(--blue)', fontWeight:600 }}>{rn||'—'}</span></td>
-                    <td><span className={`status ${cls}`}>{text}</span></td>
-                    <td>
-                      {t.delay_days>0 && t.completion_status!=='complete' && (
-                        <button className="ai-btn" onClick={()=>handleNudge(t.task_id)} disabled={nudging===t.task_id} style={{ fontSize:10 }}>
-                          {nudging===t.task_id?'…':'✉ Nudge'}
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                  {nudgeMap[t.task_id] && (
-                    <tr>
-                      <td colSpan={7} style={{ padding:'4px 14px 12px', background:'var(--ai-bg)' }}>
-                        <div style={{ fontSize:11, color:'var(--ai)', lineHeight:1.6 }}>✦ {nudgeMap[t.task_id]}</div>
-                      </td>
-                    </tr>
-                  )}
-                </React.Fragment>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      <div className={`modal-overlay ${showModal?'open':''}`} onClick={e=>e.target===e.currentTarget&&setShowModal(false)}>
-        <div className="modal">
-          <div className="modal-header">
-            <div className="modal-title">Add Task</div>
-            <button className="modal-close" onClick={()=>setShowModal(false)}>×</button>
-          </div>
-          <form onSubmit={handleAddTask}>
-            <div className="modal-body">
-              <div className="form-group">
-                <label className="form-label">Task name *</label>
-                <input className="form-input" value={form.task_name} onChange={e=>setForm(f=>({...f,task_name:e.target.value}))} required placeholder="e.g. Raw Material Readiness" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Control type *</label>
-                <select className="form-input" value={form.control_type} onChange={e=>setForm(f=>({...f,control_type:e.target.value}))}>
-                  <option value="internal">Internal (CN=1)</option>
-                  <option value="supplier">Supplier (CN=10)</option>
-                  <option value="sub_supplier">Sub-supplier (CN=100)</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Planned end date *</label>
-                <input className="form-input" type="date" value={form.planned_end_date} onChange={e=>setForm(f=>({...f,planned_end_date:e.target.value}))} required />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Acceptance criteria *</label>
-                <textarea className="form-input" value={form.acceptance_criteria} onChange={e=>setForm(f=>({...f,acceptance_criteria:e.target.value}))} required placeholder="What does completion look like?" />
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button type="button" className="tb-btn" onClick={()=>setShowModal(false)}>Cancel</button>
-              <button type="submit" className="tb-btn primary" disabled={saving}>{saving?'Adding...':'Add Task'}</button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  )
-}
+// ── Tasks Tab — now in TasksTab.tsx (imported above) ──────────────
 
 // ── Kanban Tab ────────────────────────────────────────────────────
 function KanbanTab({ tasks }: { tasks:any[] }) {
@@ -606,7 +488,7 @@ export default function ProjectView({ projectId }: { projectId:string }) {
         ))}
       </div>
       {activeTab==='Summary'  && <SummaryTab project={project} tasks={tasks as any[]} />}
-      {activeTab==='Tasks'    && <TasksTab projectId={projectId} tasks={tasks as any[]} refetch={refetchTasks} />}
+      {activeTab==='Tasks'    && <TasksTab projectId={projectId} project={project} tasks={tasks as any[]} refetch={refetchTasks} />}
       {activeTab==='Kanban'   && <KanbanTab tasks={tasks as any[]} />}
       {activeTab==='Reviews'  && <ReviewsTab projectId={projectId} reviews={reviews as any[]} refetch={refetchReviews} />}
       {activeTab==='Reports'  && <ReportsTab projectId={projectId} />}
