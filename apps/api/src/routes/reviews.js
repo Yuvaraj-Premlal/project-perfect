@@ -40,8 +40,8 @@ router.post("/", [
   const { projectId } = req.params;
   const {
     discussion_points, blockers, actions_agreed, review_date,
-    attended_by,
-    task_updates: reviewTaskUpdates  // array of { task_id, new_ecd, what_done, what_pending, issue_blocker, action_owner, action_due_date, impact_if_not_done }
+    attended_by, ai_summary, action_items,
+    task_updates: reviewTaskUpdates
   } = req.body;
 
   const client = await pool.connect();
@@ -82,10 +82,10 @@ router.post("/", [
       INSERT INTO reviews (
         project_id, tenant_id, review_date,
         discussion_points, blockers, actions_agreed,
-        attended_by, review_responses,
+        attended_by, ai_summary, action_items,
         opv_snapshot, lfv_snapshot, vr_snapshot, momentum_snapshot,
         escalation_triggered, conducted_by
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
       RETURNING *
     `, [
       projectId, req.tenantId,
@@ -94,7 +94,8 @@ router.post("/", [
       blockers || null,
       actions_agreed || null,
       attended_by || null,
-      reviewTaskUpdates ? JSON.stringify(reviewTaskUpdates) : null,
+      ai_summary || null,
+      action_items ? JSON.stringify(action_items) : null,
       currentOPV.toFixed(4),
       currentLFV.toFixed(4),
       parseFloat(project.vr).toFixed(4),
