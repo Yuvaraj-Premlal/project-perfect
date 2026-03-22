@@ -1,7 +1,7 @@
 const router  = require('express').Router({ mergeParams: true });
 const { pool } = require('../db');
 const { requireRole } = require('../middleware/tenant');
-const { generateNudgeMessage, generatePreReviewBrief } = require('../services/ai');
+const { generateNudgeMessage, generatePreReviewBrief, generateReviewAgenda } = require('../services/ai');
 
 // ─────────────────────────────────────────────
 // POST /api/projects/:projectId/nudges/:taskId
@@ -104,6 +104,75 @@ router.get('/pre-review-brief', async (req, res) => {
       project_name: project.project_name,
       brief:        brief || 'Brief unavailable — please review task list manually.',
       generated_at: new Date().toISOString()
+    });
+
+  } finally {
+    client.release();
+  }
+});
+
+// ─────────────────────────────────────────────
+// GET /api/projects/:projectId/nudges/review-agenda
+// AI-generated structured review agenda from task data
+// ─────────────────────────────────────────────
+router.get('/review-agenda', async (req, res) => {
+  const { projectId } = req.params;
+  const client = await pool.connect();
+  try {
+    await client.query(`SET app.tenant_id = '${req.tenantId}'`);
+
+    const projectResult = await client.query(
+      `SELECT * FROM projects WHERE project_id = $1 AND tenant_id = $2`,
+      [projectId, req.tenantId]
+    );
+    if (projectResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    const project = projectResult.rows[0];
+
+    // Get tasks with latest update info
+    const tasksResult = await client.query(`
+      SELECT
+        t.*,
+        pp.phase_name,
+        latest_u.what_pending   AS last_update_pending,
+        latest_u.created_at     AS last_update_at
+      FROM tasks t
+      LEFT JOIN project_phases pp ON pp.phase_id = t.phase_id
+      LEFT JOIN LATERAL (
+        SELECT what_pending, created_at
+        FROM task_updates
+        WHERE task_id = t.task_id
+        ORDER BY created_at DESC
+        LIMIT 1
+      ) latest_u ON true
+      WHERE t.project_id = $1 AND t.tenant_id = $2
+      ORDER BY t.risk_number DESC
+    `, [projectId, req.tenantId]);
+
+    // Get last review date
+    const lastReviewResult = await client.query(`
+      SELECT review_date, attended_by FROM reviews
+      WHERE project_id = $1
+      ORDER BY review_date DESC LIMIT 1
+    `, [projectId]);
+    const lastReviewDate = lastReviewResult.rows[0]?.review_date || null;
+
+    const agenda = await generateReviewAgenda({
+      projectName:    project.project_name,
+      opv:            parseFloat(project.opv),
+      lfv:            parseFloat(project.lfv),
+      momentum:       parseFloat(project.momentum),
+      tasks:          tasksResult.rows,
+      lastReviewDate
+    });
+
+    res.json({
+      project_id:   projectId,
+      generated_at: new Date().toISOString(),
+      next_review_due: project.next_review_due,
+      last_review_date: lastReviewDate,
+      agenda
     });
 
   } finally {
