@@ -34,7 +34,6 @@ router.get('/', async (req, res) => {
 // ─────────────────────────────────────────────
 router.post("/", [
   body("review_date").isISO8601().withMessage("review_date must be a valid date"),
-  body("discussion_points").notEmpty().withMessage("discussion_points is required"),
   validate
 ], requireRole("pm"), async (req, res) => {
   const { projectId } = req.params;
