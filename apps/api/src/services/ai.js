@@ -208,8 +208,8 @@ async function generateReviewAgenda({ projectName, opv, lfv, momentum, tasks, la
       const lastUpdate = t.last_update_pending
         ? `Last update (${t.last_update_at ? new Date(t.last_update_at).toLocaleDateString('en-GB', { day:'2-digit', month:'short' }) : 'unknown'}): ${t.last_update_pending}`
         : 'No updates posted yet'
-      const ecdOverdue = t.current_ecd && t.current_ecd < today ? ` — ECD OVERDUE (${t.current_ecd})` : ''
-      return `- ${t.task_name} [${t.control_type}, RN:${t.risk_number || 0}, ${t.slippage_count || 0} slippages, phase: ${t.phase_name || 'unassigned'}${ecdOverdue}]
+      const ecdOverdue = t.current_ecd && t.current_ecd < today ? ' — OVERDUE' : ''
+      return `- ${t.task_name} [${t.control_type}, RN:${t.risk_number || 0}, ${t.slippage_count || 0} slippages, phase: ${t.phase_name || 'unassigned'}, ECD: ${t.current_ecd || 'not set'}${ecdOverdue}]
   ${lastUpdate}`
     }).join('\n')
 
