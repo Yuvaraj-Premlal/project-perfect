@@ -275,6 +275,43 @@ Return JSON with this exact structure:
   }
 }
 
+// ─────────────────────────────────────────────
+// Review summary — numbered bullet points
+// ─────────────────────────────────────────────
+async function generateReviewSummary({ projectName, opv, lfv, momentum, tasks, lastReviewDate }) {
+  const today = new Date().toISOString().split('T')[0]
+
+  const activeTasks = tasks.filter(t => t.completion_status !== 'complete')
+  const highRisk    = activeTasks.filter(t => t.risk_label === 'high_risk')
+  const overdue     = activeTasks.filter(t => t.current_ecd && t.current_ecd < today)
+  const completed   = tasks.filter(t => t.completion_status === 'complete')
+  const stale       = activeTasks.filter(t => !t.last_update_pending)
+
+  const taskContext = activeTasks
+    .sort((a, b) => (b.risk_number || 0) - (a.risk_number || 0))
+    .slice(0, 10)
+    .map(t => `- ${t.task_name} [RN:${t.risk_number || 0}, ECD:${t.current_ecd || 'not set'}, phase:${t.phase_name || 'unassigned'}, ${t.risk_label}${t.current_ecd && t.current_ecd < today ? ' — OVERDUE' : ''}]${t.last_update_pending ? ` Last update: ${t.last_update_pending}` : ' — no updates'}`)
+    .join('\n')
+
+  const system = `You are a project management AI generating a pre-review briefing for a programme manager.
+Generate a numbered bullet point summary — concise, factual, actionable.
+Each bullet must be one clear sentence. Maximum 8 bullets.
+Respond with ONLY the numbered bullets. No headings, no preamble, no markdown.
+Example format:
+1. Three high-risk tasks in Phase 2 require immediate attention.
+2. OPV has improved from last review indicating positive momentum.`
+
+  const user = `Generate a review summary for: ${projectName}
+OPV: ${(opv * 100).toFixed(1)}% | LFV: ${(lfv * 100).toFixed(1)}% | Momentum: ${momentum >= 0 ? '+' : ''}${(momentum * 100).toFixed(1)}%
+Last review: ${lastReviewDate || 'None'} | Today: ${today}
+High risk tasks: ${highRisk.length} | Overdue tasks: ${overdue.length} | Completed: ${completed.length} | No updates: ${stale.length}
+
+Top tasks by risk:
+${taskContext}`
+
+  return await callAI(system, user, 400)
+}
+
 module.exports = {
   callAI,
   generateNudgeMessage,
@@ -283,5 +320,6 @@ module.exports = {
   generatePreReviewBrief,
   generateWeeklyNarrative,
   generateClosureReport,
-  generateReviewAgenda
+  generateReviewAgenda,
+  generateReviewSummary
 };
