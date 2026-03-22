@@ -1053,6 +1053,43 @@ export default function TasksTab({
         </span>
       </div>
 
+      {/* Last review summary banner */}
+      {(() => {
+        const lastReview = project?.reviews?.[0] || null
+        const lastReviewAt = project?.last_review_at
+        const nextReviewDue = project?.next_review_due
+        if (!lastReviewAt && !nextReviewDue) return null
+        const today = new Date().toISOString().split('T')[0]
+        const isReviewOverdue = nextReviewDue && nextReviewDue < today
+        return (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            padding: '9px 14px', marginBottom: 12,
+            background: isReviewOverdue ? 'var(--red-bg)' : 'var(--blue5)',
+            border: `1px solid ${isReviewOverdue ? '#EAADA8' : '#B3D4EC'}`,
+            borderRadius: 8, fontSize: 12,
+          }}>
+            <span style={{ fontSize: 14, flexShrink: 0 }}>{isReviewOverdue ? '⚠' : 'ℹ'}</span>
+            <div style={{ flex: 1, color: isReviewOverdue ? 'var(--red)' : 'var(--blue)' }}>
+              {lastReviewAt ? (
+                <>
+                  <strong>Last review: </strong>
+                  {new Date(lastReviewAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  {project?.last_review_attended_by ? ` · Attended by ${project.last_review_attended_by}` : ''}
+                  {nextReviewDue && (
+                    <span style={{ marginLeft: 10, color: isReviewOverdue ? 'var(--red)' : 'var(--text3)' }}>
+                      · {isReviewOverdue ? 'Review overdue' : `Next review: ${new Date(nextReviewDue).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`}
+                    </span>
+                  )}
+                </>
+              ) : (
+                <span style={{ color: 'var(--text3)' }}>No reviews conducted yet</span>
+              )}
+            </div>
+          </div>
+        )
+      })()}
+
       {/* Overdue warning banner */}
       {(() => {
         const today = new Date().toISOString().split('T')[0]

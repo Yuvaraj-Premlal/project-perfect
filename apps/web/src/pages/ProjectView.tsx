@@ -3,10 +3,21 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getProject, getTasks, getReviews, getWeeklyReports, getPreReviewBrief, generateWeeklyReport, createReview } from '../api/projects'
 import { api } from '../api/client'
 import TasksTab from './TasksTab'
+import ReviewsTab from './ReviewsTab'
 
 const TABS = ['Summary','Tasks','Kanban','Reviews','Reports','Closure'] as const
 type Tab = typeof TABS[number]
 
+function getRiskStyle(label: string) {
+  const m: Record<string, {cls:string,text:string}> = {
+    high_risk:  {cls:'red',   text:'High Risk'},
+    moderate:   {cls:'amber', text:'Moderate'},
+    monitoring: {cls:'blue',  text:'Monitoring'},
+    on_track:   {cls:'green', text:'On Track'},
+    complete:   {cls:'navy',  text:'Complete'},
+  }
+  return m[label] || m.on_track
+}
 
 function monoColor(val: number, good: number, bad: number, hib=true): string {
   if (hib) return val>=good?'var(--green)':val<=bad?'var(--red)':'var(--amber)'
@@ -480,7 +491,7 @@ export default function ProjectView({ projectId }: { projectId:string }) {
       {activeTab==='Summary'  && <SummaryTab project={project} tasks={tasks as any[]} />}
       {activeTab==='Tasks'    && <TasksTab projectId={projectId} project={project} tasks={tasks as any[]} refetch={refetchTasks} />}
       {activeTab==='Kanban'   && <KanbanTab tasks={tasks as any[]} />}
-      {activeTab==='Reviews'  && <ReviewsTab projectId={projectId} reviews={reviews as any[]} refetch={refetchReviews} />}
+      {activeTab==='Reviews'  && <ReviewsTab projectId={projectId} project={project} />}
       {activeTab==='Reports'  && <ReportsTab projectId={projectId} />}
       {activeTab==='Closure'  && <ClosureTab project={project} />}
     </div>
