@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { getReviewAgenda, createReviewFull, getReviews } from '../api/projects'
 
 // ─── Types ────────────────────────────────────────────────────────
@@ -52,6 +52,10 @@ function fmt(date: string | null) {
   return new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
+function fmtShort(date: string | null) {
+  if (!date) return '—'
+  return new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
+}
 
 function monoColor(val: number, good: number, bad: number, higherIsBetter = true): string {
   if (higherIsBetter) return val >= good ? 'var(--green)' : val <= bad ? 'var(--red)' : 'var(--amber)'
@@ -69,11 +73,13 @@ function daysDiff(dateStr: string) {
 // ─── Agenda Item Component ────────────────────────────────────────
 function AgendaItemCard({
   item,
+  index,
   priority,
   response,
   onChange,
 }: {
   item: AgendaItem
+  index: number
   priority: 'critical' | 'watch'
   response: AgendaResponse
   onChange: (field: keyof AgendaResponse, value: string) => void
@@ -302,6 +308,69 @@ function AgendaItemCard({
 }
 
 // ─── Review History ───────────────────────────────────────────────
+function ReviewHistoryRow({ r }: { r: Review }) {
+  const [expanded, setExpanded] = useState(false)
+  const opv = parseFloat(r.opv_snapshot)
+  const lfv = parseFloat(r.lfv_snapshot || '1')
+  const vr  = parseFloat(r.vr_snapshot || '0')
+  const mom = parseFloat(r.momentum_snapshot || '0')
+  return (
+    <>
+      <tr
+        style={{ cursor: 'pointer' }}
+        onClick={() => setExpanded(e => !e)}
+      >
+        <td style={{ padding: '10px 14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none"
+              style={{ flexShrink: 0, color: 'var(--text3)', transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
+              <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            <span className="mono" style={{ fontSize: 11 }}>{fmt(r.review_date)}</span>
+          </div>
+        </td>
+        <td style={{ fontSize: 11, color: 'var(--text3)', maxWidth: 160 }}>
+          {r.attended_by || r.conducted_by_name || '—'}
+        </td>
+        <td><span className="mono" style={{ color: monoColor(opv, 1.0, 0.8), fontWeight: 600, fontSize: 11 }}>{opv.toFixed(2)}</span></td>
+        <td><span className="mono" style={{ color: monoColor(lfv, 1.0, 1.2, false), fontWeight: 600, fontSize: 11 }}>{lfv.toFixed(2)}</span></td>
+        <td><span className="mono" style={{ color: monoColor(vr, 0.9, 0.6), fontWeight: 600, fontSize: 11 }}>{vr.toFixed(2)}</span></td>
+        <td><span className="mono" style={{ color: mom >= 0 ? 'var(--green)' : 'var(--red)', fontWeight: 600, fontSize: 11 }}>{mom >= 0 ? '+' : ''}{mom.toFixed(2)}</span></td>
+        <td>{r.escalation_triggered ? <span className="status red">Triggered</span> : <span className="status green">Clear</span>}</td>
+      </tr>
+      {expanded && (
+        <tr>
+          <td colSpan={7} style={{ padding: 0, background: 'var(--bg)' }}>
+            <div style={{ padding: '14px 20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, borderTop: '1px solid var(--border)' }}>
+              {r.discussion_points && (
+                <div>
+                  <div className="section-label" style={{ marginBottom: 6 }}>Discussion points</div>
+                  <div style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.6 }}>{r.discussion_points}</div>
+                </div>
+              )}
+              {r.blockers && (
+                <div>
+                  <div className="section-label" style={{ marginBottom: 6 }}>Blockers</div>
+                  <div style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.6 }}>{r.blockers}</div>
+                </div>
+              )}
+              {r.actions_agreed && (
+                <div>
+                  <div className="section-label" style={{ marginBottom: 6 }}>Actions agreed</div>
+                  <div style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.6 }}>{r.actions_agreed}</div>
+                </div>
+              )}
+              {!r.discussion_points && !r.blockers && !r.actions_agreed && (
+                <div style={{ fontSize: 12, color: 'var(--text4)', gridColumn: '1 / -1' }}>No narrative recorded for this review.</div>
+              )}
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  )
+}
+
 function ReviewHistory({ reviews }: { reviews: Review[] }) {
   if (reviews.length === 0) return null
   return (
@@ -309,7 +378,7 @@ function ReviewHistory({ reviews }: { reviews: Review[] }) {
       <div className="card-header">
         <div>
           <div className="card-title">Review history</div>
-          <div className="card-sub">OPV · LFV · VR snapshotted at each review</div>
+          <div className="card-sub">Click any row to see full review details</div>
         </div>
       </div>
       <table className="tbl">
@@ -325,51 +394,9 @@ function ReviewHistory({ reviews }: { reviews: Review[] }) {
           </tr>
         </thead>
         <tbody>
-          {reviews.map((r: Review) => {
-            const opv = parseFloat(r.opv_snapshot)
-            const lfv = parseFloat(r.lfv_snapshot || '1')
-            const vr  = parseFloat(r.vr_snapshot || '0')
-            const mom = parseFloat(r.momentum_snapshot || '0')
-            return (
-              <tr key={r.review_id}>
-                <td className="mono" style={{ fontSize: 11 }}>
-                  {fmt(r.review_date)}
-                </td>
-                <td style={{ fontSize: 11, color: 'var(--text3)', maxWidth: 160 }}>
-                  {r.attended_by || r.conducted_by_name || '—'}
-                </td>
-                <td>
-                  <span className="mono" style={{ color: monoColor(opv, 1.0, 0.8), fontWeight: 600, fontSize: 11 }}>
-                    {opv.toFixed(2)}
-                  </span>
-                </td>
-                <td>
-                  <span className="mono" style={{ color: monoColor(lfv, 1.0, 1.2, false), fontWeight: 600, fontSize: 11 }}>
-                    {lfv.toFixed(2)}
-                  </span>
-                </td>
-                <td>
-                  <span className="mono" style={{ color: monoColor(vr, 0.9, 0.6), fontWeight: 600, fontSize: 11 }}>
-                    {vr.toFixed(2)}
-                  </span>
-                </td>
-                <td>
-                  <span className="mono" style={{
-                    color: mom >= 0 ? 'var(--green)' : 'var(--red)',
-                    fontWeight: 600, fontSize: 11,
-                  }}>
-                    {mom >= 0 ? '+' : ''}{mom.toFixed(2)}
-                  </span>
-                </td>
-                <td>
-                  {r.escalation_triggered
-                    ? <span className="status red">Triggered</span>
-                    : <span className="status green">Clear</span>
-                  }
-                </td>
-              </tr>
-            )
-          })}
+          {reviews.map((r: Review) => (
+            <ReviewHistoryRow key={r.review_id} r={r} />
+          ))}
         </tbody>
       </table>
     </div>
@@ -380,9 +407,11 @@ function ReviewHistory({ reviews }: { reviews: Review[] }) {
 export default function ReviewsTab({
   projectId,
   project,
+  tasks = [],
 }: {
   projectId: string
   project: any
+  tasks?: any[]
 }) {
   const [reviews, setReviews]       = useState<Review[]>([])
   const [agendaData, setAgendaData] = useState<any>(null)
@@ -414,6 +443,21 @@ export default function ReviewsTab({
     setGenerating(true); setError(null)
     try {
       const data = await getReviewAgenda(projectId)
+      // Enrich agenda items with current_ecd from tasks data
+      const taskMap: Record<string, any> = {}
+      tasks.forEach((t: any) => { taskMap[t.task_id] = t })
+      if (data.agenda?.critical) {
+        data.agenda.critical = data.agenda.critical.map((item: AgendaItem) => ({
+          ...item,
+          current_ecd: item.task_id && taskMap[item.task_id] ? taskMap[item.task_id].current_ecd : item.current_ecd
+        }))
+      }
+      if (data.agenda?.watch) {
+        data.agenda.watch = data.agenda.watch.map((item: AgendaItem) => ({
+          ...item,
+          current_ecd: item.task_id && taskMap[item.task_id] ? taskMap[item.task_id].current_ecd : item.current_ecd
+        }))
+      }
       setAgendaData(data)
       // Initialise empty responses for each item
       const initResponses: Record<string, AgendaResponse> = {}
@@ -457,18 +501,18 @@ export default function ReviewsTab({
 
     // Build task_updates array from responded agenda items
     const taskUpdates = Object.entries(responses)
-      .filter(([, r]) => r.what_pending.trim().length > 0)
+      .filter(([, r]) => r.what_pending.trim().length > 0 || r.new_ecd.trim().length > 0)
       .map(([, r]) => ({
         task_id:            r.task_id || null,
         new_ecd:            r.new_ecd || null,
         what_done:          r.what_done,
         what_pending:       r.what_pending,
         issue_blocker:      r.issue_blocker || null,
-        action_owner:       r.action_owner,
-        action_due_date:    r.action_due_date || null,
-        impact_if_not_done: r.impact_if_not_done,
+        action_owner:       r.action_owner || 'PM',
+        action_due_date:    r.action_due_date || r.new_ecd || null,
+        impact_if_not_done: r.impact_if_not_done || 'ECD updated during review.',
       }))
-      .filter(item => item.task_id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.task_id)) // only valid UUID task items
+      .filter(item => item.task_id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.task_id))
 
     try {
       await createReviewFull(projectId, {
@@ -615,7 +659,7 @@ export default function ReviewsTab({
                     <AgendaItemCard
                       key={`critical_${i}`}
                       item={item}
-                      
+                      index={i}
                       priority="critical"
                       response={responses[`critical_${i}`] || {
                         task_id: '', new_ecd: '', what_done: '', what_pending: '',
@@ -639,7 +683,7 @@ export default function ReviewsTab({
                     <AgendaItemCard
                       key={`watch_${i}`}
                       item={item}
-                      
+                      index={i}
                       priority="watch"
                       response={responses[`watch_${i}`] || {
                         task_id: '', new_ecd: '', what_done: '', what_pending: '',
