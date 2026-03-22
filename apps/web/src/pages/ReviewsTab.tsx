@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { getReviewAgenda, createReviewFull, getReviews } from '../api/projects'
 
 // ─── Types ────────────────────────────────────────────────────────
@@ -73,13 +73,11 @@ function daysDiff(dateStr: string) {
 // ─── Agenda Item Component ────────────────────────────────────────
 function AgendaItemCard({
   item,
-  index,
   priority,
   response,
   onChange,
 }: {
   item: AgendaItem
-  index: number
   priority: 'critical' | 'watch'
   response: AgendaResponse
   onChange: (field: keyof AgendaResponse, value: string) => void
