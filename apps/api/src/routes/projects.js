@@ -250,4 +250,42 @@ router.get('/:projectId/closure-report', async (req, res) => {
   res.json(result.rows[0]);
 });
 
+
+// ─────────────────────────────────────────────
+// PATCH /api/projects/:id/phases/:phaseId
+// Update data availability note on a phase
+// Dates are immutable — only data_notes and data_availability can change
+// ─────────────────────────────────────────────
+router.patch('/:id/phases/:phaseId', requireRole('pm'), async (req, res) => {
+  const { id, phaseId } = req.params;
+  const { data_availability, data_notes } = req.body;
+
+  // Verify phase belongs to this project
+  const existing = await dbQuery(req.tenantId,
+    `SELECT * FROM project_phases WHERE phase_id = $1 AND project_id = $2 AND tenant_id = $3`,
+    [phaseId, id, req.tenantId]);
+  if (existing.rows.length === 0)
+    return res.status(404).json({ error: 'Phase not found' });
+
+  const result = await dbQuery(req.tenantId, `
+    UPDATE project_phases SET
+      data_availability       = COALESCE($1, data_availability),
+      data_notes              = $2,
+      data_notes_updated_by   = $3,
+      data_notes_updated_at   = NOW()
+    WHERE phase_id = $4 AND project_id = $5 AND tenant_id = $6
+    RETURNING *
+  `, [data_availability || null, data_notes || null, req.userName || 'PM',
+      phaseId, id, req.tenantId]);
+
+  await dbQuery(req.tenantId, `
+    INSERT INTO audit_log (tenant_id, event_type, entity_type, entity_id, user_id, new_value)
+    VALUES ($1, 'phase_notes_updated', 'project', $2, $3, $4)
+  `, [req.tenantId, id, req.userId,
+      JSON.stringify({ phase_id: phaseId, data_availability, data_notes })]);
+
+  res.json(result.rows[0]);
+});
+
 module.exports = router;
+// This line intentionally left blank
