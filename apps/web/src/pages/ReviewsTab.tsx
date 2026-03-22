@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { getReviewAgenda, createReviewFull, getReviews } from '../api/projects'
 
 // ─── Types ────────────────────────────────────────────────────────
@@ -51,6 +51,10 @@ function fmt(date: string | null) {
   return new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
+function fmtShort(date: string | null) {
+  if (!date) return '—'
+  return new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
+}
 
 function monoColor(val: number, good: number, bad: number, higherIsBetter = true): string {
   if (higherIsBetter) return val >= good ? 'var(--green)' : val <= bad ? 'var(--red)' : 'var(--amber)'
@@ -68,11 +72,13 @@ function daysDiff(dateStr: string) {
 // ─── Agenda Item Component ────────────────────────────────────────
 function AgendaItemCard({
   item,
+  index,
   priority,
   response,
   onChange,
 }: {
   item: AgendaItem
+  index: number
   priority: 'critical' | 'watch'
   response: AgendaResponse
   onChange: (field: keyof AgendaResponse, value: string) => void
@@ -453,7 +459,7 @@ export default function ReviewsTab({
         action_due_date:    r.action_due_date || null,
         impact_if_not_done: r.impact_if_not_done,
       }))
-      .filter(item => item.task_id) // only task items, skip phase-level
+      .filter(item => item.task_id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.task_id)) // only valid UUID task items
 
     try {
       await createReviewFull(projectId, {
@@ -600,6 +606,7 @@ export default function ReviewsTab({
                     <AgendaItemCard
                       key={`critical_${i}`}
                       item={item}
+                      index={i}
                       priority="critical"
                       response={responses[`critical_${i}`] || {
                         task_id: '', new_ecd: '', what_done: '', what_pending: '',
@@ -623,6 +630,7 @@ export default function ReviewsTab({
                     <AgendaItemCard
                       key={`watch_${i}`}
                       item={item}
+                      index={i}
                       priority="watch"
                       response={responses[`watch_${i}`] || {
                         task_id: '', new_ecd: '', what_done: '', what_pending: '',
