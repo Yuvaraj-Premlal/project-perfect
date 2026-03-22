@@ -211,8 +211,7 @@ async function generateReviewAgenda({ projectName, opv, lfv, momentum, tasks, la
       const ecdOverdue = t.current_ecd && t.current_ecd < today ? ` — ECD OVERDUE (${t.current_ecd})` : ''
       return `- ${t.task_name} [${t.control_type}, RN:${t.risk_number || 0}, ${t.slippage_count || 0} slippages, phase: ${t.phase_name || 'unassigned'}${ecdOverdue}]
   ${lastUpdate}`
-    }).join('
-')
+    }).join('\n')
 
   const completedSince = lastReviewDate
     ? tasks.filter(t => t.completion_status === 'complete').map(t => t.task_name).join(', ')
