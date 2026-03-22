@@ -7,16 +7,6 @@ import TasksTab from './TasksTab'
 const TABS = ['Summary','Tasks','Kanban','Reviews','Reports','Closure'] as const
 type Tab = typeof TABS[number]
 
-function getRiskStyle(label: string) {
-  const m: Record<string, {cls:string,text:string}> = {
-    high_risk:  {cls:'red',   text:'High Risk'},
-    moderate:   {cls:'amber', text:'Moderate'},
-    monitoring: {cls:'blue',  text:'Monitoring'},
-    on_track:   {cls:'green', text:'On Track'},
-    complete:   {cls:'navy',  text:'Complete'},
-  }
-  return m[label] || m.on_track
-}
 
 function monoColor(val: number, good: number, bad: number, hib=true): string {
   if (hib) return val>=good?'var(--green)':val<=bad?'var(--red)':'var(--amber)'
