@@ -9,6 +9,7 @@ interface AgendaItem {
   context: string
   ai_question: string
   suggested_minutes: number
+  current_ecd?: string | null
 }
 
 interface Agenda {
@@ -271,13 +272,27 @@ function AgendaItemCard({
                 <label style={{ fontSize: 11, fontWeight: 500, color: 'var(--text3)' }}>
                   Update ECD (if changed in this review)
                 </label>
-                <input
-                  className="form-input"
-                  type="date"
-                  value={response.new_ecd}
-                  onChange={e => onChange('new_ecd', e.target.value)}
-                  style={{ maxWidth: 180 }}
-                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <input
+                    className="form-input"
+                    type="date"
+                    value={response.new_ecd}
+                    onChange={e => onChange('new_ecd', e.target.value)}
+                    style={{ maxWidth: 180 }}
+                  />
+                  {item.current_ecd && (
+                    <span style={{
+                      fontSize: 11, fontFamily: 'var(--mono)',
+                      color: 'var(--text4)',
+                      background: 'var(--bg)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 6,
+                      padding: '5px 10px',
+                    }}>
+                      Current: {new Date(item.current_ecd).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </span>
+                  )}
+                </div>
                 {response.new_ecd && (
                   <div style={{ fontSize: 11, color: 'var(--amber)' }}>
                     ⚠ ECD change will be applied to the task and recorded as a slippage if later than current ECD
