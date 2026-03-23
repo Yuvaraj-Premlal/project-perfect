@@ -24,13 +24,11 @@ function KPIRow({ project, tasks }: { project:any, tasks:any[] }) {
   const opv  = parseFloat(project.opv)
   const lfv  = parseFloat(project.lfv)
   const mom  = parseFloat(project.momentum)
-  const vr   = opv / (lfv || 1)
   const high = tasks.filter((t:any)=>t.risk_label==='high_risk').length
   return (
     <div className="kpi-row">
       <div className="kpi"><div className="kpi-label">OPV</div><div className={`kpi-val ${opv>=1?'green':opv>=0.8?'amber':'red'}`}>{opv.toFixed(2)}</div><div className="kpi-sub">Target ≥ 0.8</div></div>
       <div className="kpi"><div className="kpi-label">LFV</div><div className={`kpi-val ${lfv<=1?'green':lfv<=1.2?'amber':'red'}`}>{lfv.toFixed(2)}</div><div className="kpi-sub">Target ≤ 1.2</div></div>
-      <div className="kpi"><div className="kpi-label">VR</div><div className={`kpi-val ${vr>=0.9?'green':vr>=0.6?'amber':'red'}`}>{vr.toFixed(2)}</div><div className="kpi-sub">OPV ÷ LFV</div></div>
       <div className="kpi"><div className="kpi-label">Momentum</div><div className={`kpi-val ${mom>=0?'green':'red'}`}>{mom>=0?'+':''}{mom.toFixed(2)}</div><div className="kpi-sub">vs last review</div></div>
       <div className="kpi"><div className="kpi-label">High Risk</div><div className={`kpi-val ${high===0?'green':high<=2?'amber':'red'}`}>{high}</div><div className="kpi-sub">tasks</div></div>
       <div className="kpi"><div className="kpi-label">ECD</div><div className="kpi-val navy" style={{ fontSize:14, marginTop:2 }}>{project.ecd_algorithmic ? new Date(project.ecd_algorithmic).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) : '—'}</div><div className="kpi-sub">Planned: {new Date(project.planned_end_date).toLocaleDateString('en-GB',{day:'2-digit',month:'short'})}</div></div>
@@ -732,9 +730,6 @@ function ClosureTab({ project }: { project:any }) {
 export default function ProjectView({ projectId }: { projectId:string }) {
   const [activeTab, setActiveTab] = useState<Tab>('Summary')
   // Lifted review state — persists across tab switches
-  const [reviewAiSummary, setReviewAiSummary]     = useState('')
-  const [reviewActionItems, setReviewActionItems] = useState<ActionItem[]>([emptyAction()])
-  const [reviewAttendedBy, setReviewAttendedBy]   = useState('')
 
   const { data:project, isLoading, refetch:refetchProject } = useQuery({ queryKey:['project',projectId], queryFn:()=>getProject(projectId) })
   const { data:tasks=[], refetch:refetchTasks } = useQuery({ queryKey:['tasks',projectId], queryFn:()=>getTasks(projectId) })
@@ -778,12 +773,6 @@ export default function ProjectView({ projectId }: { projectId:string }) {
       {activeTab==='Reviews'       && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <ReviewsTab
         projectId={projectId}
         project={project}
-        aiSummary={reviewAiSummary}
-        setAiSummary={setReviewAiSummary}
-        actionItems={reviewActionItems}
-        setActionItems={setReviewActionItems}
-        attendedBy={reviewAttendedBy}
-        setAttendedBy={setReviewAttendedBy}
       />)}
       {activeTab==='Reports'       && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <ReportsTab projectId={projectId} />)}
       {activeTab==='Closure'       && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <ClosureTab project={project} />)}
