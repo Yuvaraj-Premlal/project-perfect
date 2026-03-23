@@ -5,16 +5,7 @@ import { api } from '../api/client'
 import TasksTab from './TasksTab'
 import ReviewsTab from './ReviewsTab'
 
-interface ActionItem {
-  key_issue: string
-  action_agreed: string
-  responsible: string
-  due_date: string
-}
 
-function emptyAction(): ActionItem {
-  return { key_issue: '', action_agreed: '', responsible: '', due_date: '' }
-}
 
 const TABS = ['Summary','Tasks','Status Kanban','Weekly Kanban','Function Kanban','Reviews','Reports','Closure'] as const
 type Tab = typeof TABS[number]
