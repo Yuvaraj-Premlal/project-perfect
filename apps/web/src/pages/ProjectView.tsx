@@ -198,8 +198,14 @@ function SummaryTab({ project, tasks }: { project:any, tasks:any[] }) {
   const delayDays = pEnd&&ecd?Math.max(0,Math.round((ecd.getTime()-pEnd.getTime())/86400000)):0
   async function genBrief() {
     setBL(true)
-    try { const d = await getPreReviewBrief(project.project_id); setBrief(d.brief) }
-    finally { setBL(false) }
+    try {
+      const d = await getPreReviewBrief(project.project_id)
+      setBrief(d.brief)
+    } catch(err:any) {
+      if (err?.response?.status === 429) {
+        setBrief('⚠ ' + (err.response.data?.error || 'Daily AI limit reached for this project. Try again tomorrow.'))
+      }
+    } finally { setBL(false) }
   }
   // For project completion bar
   function barPct(d:Date|null, start:Date|null, end:Date|null){
@@ -301,10 +307,10 @@ function SummaryTab({ project, tasks }: { project:any, tasks:any[] }) {
           {/* AI Brief */}
           <div className="card">
             <div className="card-header">
-              <div><div className="card-title" style={{ display:'flex', alignItems:'center', gap:8 }}><span className="ai-tag">AI</span> Pre-Review Brief</div><div className="card-sub">AI summary before your review</div></div>
+              <div><div className="card-title" style={{ display:'flex', alignItems:'center', gap:8 }}><span className="ai-tag">AI</span> Project Quick Glance</div><div className="card-sub">Quick snapshot of project status</div></div>
               <button className="ai-btn" onClick={genBrief} disabled={briefLoading}>{briefLoading ? <><div className="ai-spinner" />&nbsp;Generating...</> : '✦ Generate'}</button>
             </div>
-            {brief ? <div className="ai-panel"><div className="ai-panel-header">✦ AI Brief</div><div className="ai-panel-body">{brief}</div></div> : <div style={{ fontSize:11, color:'var(--text4)', textAlign:'center', padding:'18px 0' }}>Click Generate to surface an AI pre-review brief</div>}
+            {brief ? <div className="ai-panel"><div className="ai-panel-header">✦ AI Brief</div><div className="ai-panel-body">{brief}</div></div> : <div style={{ fontSize:11, color:'var(--text4)', textAlign:'center', padding:'18px 0' }}>Click Generate for a quick project glance</div>}
           </div>
 
           {/* Slippage chart */}
@@ -575,18 +581,76 @@ function LockScreen({ flaggedTasks }: { flaggedTasks: any[] }) {
   )
 }
 
+function parseReportSections(content: string) {
+  const sections = ['Executive Summary','Schedule Status','Schedule Slippages','Supplier Performance','Escalation Watch','Recommended Actions']
+  const result: {heading:string, body:string}[] = []
+  sections.forEach((s, i) => {
+    const marker = `## ${s}`
+    const nextMarker = i < sections.length-1 ? `## ${sections[i+1]}` : null
+    const start = content.indexOf(marker)
+    if (start === -1) return
+    const bodyStart = start + marker.length
+    const end = nextMarker ? content.indexOf(nextMarker) : content.length
+    result.push({ heading: s, body: content.slice(bodyStart, end).trim() })
+  })
+  if (result.length === 0) result.push({ heading: '', body: content })
+  return result
+}
+
+function printReport(report: any) {
+  const win = window.open('', '_blank')
+  if (!win) return
+  const sections = parseReportSections(report.report_content || '')
+  const date = new Date(report.week_ending).toLocaleDateString('en-GB', {day:'2-digit',month:'long',year:'numeric'})
+  win.document.write(`<!DOCTYPE html><html><head><title>Weekly Report - ${date}</title>
+  <style>
+    body{font-family:Arial,sans-serif;max-width:800px;margin:40px auto;color:#222;line-height:1.7}
+    h1{font-size:22px;font-weight:600;margin-bottom:4px}
+    .meta{font-size:13px;color:#666;margin-bottom:24px}
+    h2{font-size:15px;font-weight:600;margin:20px 0 6px;padding-bottom:4px;border-bottom:1px solid #ddd;color:#1a1a2e}
+    p{font-size:13px;margin:0 0 8px}
+    .metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:16px 0;background:#f5f5f5;padding:14px;border-radius:6px}
+    .metric{text-align:center}.metric .val{font-size:18px;font-weight:600}.metric .lbl{font-size:11px;color:#666}
+    @media print{body{margin:20px}}
+  </style></head><body>
+  <h1>Weekly Executive Report</h1>
+  <div class="meta">Week ending ${date} &nbsp;·&nbsp; Generated ${new Date(report.created_at||Date.now()).toLocaleDateString('en-GB')}</div>
+  <div class="metrics">
+    <div class="metric"><div class="val">${(parseFloat(report.opv_snapshot||0)*100).toFixed(1)}%</div><div class="lbl">OPV</div></div>
+    <div class="metric"><div class="val">${(parseFloat(report.lfv_snapshot||0)*100).toFixed(1)}%</div><div class="lbl">LFV</div></div>
+    <div class="metric"><div class="val">${report.high_risk_count||0}</div><div class="lbl">High risk tasks</div></div>
+  </div>
+  ${sections.map(s => `${s.heading?`<h2>${s.heading}</h2>`:''}<p>${s.body.replace(/
+/g,'</p><p>')}</p>`).join('')}
+  </body></html>`)
+  win.document.close()
+  win.focus()
+  setTimeout(()=>win.print(), 500)
+}
+
 function ReportsTab({ projectId }: { projectId:string }) {
   const qc = useQueryClient()
+  const [expanded, setExpanded] = React.useState<string|null>(null)
   const { data:reports=[], isLoading } = useQuery({ queryKey:['weekly-reports',projectId], queryFn:()=>getWeeklyReports(projectId) })
-  const { mutate:generate, isPending } = useMutation({ mutationFn:()=>generateWeeklyReport(projectId), onSuccess:()=>qc.invalidateQueries({ queryKey:['weekly-reports',projectId] }) })
+  const { mutate:generate, isPending, error:genError } = useMutation({
+    mutationFn:()=>generateWeeklyReport(projectId),
+    onSuccess:()=>qc.invalidateQueries({ queryKey:['weekly-reports',projectId] })
+  })
   if (isLoading) return <div style={{ textAlign:'center', padding:40, color:'var(--text4)' }}>Loading...</div>
   return (
     <div>
-      <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:12 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+        <div style={{ fontSize:12, color:'var(--text3)' }}>Executive reports · 2 per week limit · stored for future retrieval</div>
         <button className="ai-btn" onClick={()=>generate()} disabled={isPending}>{isPending ? <><div className="ai-spinner"/>&nbsp;Generating...</> : '✦ Generate Weekly Report'}</button>
       </div>
+      {(genError as any)?.response?.status===429 && (
+        <div className="alert-banner red" style={{ marginBottom:12 }}>⚠ {(genError as any).response.data?.error || 'Weekly report limit reached. Try again next week.'}</div>
+      )}
       {(reports as any[]).length===0 && <div style={{ textAlign:'center', padding:40, color:'var(--text4)', fontSize:12 }}>No reports yet.</div>}
-      {(reports as any[]).map((r:any) => (
+      {(reports as any[]).map((r:any) => {
+        const isOpen = expanded === r.report_id
+        const sections = parseReportSections(r.report_content || '')
+        return (
         <div key={r.report_id} className="card">
           <div className="card-header"><div><div className="card-title">Week ending {new Date(r.week_ending).toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'})}</div><div className="card-sub">{new Date(r.generated_at).toLocaleString('en-GB')}</div></div><span className="mono" style={{ color:'var(--blue)', fontWeight:600, fontSize:12 }}>OPV {(parseFloat(r.opv_snapshot)*100).toFixed(1)}%</span></div>
           <div className="ai-panel"><div className="ai-panel-header">✦ AI Weekly Narrative</div><div className="ai-panel-body">{r.report_content}</div></div>
