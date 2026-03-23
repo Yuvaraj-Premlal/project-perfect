@@ -133,45 +133,63 @@ This project ${urgency}. Write 3-4 sentences.`;
 // Pre-review brief
 // ─────────────────────────────────────────────
 async function generatePreReviewBrief({ projectName, opv, lfv, momentum, highRiskTasks, tasks }) {
-  const system = `You are a project management assistant preparing a pre-review briefing note for a programme manager. Be concise. Highlight what needs attention.`;
-  const riskySummary = tasks
+  const highRisk = tasks
     .filter(t => t.risk_label === 'high_risk' || t.risk_label === 'moderate')
-    .map(t => `${t.task_name} (${t.delay_days} days late, ${t.control_type})`)
-    .join(', ');
-  const user = `Prepare a pre-review brief:
-Project: ${projectName}
-OPV: ${(opv * 100).toFixed(1)}%
-LFV: ${(lfv * 100).toFixed(1)}%
-Momentum: ${momentum > 0 ? '+' : ''}${(momentum * 100).toFixed(1)}%
-High risk tasks: ${highRiskTasks}
-Tasks needing attention: ${riskySummary || 'none'}
-Write a 3-4 sentence briefing note.`;
-  return await callAI(system, user, 300);
+    .map(t => `${t.task_name} [${t.control_type.replace('_',' ')}, ${t.delay_days} days delayed, RN:${t.risk_number||0}]`)
+    .join('\n')
+  const stale = tasks.filter(t => t.completion_status !== 'complete' && (!t.last_update_at || (new Date().getTime() - new Date(t.last_update_at).getTime()) > 4*24*60*60*1000))
+    .map(t => t.task_name).join(', ')
+  const system = `You are a project management assistant preparing a project quick glance for a programme manager.
+Generate exactly 5-7 numbered bullet points. Each bullet is one clear, actionable sentence.
+Focus ONLY on: high risk items, tasks needing updates, and specific next actions.
+Do NOT mention OPV, LFV, VR or any metric numbers. Be direct and specific.
+Format: numbered list only, no headings, no preamble.`
+  const user = `Project: ${projectName}
+High risk / moderate tasks:
+${highRisk || 'None'}
+Tasks with no update in 4+ days: ${stale || 'None'}
+Momentum: ${momentum >= 0 ? 'improving' : 'declining'}
+Generate the project quick glance bullets.`
+  return await callAI(system, user, 400)
 }
 
 // ─────────────────────────────────────────────
 // Weekly report narrative
 // ─────────────────────────────────────────────
-async function generateWeeklyNarrative({ projectName, customerName, opv, lfv, vr, momentum, highRiskTasks, totalTasks, escalationActive, weekEnding }) {
-  const system = `You are a project management assistant writing weekly status reports for senior leadership in a manufacturing company. Be factual, concise, and professional. Write in third person. Maximum 5 sentences.`;
-  const trend = momentum > 0 ? 'improving' : momentum < 0 ? 'declining' : 'flat';
-  const escalationNote = escalationActive ? 'An active escalation is in place.' : 'No active escalations.';
-  const user = `Write a weekly status narrative for week ending ${weekEnding}:
-Project: ${projectName}
-Customer: ${customerName || 'Customer'}
-OPV: ${(opv * 100).toFixed(1)}% (target: above 80%)
-LFV: ${(lfv * 100).toFixed(1)}%
-VR: ${(vr * 100).toFixed(1)}%
-Momentum trend: ${trend}
-High risk tasks: ${highRiskTasks} of ${totalTasks} total tasks
-${escalationNote}
-Write 4-5 sentences covering current status, trend, key risks, and recommended focus for next week.`;
-  return await callAI(system, user, 400);
+async function generateWeeklyNarrative({ projectName, customerName, opv, lfv, momentum, highRiskTasks, totalTasks, escalationActive, weekEnding, tasks }) {
+  const highRiskList = (tasks||[]).filter(t => t.risk_label === 'high_risk')
+    .sort((a,b) => (b.risk_number||0)-(a.risk_number||0))
+    .slice(0,5)
+    .map(t => `- ${t.task_name} [${t.control_type.replace('_',' ')}, ${t.delay_days}d delay, RN:${t.risk_number||0}]`)
+    .join('\n')
+  const supplierTasks = (tasks||[]).filter(t => t.control_type==='supplier'||t.control_type==='sub_supplier')
+  const supplierDelayed = supplierTasks.filter(t => (t.delay_days||0)>0).length
+  const internalTasks = (tasks||[]).filter(t => t.control_type==='internal')
+  const internalDelayed = internalTasks.filter(t => (t.delay_days||0)>0).length
+  const slippedTasks = (tasks||[]).filter(t => (t.slippage_count||0)>0)
+    .map(t => `${t.task_name} (+${t.delay_days}d)`).join(', ')
+  const system = `You are a project management assistant writing a comprehensive weekly executive report for senior leadership in a manufacturing company.
+The report must be structured with these exact section headings:
+## Executive Summary
+## Schedule Status
+## Schedule Slippages
+## Supplier Performance
+## Escalation Watch
+## Recommended Actions
+Each section should be 2-4 sentences. Be factual, specific, and professional. Third person. Flowing prose per section, no bullet points within sections.`
+  const user = `Generate weekly executive report for week ending ${weekEnding}:
+Project: ${projectName} | Customer: ${customerName||'Customer'}
+OPV: ${(opv*100).toFixed(1)}% (target >80%) | LFV: ${(lfv*100).toFixed(1)}% (target <120%)
+Momentum: ${momentum>0?'improving':momentum<0?'declining':'flat'} | High risk: ${highRiskTasks}/${totalTasks} tasks
+Escalation active: ${escalationActive?'YES - CRITICAL':'No'}
+Top high risk tasks:
+${highRiskList||'None'}
+Slipped tasks: ${slippedTasks||'None'}
+Supplier performance: ${supplierDelayed}/${supplierTasks.length} external tasks delayed
+Internal performance: ${internalDelayed}/${internalTasks.length} internal tasks delayed`
+  return await callAI(system, user, 800)
 }
 
-// ─────────────────────────────────────────────
-// Closure report
-// ─────────────────────────────────────────────
 async function generateClosureReport({ projectName, customerName, startDate, plannedEndDate, actualEndDate, finalOpv, finalLfv, totalTasks, completedTasks, totalSlippages, closureNotes }) {
   const system = `You are a project management assistant writing formal project closure reports for manufacturing programmes. Be professional, factual, and constructive. Write in third person.`;
   const daysVariance = Math.round((new Date(actualEndDate) - new Date(plannedEndDate)) / (1000 * 60 * 60 * 24));
@@ -280,35 +298,23 @@ Return JSON with this exact structure:
 // ─────────────────────────────────────────────
 async function generateReviewSummary({ projectName, opv, lfv, momentum, tasks, lastReviewDate }) {
   const today = new Date().toISOString().split('T')[0]
-
-  const activeTasks = tasks.filter(t => t.completion_status !== 'complete')
-  const highRisk    = activeTasks.filter(t => t.risk_label === 'high_risk')
-  const overdue     = activeTasks.filter(t => t.current_ecd && t.current_ecd < today)
-  const completed   = tasks.filter(t => t.completion_status === 'complete')
-  const stale       = activeTasks.filter(t => !t.last_update_pending)
-
-  const taskContext = activeTasks
-    .sort((a, b) => (b.risk_number || 0) - (a.risk_number || 0))
-    .slice(0, 10)
-    .map(t => `- ${t.task_name} [RN:${t.risk_number || 0}, ECD:${t.current_ecd || 'not set'}, phase:${t.phase_name || 'unassigned'}, ${t.risk_label}${t.current_ecd && t.current_ecd < today ? ' — OVERDUE' : ''}]${t.last_update_pending ? ` Last update: ${t.last_update_pending}` : ' — no updates'}`)
+  const highRisk = tasks.filter(t => t.risk_label === 'high_risk' || t.risk_label === 'moderate')
+    .map(t => `${t.task_name} [${t.control_type.replace('_',' ')}, ${t.delay_days} days delayed]`)
     .join('\n')
-
-  const system = `You are a project management AI generating a pre-review briefing for a programme manager.
-Generate a numbered bullet point summary — concise, factual, actionable.
-Each bullet must be one clear sentence. Maximum 8 bullets.
-Respond with ONLY the numbered bullets. No headings, no preamble, no markdown.
-Example format:
-1. Three high-risk tasks in Phase 2 require immediate attention.
-2. OPV has improved from last review indicating positive momentum.`
-
-  const user = `Generate a review summary for: ${projectName}
-OPV: ${(opv * 100).toFixed(1)}% | LFV: ${(lfv * 100).toFixed(1)}% | Momentum: ${momentum >= 0 ? '+' : ''}${(momentum * 100).toFixed(1)}%
-Last review: ${lastReviewDate || 'None'} | Today: ${today}
-High risk tasks: ${highRisk.length} | Overdue tasks: ${overdue.length} | Completed: ${completed.length} | No updates: ${stale.length}
-
-Top tasks by risk:
-${taskContext}`
-
+  const stale = tasks.filter(t => t.completion_status !== 'complete' && (!t.last_update_at || (new Date().getTime() - new Date(t.last_update_at).getTime()) > 4*24*60*60*1000))
+    .map(t => t.task_name).join(', ')
+  const system = `You are a project management assistant preparing a review summary for a programme manager.
+Generate exactly 5-7 numbered bullet points. Each bullet is one clear, actionable sentence.
+Focus ONLY on: high risk items, tasks needing updates, and specific next actions.
+Do NOT mention OPV, LFV, VR or any metric numbers. Be direct and specific.
+Format: numbered list only, no headings, no preamble.`
+  const user = `Project: ${projectName}
+Last review: ${lastReviewDate || 'None'}
+High risk / moderate tasks:
+${highRisk || 'None'}
+Tasks with no update in 4+ days: ${stale || 'None'}
+Momentum: ${momentum >= 0 ? 'improving' : 'declining'}
+Generate the review summary bullets.`
   return await callAI(system, user, 400)
 }
 
