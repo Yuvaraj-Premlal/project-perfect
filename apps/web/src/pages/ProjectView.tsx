@@ -5,7 +5,16 @@ import { api } from '../api/client'
 import TasksTab from './TasksTab'
 import ReviewsTab from './ReviewsTab'
 
+interface ActionItem {
+  key_issue: string
+  action_agreed: string
+  responsible: string
+  due_date: string
+}
 
+function emptyAction(): ActionItem {
+  return { key_issue: '', action_agreed: '', responsible: '', due_date: '' }
+}
 
 const TABS = ['Summary','Tasks','Status Kanban','Weekly Kanban','Function Kanban','Reviews','Reports','Closure'] as const
 type Tab = typeof TABS[number]
@@ -109,17 +118,17 @@ function RSPChart({ tasks, project }: { tasks:any[], project:any }) {
   )
 }
 
-function SlippageChart({ tasks }: { tasks:any[] }) {
+function SlippageChart({ tasks, project }: { tasks:any[], project:any }) {
   const groups = [
     {label:'Internal',     key:'internal',     color:'#B5D4F4', darkColor:'#378ADD', textColor:'#0C447C'},
     {label:'Supplier',     key:'supplier',     color:'#FAC775', darkColor:'#BA7517', textColor:'#633806'},
     {label:'Sub-supplier', key:'sub_supplier', color:'#F7C1C1', darkColor:'#E24B4A', textColor:'#791F1F'},
   ]
-  const lastReview = 7 // days — tasks updated within last 7 days count as "since last review"
-  const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-lastReview)
+  // Use actual last review date from project, fallback to 7 days ago
+  const lastReviewDate = project?.last_review_at ? new Date(project.last_review_at) : new Date(Date.now() - 7*24*60*60*1000)
   function allTimeSlips(key:string){return tasks.filter((t:any)=>t.control_type===key).reduce((s:number,t:any)=>s+(t.slippage_count||0),0)}
-  // Since last review — slippages on tasks updated recently (approximation without slippage history dates)
-  function recentSlips(key:string){return tasks.filter((t:any)=>t.control_type===key&&t.last_update_at&&new Date(t.last_update_at)>cutoff).reduce((s:number,t:any)=>s+(t.slippage_count||0),0)}
+  // Since last review — tasks whose ECD was last updated after the last review date
+  function recentSlips(key:string){return tasks.filter((t:any)=>t.control_type===key&&t.slippage_count>0&&t.last_update_at&&new Date(t.last_update_at)>lastReviewDate).reduce((s:number,t:any)=>s+(t.slippage_count||0),0)}
   const maxVal = Math.max(...groups.map(g=>allTimeSlips(g.key)),1)
   return (
     <div>
@@ -222,61 +231,6 @@ function SummaryTab({ project, tasks }: { project:any, tasks:any[] }) {
               <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'var(--text3)', marginBottom:5 }}><span>Completion progress</span><span>{progPct}%</span></div>
               <div style={{ background:'var(--bg2)', borderRadius:99, height:6 }}><div style={{ width:`${progPct}%`, height:6, borderRadius:99, background:'var(--blue2)', transition:'width 0.4s' }} /></div>
             </div>
-            {/* Completion range */}
-            {pStart && pEnd && (
-              <div style={{ marginTop:16, paddingTop:14, borderTop:'1px solid var(--border)' }}>
-                <div className="section-label" style={{ marginBottom:6 }}>Completion range estimated during planning based on dependencies</div>
-                <div style={{ fontSize:11, color:depColor, marginBottom:10 }}>{depLabel} · {externalDep}% external</div>
-                {/* Baseline vs ECD bars */}
-                <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-                  {[
-                    {label:'Baseline',color:'#B5D4F4',textColor:'#0C447C',end:pEnd},
-                    {label:'Expected',color:'#F7C1C1',textColor:'#791F1F',end:ecd||pEnd},
-                  ].map((row,i)=>{
-                    const endPct = chartEnd&&pStart ? barPct(row.end, pStart, new Date((chartEnd?.getTime()||0)+14*86400000)) : 0
-                    return (
-                      <div key={row.label} style={{ display:'flex', alignItems:'center', gap:8 }}>
-                        <div style={{ width:60, fontSize:10, color:'var(--text3)', flexShrink:0 }}>{row.label}</div>
-                        <div style={{ flex:1, height:20, background:'var(--bg)', borderRadius:4, position:'relative', overflow:'hidden' }}>
-                          {i===0&&<div style={{ position:'absolute', top:0, bottom:0, left:`${todayPct}%`, width:1.5, background:'var(--blue)', opacity:0.8, zIndex:5 }} />}
-                          <div style={{ position:'absolute', top:1, height:18, left:'0%', width:`${endPct}%`, background:row.color, borderRadius:3, display:'flex', alignItems:'center', padding:'0 8px', gap:6, overflow:'hidden' }}>
-                            <span style={{ fontSize:10, fontWeight:500, color:row.textColor, whiteSpace:'nowrap', flexShrink:0 }}>{fs(pStart)}</span>
-                            <span style={{ fontSize:10, fontWeight:500, color:row.textColor, marginLeft:'auto', whiteSpace:'nowrap', flexShrink:0 }}>{fs(row.end)}</span>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-                {/* Stats */}
-                <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8, marginTop:12 }}>
-                  {[
-                    {label:'Planned end',val:fs(pEnd),color:'var(--green)'},
-                    {label:'ECD',val:fs(ecd),color:'var(--red)'},
-                    {label:'Total delay',val:delayDays>0?`+${delayDays}d`:'On time',color:delayDays>0?'var(--red)':'var(--green)'},
-                  ].map(s=>(
-                    <div key={s.label} style={{ background:'var(--bg)', borderRadius:7, padding:'8px 10px' }}>
-                      <div style={{ fontSize:12, fontWeight:600, fontFamily:'var(--mono)', color:s.color }}>{s.val}</div>
-                      <div style={{ fontSize:10, color:'var(--text3)', marginTop:2 }}>{s.label}</div>
-                    </div>
-                  ))}
-                </div>
-                {/* TCR / DCR */}
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:8 }}>
-                  {[
-                    {label:'TCR — Task Chaos Ratio',val:tcr.toFixed(2),sub:`${Math.round(tcr*100)}% tasks external`},
-                    {label:'DCR — Duration Chaos Ratio',val:dcr.toFixed(2),sub:`${Math.round(dcr*100)}% duration external`},
-                  ].map(s=>(
-                    <div key={s.label} style={{ background:'var(--bg)', borderRadius:7, padding:'8px 10px' }}>
-                      <div style={{ fontSize:15, fontWeight:600, fontFamily:'var(--mono)', color:externalDep>=70?'var(--red)':externalDep>=40?'var(--amber)':'var(--green)' }}>{s.val}</div>
-                      <div style={{ fontSize:10, color:'var(--text3)', marginTop:2 }}>{s.label}</div>
-                      <div style={{ fontSize:10, color:'var(--text4)', marginTop:1 }}>{s.sub}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
 
           {/* RSP Chart */}
           <div className="card">
@@ -302,12 +256,64 @@ function SummaryTab({ project, tasks }: { project:any, tasks:any[] }) {
             {brief ? <div className="ai-panel"><div className="ai-panel-header">✦ AI Brief</div><div className="ai-panel-body">{brief}</div></div> : <div style={{ fontSize:11, color:'var(--text4)', textAlign:'center', padding:'18px 0' }}>Click Generate for a quick project glance</div>}
           </div>
 
+          {/* Completion range */}
+          {pStart && pEnd && (
+            <div className="card">
+              <div className="card-header"><div><div className="card-title">Completion range</div><div className="card-sub">Estimated during planning based on dependencies</div></div></div>
+              <div style={{ fontSize:11, color:depColor, marginBottom:10 }}>{depLabel} · {externalDep}% external</div>
+              <div style={{ display:'flex', flexDirection:'column', gap:6, marginBottom:12 }}>
+                {[
+                  {label:'Baseline',color:'#B5D4F4',textColor:'#0C447C',end:pEnd},
+                  {label:'Expected',color:'#F7C1C1',textColor:'#791F1F',end:ecd||pEnd},
+                ].map((row)=>{
+                  const endPct = chartEnd&&pStart ? barPct(row.end, pStart, new Date((chartEnd?.getTime()||0)+14*86400000)) : 0
+                  return (
+                    <div key={row.label} style={{ display:'flex', alignItems:'center', gap:8 }}>
+                      <div style={{ width:60, fontSize:10, color:'var(--text3)', flexShrink:0 }}>{row.label}</div>
+                      <div style={{ flex:1, height:20, background:'var(--bg)', borderRadius:4, position:'relative' }}>
+                        <div style={{ position:'absolute', top:-2, bottom:-2, left:`${todayPct}%`, width:2, background:'var(--blue)', opacity:0.8, zIndex:5 }} />
+                        <div style={{ position:'absolute', top:1, height:18, left:'0%', width:`${endPct}%`, background:row.color, borderRadius:3, display:'flex', alignItems:'center', padding:'0 8px', gap:6, overflow:'hidden' }}>
+                          <span style={{ fontSize:10, fontWeight:500, color:row.textColor, whiteSpace:'nowrap', flexShrink:0 }}>{fs(pStart)}</span>
+                          <span style={{ fontSize:10, fontWeight:500, color:row.textColor, marginLeft:'auto', whiteSpace:'nowrap', flexShrink:0 }}>{fs(row.end)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8, marginBottom:8 }}>
+                {[
+                  {label:'Planned end',val:fs(pEnd),color:'var(--green)'},
+                  {label:'ECD',val:fs(ecd),color:'var(--red)'},
+                  {label:'Total delay',val:delayDays>0?`+${delayDays}d`:'On time',color:delayDays>0?'var(--red)':'var(--green)'},
+                ].map(s=>(
+                  <div key={s.label} style={{ background:'var(--bg)', borderRadius:7, padding:'8px 10px' }}>
+                    <div style={{ fontSize:12, fontWeight:600, fontFamily:'var(--mono)', color:s.color }}>{s.val}</div>
+                    <div style={{ fontSize:10, color:'var(--text3)', marginTop:2 }}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+                {[
+                  {label:'TCR — Task Chaos Ratio',val:tcr.toFixed(2),sub:`${Math.round(tcr*100)}% tasks external`},
+                  {label:'DCR — Duration Chaos Ratio',val:dcr.toFixed(2),sub:`${Math.round(dcr*100)}% duration external`},
+                ].map(s=>(
+                  <div key={s.label} style={{ background:'var(--bg)', borderRadius:7, padding:'8px 10px' }}>
+                    <div style={{ fontSize:15, fontWeight:600, fontFamily:'var(--mono)', color:externalDep>=70?'var(--red)':externalDep>=40?'var(--amber)':'var(--green)' }}>{s.val}</div>
+                    <div style={{ fontSize:10, color:'var(--text3)', marginTop:2 }}>{s.label}</div>
+                    <div style={{ fontSize:10, color:'var(--text4)', marginTop:1 }}>{s.sub}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Slippage chart */}
           <div className="card">
             <div className="card-header">
               <div><div className="card-title">Slippage by owner type</div><div className="card-sub">All time vs since last review · by control type</div></div>
             </div>
-            <SlippageChart tasks={tasks} />
+            <SlippageChart tasks={tasks} project={project} />
           </div>
 
           {/* Top risks */}
