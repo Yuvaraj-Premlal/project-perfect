@@ -38,6 +38,142 @@ function KPIRow({ project, tasks }: { project:any, tasks:any[] }) {
   )
 }
 
+function RSPChart({ tasks, project }: { tasks:any[], project:any }) {
+  const pStart = new Date(project.start_date)
+  const today  = new Date()
+  const allECDs = tasks.filter((t:any)=>t.current_ecd).map((t:any)=>new Date(t.current_ecd))
+  const worstECD = allECDs.length > 0 ? new Date(Math.max(...allECDs.map((d:Date)=>d.getTime()))) : new Date(project.planned_end_date)
+  const tEnd = new Date(worstECD); tEnd.setDate(tEnd.getDate()+14)
+  const tot = tEnd.getTime() - pStart.getTime()
+  function pct(d:string|Date){return Math.max(0,Math.min(100,(new Date(d).getTime()-pStart.getTime())/tot*100))}
+  function fs(d:string|Date){return new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'short'})}
+  function dd(a:string,b:string){return Math.max(0,Math.round((new Date(b).getTime()-new Date(a).getTime())/86400000))}
+  const groups = [
+    {label:'Sub-supplier',color:'var(--red)',  tasks:tasks.filter((t:any)=>t.control_type==='sub_supplier')},
+    {label:'Supplier',    color:'var(--amber)', tasks:tasks.filter((t:any)=>t.control_type==='supplier')},
+    {label:'Internal',    color:'var(--blue)',  tasks:tasks.filter((t:any)=>t.control_type==='internal')},
+  ].filter(g=>g.tasks.length>0)
+  const todayPct = pct(today)
+  // Build months
+  const months:any[] = []
+  let cur = new Date(pStart)
+  while(cur < tEnd) {
+    const ms = new Date(cur), me = new Date(cur.getFullYear(),cur.getMonth()+1,1)
+    const se = me < tEnd ? me : tEnd
+    months.push({label:cur.toLocaleDateString('en-GB',{month:'short'}),w:(se.getTime()-ms.getTime())/tot*100})
+    cur = me
+  }
+  return (
+    <div style={{ overflowX:'auto' }}>
+      <div style={{ minWidth:400 }}>
+        <div style={{ display:'flex', marginLeft:165, marginBottom:4 }}>
+          {months.map((m,i)=>(
+            <div key={i} style={{ width:`${m.w}%`, fontSize:10, color:'var(--text3)', borderLeft:'1px solid var(--border)', paddingLeft:4, flexShrink:0 }}>{m.label}</div>
+          ))}
+        </div>
+        {groups.map(g=>(
+          <div key={g.label}>
+            <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:10, fontWeight:600, textTransform:'uppercase', letterSpacing:'0.07em', padding:'6px 0 3px', borderBottom:'1px solid var(--border)', color:g.color }}>
+              <div style={{ width:6, height:6, borderRadius:'50%', background:g.color }} />{g.label}
+            </div>
+            {[...g.tasks].sort((a:any,b:any)=>(b.risk_number||0)-(a.risk_number||0)).map((t:any)=>{
+              const psP = pct(t.planned_start_date || project.start_date)
+              const peP = pct(t.planned_end_date)
+              const cdP = pct(t.current_ecd || t.planned_end_date)
+              const delayDays = t.current_ecd ? dd(t.planned_end_date, t.current_ecd) : 0
+              const isComplete = t.completion_status==='complete'
+              const rn = t.risk_number||0
+              return (
+                <div key={t.task_id} style={{ display:'flex', alignItems:'center', marginBottom:4, minHeight:28 }}>
+                  <div style={{ width:165, flexShrink:0, fontSize:11, color:'var(--text2)', paddingRight:8, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={t.task_name}>{t.task_name}</div>
+                  <div style={{ flex:1, height:22, background:'var(--bg)', borderRadius:4, position:'relative', overflow:'hidden' }}>
+                    <div style={{ position:'absolute', top:0, bottom:0, left:`${todayPct}%`, width:2, background:'var(--blue)', opacity:0.7, zIndex:5 }} />
+                    {isComplete ? (
+                      <div style={{ position:'absolute', top:1, height:20, left:`${psP}%`, width:`${Math.max(peP-psP,2)}%`, background:'var(--green-bg)', borderRadius:3, display:'flex', alignItems:'center', padding:'0 6px', gap:6, overflow:'hidden' }}>
+                        <span style={{ fontSize:10, fontWeight:500, color:'var(--green)', whiteSpace:'nowrap' }}>{fs(t.planned_start_date||project.start_date)}</span>
+                        <span style={{ fontSize:10, fontWeight:500, color:'var(--green)', marginLeft:'auto', whiteSpace:'nowrap' }}>{fs(t.planned_end_date)}</span>
+                      </div>
+                    ) : (
+                      <>
+                        <div style={{ position:'absolute', top:1, height:20, left:`${psP}%`, width:`${Math.max(peP-psP,2)}%`, background:'var(--blue4)', borderRadius: cdP>peP?'3px 0 0 3px':'3px', display:'flex', alignItems:'center', padding:'0 6px', gap:4, overflow:'hidden' }}>
+                          <span style={{ fontSize:10, fontWeight:500, color:'var(--navy)', whiteSpace:'nowrap', flexShrink:0 }}>{fs(t.planned_start_date||project.start_date)}</span>
+                          <span style={{ fontSize:10, fontWeight:500, color:'var(--navy)', marginLeft:'auto', whiteSpace:'nowrap', flexShrink:0 }}>{fs(t.planned_end_date)}</span>
+                        </div>
+                        {cdP>peP && (
+                          <div style={{ position:'absolute', top:1, height:20, left:`${peP}%`, width:`${Math.max(cdP-peP,2)}%`, background:'var(--red-bg)', borderRadius:'0 3px 3px 0', display:'flex', alignItems:'center', padding:'0 6px', overflow:'hidden' }}>
+                            <span style={{ fontSize:10, fontWeight:500, color:'var(--red)', whiteSpace:'nowrap' }}>+{delayDays}d · {fs(t.current_ecd)}</span>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                  <div style={{ width:38, flexShrink:0, textAlign:'right', fontFamily:'var(--mono)', fontSize:10, fontWeight:600, paddingLeft:6, color:rn===0?'var(--text4)':rn>=100?'var(--red)':rn>=50?'var(--amber)':'var(--blue)' }}>{rn||'—'}</div>
+                </div>
+              )
+            })}
+          </div>
+        ))}
+        {tasks.length===0 && <div style={{ textAlign:'center', padding:20, color:'var(--text4)', fontSize:12 }}>No tasks yet</div>}
+        <div style={{ fontSize:10, color:'var(--text4)', marginTop:6, marginLeft:165 }}>Calendar extends to worst case ECD: {fs(worstECD)}</div>
+      </div>
+    </div>
+  )
+}
+
+function SlippageChart({ tasks }: { tasks:any[] }) {
+  const groups = [
+    {label:'Internal',     key:'internal',     color:'#B5D4F4', darkColor:'#378ADD', textColor:'#0C447C'},
+    {label:'Supplier',     key:'supplier',     color:'#FAC775', darkColor:'#BA7517', textColor:'#633806'},
+    {label:'Sub-supplier', key:'sub_supplier', color:'#F7C1C1', darkColor:'#E24B4A', textColor:'#791F1F'},
+  ]
+  const lastReview = 7 // days — tasks updated within last 7 days count as "since last review"
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-lastReview)
+  function allTimeSlips(key:string){return tasks.filter((t:any)=>t.control_type===key).reduce((s:number,t:any)=>s+(t.slippage_count||0),0)}
+  // Since last review — slippages on tasks updated recently (approximation without slippage history dates)
+  function recentSlips(key:string){return tasks.filter((t:any)=>t.control_type===key&&t.last_update_at&&new Date(t.last_update_at)>cutoff).reduce((s:number,t:any)=>s+(t.slippage_count||0),0)}
+  const maxVal = Math.max(...groups.map(g=>allTimeSlips(g.key)),1)
+  return (
+    <div>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10, marginBottom:14 }}>
+        {groups.map(g=>(
+          <div key={g.key} style={{ background:'var(--bg)', borderRadius:8, padding:'10px 12px' }}>
+            <div style={{ fontSize:20, fontWeight:600, fontFamily:'var(--mono)', color:g.darkColor }}>{allTimeSlips(g.key)}</div>
+            <div style={{ fontSize:11, color:'var(--text3)', marginTop:2 }}>{g.label}</div>
+            <div style={{ fontSize:10, color:'var(--text4)', marginTop:1 }}>+{recentSlips(g.key)} since last review</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+        {groups.map(g=>{
+          const all = allTimeSlips(g.key)
+          const recent = recentSlips(g.key)
+          const allW = maxVal>0?Math.round(all/maxVal*100):0
+          const recentW = maxVal>0?Math.round(recent/maxVal*100):0
+          return (
+            <div key={g.key} style={{ display:'flex', alignItems:'center', gap:10 }}>
+              <div style={{ width:90, flexShrink:0, fontSize:11, color:'var(--text3)' }}>{g.label}</div>
+              <div style={{ flex:1, display:'flex', flexDirection:'column', gap:3 }}>
+                <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                  <div style={{ height:14, width:`${allW}%`, minWidth:2, background:g.color, borderRadius:3 }} />
+                  <span style={{ fontSize:10, color:'var(--text3)', fontFamily:'var(--mono)' }}>{all}</span>
+                </div>
+                <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                  <div style={{ height:14, width:`${recentW}%`, minWidth: recent>0?2:0, background:g.darkColor, borderRadius:3 }} />
+                  {recent>0&&<span style={{ fontSize:10, color:g.darkColor, fontFamily:'var(--mono)', fontWeight:600 }}>{recent}</span>}
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+      <div style={{ display:'flex', gap:14, marginTop:10, fontSize:10, color:'var(--text3)' }}>
+        <span style={{ display:'flex', alignItems:'center', gap:4 }}><span style={{ width:10, height:10, borderRadius:2, background:'var(--blue4)', display:'inline-block' }}/> All time</span>
+        <span style={{ display:'flex', alignItems:'center', gap:4 }}><span style={{ width:10, height:10, borderRadius:2, background:'var(--blue2)', display:'inline-block' }}/> Since last review</span>
+      </div>
+    </div>
+  )
+}
+
 function SummaryTab({ project, tasks }: { project:any, tasks:any[] }) {
   const [brief, setBrief]     = useState<string|null>(null)
   const [briefLoading, setBL] = useState(false)
@@ -47,20 +183,38 @@ function SummaryTab({ project, tasks }: { project:any, tasks:any[] }) {
   const statusText     = opv<0.8?'Out of control':opv<0.9?'High risk':opv>=1.0&&lfv<=1.0?'On track':'Monitoring'
   const completedTasks = tasks.filter((t:any)=>t.completion_status==='complete').length
   const progPct        = tasks.length ? Math.round(completedTasks/tasks.length*100) : 0
-  const groups = [
-    { label:'Sub-supplier', color:'#C0392B', tasks: tasks.filter((t:any)=>t.control_type==='sub_supplier') },
-    { label:'Supplier',     color:'#9A5A00', tasks: tasks.filter((t:any)=>t.control_type==='supplier') },
-    { label:'Internal',     color:'#0068B5', tasks: tasks.filter((t:any)=>t.control_type==='internal') },
-  ].filter(g=>g.tasks.length>0)
+  // Completion range using TCR/DCR
+  const tcr = parseFloat(project.tcr||'0')
+  const dcr = parseFloat(project.dcr||'0')
+  const externalDep = Math.round(((tcr+dcr)/2)*100)
+  const depLabel = externalDep>=70?'High external dependency':externalDep>=40?'Moderate external dependency':'Low external dependency'
+  const depColor = externalDep>=70?'var(--red)':externalDep>=40?'var(--amber)':'var(--green)'
+  // Project completion chart data
+  const pStart = project.start_date ? new Date(project.start_date) : null
+  const pEnd   = project.planned_end_date ? new Date(project.planned_end_date) : null
+  const ecd    = project.ecd_algorithmic ? new Date(project.ecd_algorithmic) : null
+  const today  = new Date()
+  function fs(d:Date|null){if(!d)return'—';return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'})}
+  const delayDays = pEnd&&ecd?Math.max(0,Math.round((ecd.getTime()-pEnd.getTime())/86400000)):0
   async function genBrief() {
     setBL(true)
     try { const d = await getPreReviewBrief(project.project_id); setBrief(d.brief) }
     finally { setBL(false) }
   }
+  // For project completion bar
+  function barPct(d:Date|null, start:Date|null, end:Date|null){
+    if(!d||!start||!end)return 0
+    return Math.max(0,Math.min(100,(d.getTime()-start.getTime())/(end.getTime()-start.getTime())*100))
+  }
+  const chartEnd = ecd ? new Date(Math.max(ecd.getTime(), pEnd?.getTime()||0)) : pEnd
+  const ecdPct   = chartEnd&&pStart&&ecd ? barPct(ecd,pStart,new Date(chartEnd.getTime()+14*86400000)) : 0
+  const pEndPct  = chartEnd&&pStart&&pEnd ? barPct(pEnd,pStart,new Date(chartEnd.getTime()+14*86400000)) : 0
+  const todayPct = chartEnd&&pStart ? barPct(today,pStart,new Date(chartEnd.getTime()+14*86400000)) : 0
   return (
     <div>
       <div className="two-col">
         <div>
+          {/* Project details card */}
           <div className="card">
             <div className="card-header">
               <div><div className="card-title">{project.project_name}</div><div className="card-sub">{project.risk_tier} risk · {project.customer_name}</div></div>
@@ -70,44 +224,83 @@ function SummaryTab({ project, tasks }: { project:any, tasks:any[] }) {
               <div><div className="section-label">Timeline</div><div style={{ fontSize:12, color:'var(--text2)', lineHeight:1.9 }}>Start: <span className="mono">{new Date(project.start_date).toLocaleDateString('en-GB')}</span><br/>Planned end: <span className="mono">{new Date(project.planned_end_date).toLocaleDateString('en-GB')}</span><br/>ECD: <span className="mono" style={{ color:'var(--red)' }}>{project.ecd_algorithmic ? new Date(project.ecd_algorithmic).toLocaleDateString('en-GB') : '—'}</span></div></div>
               <div><div className="section-label">Progress</div><div style={{ fontSize:12, color:'var(--text2)', lineHeight:1.9 }}>{completedTasks} / {tasks.length} tasks complete<br/>PM: {project.pm_name || '—'}</div></div>
             </div>
+            {/* Completion progress bar */}
             <div style={{ marginTop:16 }}>
               <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'var(--text3)', marginBottom:5 }}><span>Completion progress</span><span>{progPct}%</span></div>
               <div style={{ background:'var(--bg2)', borderRadius:99, height:6 }}><div style={{ width:`${progPct}%`, height:6, borderRadius:99, background:'var(--blue2)', transition:'width 0.4s' }} /></div>
             </div>
-          </div>
-          <div className="card">
-            <div className="card-header"><div><div className="card-title">RSP Chart</div><div className="card-sub">Grouped by stakeholder · sorted by RN</div></div></div>
-            {groups.map(g => (
-              <div key={g.label}>
-                <div className="rsp-group-header"><div style={{ width:8, height:8, borderRadius:'50%', background:g.color, flexShrink:0 }} /><span style={{ color:g.color }}>{g.label}</span></div>
-                {[...g.tasks].sort((a:any,b:any)=>(b.risk_number||0)-(a.risk_number||0)).map((t:any) => {
-                  const isComplete = t.completion_status==='complete'
-                  const plannedW   = 60
-                  const delayW     = Math.min(35, Math.round((t.delay_days||0)/30*40))
-                  const rn         = t.risk_number || 0
-                  return (
-                    <div key={t.task_id} className="rsp-row">
-                      <div className="rsp-label" title={t.task_name}>{t.task_name}</div>
-                      <div className="rsp-track">
-                        {isComplete ? (
-                          <div style={{ position:'absolute',left:0,top:0,height:'100%',width:'70%',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:4,display:'flex',alignItems:'center',paddingLeft:7,fontSize:10,color:'var(--text4)' }}>Done</div>
-                        ) : (
-                          <>
-                            <div style={{ position:'absolute',left:0,top:0,height:'100%',width:`${plannedW}%`,background:'var(--blue4)',borderRadius:'4px 0 0 4px',display:'flex',alignItems:'center',paddingLeft:7,fontSize:10,fontWeight:600,color:'var(--navy)' }}>{new Date(t.planned_end_date).toLocaleDateString('en-GB',{day:'2-digit',month:'short'})}</div>
-                            {delayW > 0 && <div style={{ position:'absolute',left:`${plannedW}%`,top:0,height:'100%',width:`${delayW}%`,background:'var(--red-bg)',borderRadius:'0 4px 4px 0',display:'flex',alignItems:'center',justifyContent:'flex-end',paddingRight:6,fontSize:10,fontWeight:600,color:'var(--red)' }}>+{t.delay_days}d</div>}
-                          </>
-                        )}
+            {/* Completion range */}
+            {pStart && pEnd && (
+              <div style={{ marginTop:16, paddingTop:14, borderTop:'1px solid var(--border)' }}>
+                <div className="section-label" style={{ marginBottom:6 }}>Completion range estimated during planning based on dependencies</div>
+                <div style={{ fontSize:11, color:depColor, marginBottom:10 }}>{depLabel} · {externalDep}% external</div>
+                {/* Baseline vs ECD bars */}
+                <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                  {[
+                    {label:'Baseline',color:'#B5D4F4',textColor:'#0C447C',end:pEnd},
+                    {label:'Expected',color:'#F7C1C1',textColor:'#791F1F',end:ecd||pEnd},
+                  ].map((row,i)=>{
+                    const endPct = chartEnd&&pStart ? barPct(row.end, pStart, new Date((chartEnd?.getTime()||0)+14*86400000)) : 0
+                    return (
+                      <div key={row.label} style={{ display:'flex', alignItems:'center', gap:8 }}>
+                        <div style={{ width:60, fontSize:10, color:'var(--text3)', flexShrink:0 }}>{row.label}</div>
+                        <div style={{ flex:1, height:20, background:'var(--bg)', borderRadius:4, position:'relative', overflow:'hidden' }}>
+                          {i===0&&<div style={{ position:'absolute', top:0, bottom:0, left:`${todayPct}%`, width:1.5, background:'var(--blue)', opacity:0.8, zIndex:5 }} />}
+                          <div style={{ position:'absolute', top:1, height:18, left:'0%', width:`${endPct}%`, background:row.color, borderRadius:3, display:'flex', alignItems:'center', padding:'0 8px', gap:6, overflow:'hidden' }}>
+                            <span style={{ fontSize:10, fontWeight:500, color:row.textColor, whiteSpace:'nowrap', flexShrink:0 }}>{fs(pStart)}</span>
+                            <span style={{ fontSize:10, fontWeight:500, color:row.textColor, marginLeft:'auto', whiteSpace:'nowrap', flexShrink:0 }}>{fs(row.end)}</span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="rsp-rn" style={{ color:rn===0?'var(--text4)':rn>=100?'var(--red)':rn>=50?'var(--amber)':'var(--blue)' }}>{rn > 0 ? rn : '—'}</div>
+                    )
+                  })}
+                </div>
+                {/* Stats */}
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8, marginTop:12 }}>
+                  {[
+                    {label:'Planned end',val:fs(pEnd),color:'var(--green)'},
+                    {label:'ECD',val:fs(ecd),color:'var(--red)'},
+                    {label:'Total delay',val:delayDays>0?`+${delayDays}d`:'On time',color:delayDays>0?'var(--red)':'var(--green)'},
+                  ].map(s=>(
+                    <div key={s.label} style={{ background:'var(--bg)', borderRadius:7, padding:'8px 10px' }}>
+                      <div style={{ fontSize:12, fontWeight:600, fontFamily:'var(--mono)', color:s.color }}>{s.val}</div>
+                      <div style={{ fontSize:10, color:'var(--text3)', marginTop:2 }}>{s.label}</div>
                     </div>
-                  )
-                })}
+                  ))}
+                </div>
+                {/* TCR / DCR */}
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:8 }}>
+                  {[
+                    {label:'TCR — Task Chaos Ratio',val:tcr.toFixed(2),sub:`${Math.round(tcr*100)}% tasks external`},
+                    {label:'DCR — Duration Chaos Ratio',val:dcr.toFixed(2),sub:`${Math.round(dcr*100)}% duration external`},
+                  ].map(s=>(
+                    <div key={s.label} style={{ background:'var(--bg)', borderRadius:7, padding:'8px 10px' }}>
+                      <div style={{ fontSize:15, fontWeight:600, fontFamily:'var(--mono)', color:externalDep>=70?'var(--red)':externalDep>=40?'var(--amber)':'var(--green)' }}>{s.val}</div>
+                      <div style={{ fontSize:10, color:'var(--text3)', marginTop:2 }}>{s.label}</div>
+                      <div style={{ fontSize:10, color:'var(--text4)', marginTop:1 }}>{s.sub}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            ))}
-            {tasks.length === 0 && <div style={{ textAlign:'center', padding:20, color:'var(--text4)', fontSize:12 }}>No tasks yet</div>}
+            )}
+          </div>
+
+          {/* RSP Chart */}
+          <div className="card">
+            <div className="card-header">
+              <div><div className="card-title">RSP chart</div><div className="card-sub">Risk driven · Stakeholder wise · sorted by RN · calendar to worst ECD</div></div>
+            </div>
+            <div style={{ display:'flex', gap:14, fontSize:10, color:'var(--text3)', marginBottom:12 }}>
+              <span style={{ display:'flex', alignItems:'center', gap:4 }}><span style={{ width:10, height:8, borderRadius:2, background:'var(--blue4)', display:'inline-block' }}/> Planned</span>
+              <span style={{ display:'flex', alignItems:'center', gap:4 }}><span style={{ width:10, height:8, borderRadius:2, background:'var(--red-bg)', display:'inline-block' }}/> Delay</span>
+              <span style={{ display:'flex', alignItems:'center', gap:4 }}><span style={{ width:10, height:8, borderRadius:2, background:'var(--green-bg)', display:'inline-block' }}/> Complete</span>
+            </div>
+            <RSPChart tasks={tasks} project={project} />
           </div>
         </div>
+
         <div>
+          {/* AI Brief */}
           <div className="card">
             <div className="card-header">
               <div><div className="card-title" style={{ display:'flex', alignItems:'center', gap:8 }}><span className="ai-tag">AI</span> Pre-Review Brief</div><div className="card-sub">AI summary before your review</div></div>
@@ -115,6 +308,16 @@ function SummaryTab({ project, tasks }: { project:any, tasks:any[] }) {
             </div>
             {brief ? <div className="ai-panel"><div className="ai-panel-header">✦ AI Brief</div><div className="ai-panel-body">{brief}</div></div> : <div style={{ fontSize:11, color:'var(--text4)', textAlign:'center', padding:'18px 0' }}>Click Generate to surface an AI pre-review brief</div>}
           </div>
+
+          {/* Slippage chart */}
+          <div className="card">
+            <div className="card-header">
+              <div><div className="card-title">Slippage by owner type</div><div className="card-sub">All time vs since last review · by control type</div></div>
+            </div>
+            <SlippageChart tasks={tasks} />
+          </div>
+
+          {/* Top risks */}
           <div className="card">
             <div className="card-header"><div><div className="card-title">Top risks by stakeholder</div><div className="card-sub">Highest RN per control type</div></div></div>
             {(['sub_supplier','supplier','internal'] as const).map(ct => {
@@ -132,6 +335,8 @@ function SummaryTab({ project, tasks }: { project:any, tasks:any[] }) {
             })}
             {tasks.every((t:any)=>(t.risk_number||0)===0) && <div style={{ fontSize:11, color:'var(--text4)', padding:'12px 0', textAlign:'center' }}>No risks identified yet</div>}
           </div>
+
+          {/* Project details */}
           <div className="card">
             <div className="card-header"><div className="card-title">Project details</div></div>
             {[['Customer',project.customer_name],['Project Code',project.project_code],['Risk Tier',project.risk_tier],['Status',project.status],['Start',new Date(project.start_date).toLocaleDateString('en-GB')],['Planned End',new Date(project.planned_end_date).toLocaleDateString('en-GB')]].map(([label,val])=>(
