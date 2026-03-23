@@ -207,8 +207,6 @@ function SummaryTab({ project, tasks }: { project:any, tasks:any[] }) {
     return Math.max(0,Math.min(100,(d.getTime()-start.getTime())/(end.getTime()-start.getTime())*100))
   }
   const chartEnd = ecd ? new Date(Math.max(ecd.getTime(), pEnd?.getTime()||0)) : pEnd
-  const ecdPct   = chartEnd&&pStart&&ecd ? barPct(ecd,pStart,new Date(chartEnd.getTime()+14*86400000)) : 0
-  const pEndPct  = chartEnd&&pStart&&pEnd ? barPct(pEnd,pStart,new Date(chartEnd.getTime()+14*86400000)) : 0
   const todayPct = chartEnd&&pStart ? barPct(today,pStart,new Date(chartEnd.getTime()+14*86400000)) : 0
   return (
     <div>
