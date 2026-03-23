@@ -620,8 +620,7 @@ function printReport(report: any) {
     <div class="metric"><div class="val">${(parseFloat(report.lfv_snapshot||0)*100).toFixed(1)}%</div><div class="lbl">LFV</div></div>
     <div class="metric"><div class="val">${report.high_risk_count||0}</div><div class="lbl">High risk tasks</div></div>
   </div>
-  ${sections.map(s => `${s.heading?`<h2>${s.heading}</h2>`:''}<p>${s.body.replace(/
-/g,'</p><p>')}</p>`).join('')}
+  ${sections.map(s => (s.heading ? '<h2>'+s.heading+'</h2>' : '') + '<p>' + s.body.split('\n').join('</p><p>') + '</p>').join('')}
   </body></html>`)
   win.document.close()
   win.focus()
@@ -630,7 +629,7 @@ function printReport(report: any) {
 
 function ReportsTab({ projectId }: { projectId:string }) {
   const qc = useQueryClient()
-  const [expanded, setExpanded] = React.useState<string|null>(null)
+  const [expanded, setExpanded] = useState<string|null>(null)
   const { data:reports=[], isLoading } = useQuery({ queryKey:['weekly-reports',projectId], queryFn:()=>getWeeklyReports(projectId) })
   const { mutate:generate, isPending, error:genError } = useMutation({
     mutationFn:()=>generateWeeklyReport(projectId),
@@ -651,11 +650,35 @@ function ReportsTab({ projectId }: { projectId:string }) {
         const isOpen = expanded === r.report_id
         const sections = parseReportSections(r.report_content || '')
         return (
-        <div key={r.report_id} className="card">
-          <div className="card-header"><div><div className="card-title">Week ending {new Date(r.week_ending).toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'})}</div><div className="card-sub">{new Date(r.generated_at).toLocaleString('en-GB')}</div></div><span className="mono" style={{ color:'var(--blue)', fontWeight:600, fontSize:12 }}>OPV {(parseFloat(r.opv_snapshot)*100).toFixed(1)}%</span></div>
-          <div className="ai-panel"><div className="ai-panel-header">✦ AI Weekly Narrative</div><div className="ai-panel-body">{r.report_content}</div></div>
+        <div key={r.report_id} className="card" style={{ marginBottom:12 }}>
+          <div className="card-header" style={{ cursor:'pointer' }} onClick={()=>setExpanded(isOpen?null:r.report_id)}>
+            <div>
+              <div className="card-title" style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ color:'var(--text3)', transform:isOpen?'rotate(90deg)':'rotate(0deg)', transition:'transform 0.2s' }}>
+                  <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Week ending {new Date(r.week_ending).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}
+              </div>
+              <div className="card-sub">OPV {(parseFloat(r.opv_snapshot)*100).toFixed(1)}% · LFV {(parseFloat(r.lfv_snapshot)*100).toFixed(1)}% · High risk: {r.high_risk_count}</div>
+            </div>
+            <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+              {r.escalation_active && <span className="status red">Escalation Active</span>}
+              <button className="tb-btn" style={{ fontSize:11 }} onClick={e=>{e.stopPropagation();printReport(r)}}>⬇ PDF</button>
+            </div>
+          </div>
+          {isOpen && (
+            <div style={{ paddingTop:12, borderTop:'1px solid var(--border)' }}>
+              {sections.map((s:any,i:number)=>(
+                <div key={i} style={{ marginBottom:14 }}>
+                  {s.heading && <div style={{ fontSize:12, fontWeight:600, color:'var(--text)', marginBottom:6, paddingBottom:4, borderBottom:'1px solid var(--border)' }}>{s.heading}</div>}
+                  <div style={{ fontSize:12, color:'var(--text2)', lineHeight:1.8 }}>{s.body}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
