@@ -1,7 +1,31 @@
 const router  = require('express').Router({ mergeParams: true });
-const { pool } = require('../db');
 const { requireRole } = require('../middleware/tenant');
 const { generateNudgeMessage, generatePreReviewBrief, generateReviewAgenda, generateReviewSummary } = require('../services/ai');
+
+// ── AI usage limit helper ──────────────────────────────────────
+// Limits: project_quick_glance and review_summary = 2/day
+//         weekly_report = 2/week
+async function checkAndLogAIUsage(client, tenantId, projectId, feature, userId) {
+  await client.query(`SET app.tenant_id = '${tenantId}'`)
+  const windowHours = feature === 'weekly_report' ? 168 : 24 // 7 days or 1 day
+  const limit = 2
+  const result = await client.query(`
+    SELECT COUNT(*) FROM ai_usage_log
+    WHERE project_id = $1 AND feature = $2
+    AND used_at > NOW() - INTERVAL '${windowHours} hours'
+  `, [projectId, feature])
+  const used = parseInt(result.rows[0].count)
+  if (used >= limit) {
+    const period = feature === 'weekly_report' ? 'week' : 'day'
+    throw { status: 429, message: `AI limit reached: ${limit} uses per ${period} per project. Try again later.` }
+  }
+  await client.query(`
+    INSERT INTO ai_usage_log (project_id, tenant_id, feature, used_by)
+    VALUES ($1, $2, $3, $4)
+  `, [projectId, tenantId, feature, userId || null])
+}
+
+
 
 // ─────────────────────────────────────────────
 // POST /api/projects/:projectId/nudges/:taskId
@@ -72,7 +96,7 @@ router.get('/pre-review-brief', async (req, res) => {
   const { projectId } = req.params;
   const client = await pool.connect();
   try {
-    await client.query(`SET app.tenant_id = '${req.tenantId}'`);
+    await checkAndLogAIUsage(client, req.tenantId, projectId, 'project_quick_glance', req.userId)
 
     const projectResult = await client.query(
       `SELECT * FROM projects WHERE project_id = $1 AND tenant_id = $2`,
@@ -83,10 +107,15 @@ router.get('/pre-review-brief', async (req, res) => {
     }
     const project = projectResult.rows[0];
 
-    const tasksResult = await client.query(
-      `SELECT * FROM tasks WHERE project_id = $1 AND tenant_id = $2`,
-      [projectId, req.tenantId]
-    );
+    const tasksResult = await client.query(`
+      SELECT t.*, latest_u.what_pending AS last_update_pending, latest_u.created_at AS last_update_at
+      FROM tasks t
+      LEFT JOIN LATERAL (
+        SELECT what_pending, created_at FROM task_updates
+        WHERE task_id = t.task_id ORDER BY created_at DESC LIMIT 1
+      ) latest_u ON true
+      WHERE t.project_id = $1 AND t.tenant_id = $2
+    `, [projectId, req.tenantId]);
     const tasks = tasksResult.rows;
     const highRiskCount = tasks.filter(t => t.risk_label === 'high_risk').length;
 
@@ -106,6 +135,9 @@ router.get('/pre-review-brief', async (req, res) => {
       generated_at: new Date().toISOString()
     });
 
+  } catch(err) {
+    if (err.status === 429) return res.status(429).json({ error: err.message })
+    throw err
   } finally {
     client.release();
   }
@@ -188,7 +220,7 @@ router.get('/review-summary', async (req, res) => {
   const { projectId } = req.params;
   const client = await pool.connect();
   try {
-    await client.query(`SET app.tenant_id = '${req.tenantId}'`);
+    await checkAndLogAIUsage(client, req.tenantId, projectId, 'review_summary', req.userId)
 
     const projectResult = await client.query(
       `SELECT * FROM projects WHERE project_id = $1 AND tenant_id = $2`,
@@ -234,6 +266,9 @@ router.get('/review-summary', async (req, res) => {
       summary:      summary || 'Summary unavailable — please review task list manually.'
     });
 
+  } catch(err) {
+    if (err.status === 429) return res.status(429).json({ error: err.message })
+    throw err
   } finally {
     client.release();
   }
