@@ -137,7 +137,8 @@ router.get('/pre-review-brief', async (req, res) => {
 
   } catch(err) {
     if (err.status === 429) return res.status(429).json({ error: err.message })
-    throw err
+    console.error('pre-review-brief error:', err)
+    return res.status(500).json({ error: 'Failed to generate brief. Please try again.' })
   } finally {
     client.release();
   }
@@ -268,7 +269,8 @@ router.get('/review-summary', async (req, res) => {
 
   } catch(err) {
     if (err.status === 429) return res.status(429).json({ error: err.message })
-    throw err
+    console.error('pre-review-brief error:', err)
+    return res.status(500).json({ error: 'Failed to generate brief. Please try again.' })
   } finally {
     client.release();
   }
