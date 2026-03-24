@@ -4,6 +4,21 @@ const router  = require('express').Router({ mergeParams: true });
 const { pool } = require('../db');
 const { requireRole } = require('../middleware/tenant');
 const { recalculateProjectMetrics, detectAndRecordSlippage } = require('../services/metrics');
+const multer  = require('multer');
+const { BlobServiceClient } = require('@azure/storage-blob');
+const { v4: uuidv4 } = require('uuid');
+const path = require('path');
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 1 * 1024 * 1024 }, // 1MB max
+  fileFilter: (req, file, cb) => {
+    const allowed = ['.pdf', '.jpg', '.jpeg', '.png', '.docx'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (allowed.includes(ext)) cb(null, true);
+    else cb(new Error('Only PDF, JPG, PNG and DOCX files are allowed'));
+  }
+});
 
 // ─────────────────────────────────────────────
 // GET /api/projects/:projectId/tasks
@@ -18,19 +33,10 @@ router.get('/', async (req, res) => {
       SELECT
         t.*,
         pp.phase_name,
-        s.supplier_name,
-        latest_u.what_pending   AS last_update_pending,
-        latest_u.created_at     AS last_update_at
+        s.supplier_name
       FROM tasks t
       LEFT JOIN project_phases pp ON pp.phase_id = t.phase_id
       LEFT JOIN suppliers s       ON s.supplier_id = t.supplier_id
-      LEFT JOIN LATERAL (
-        SELECT what_pending, created_at
-        FROM task_updates
-        WHERE task_id = t.task_id
-        ORDER BY created_at DESC
-        LIMIT 1
-      ) latest_u ON true
       WHERE t.project_id = $1 AND t.tenant_id = $2
       ORDER BY t.risk_number DESC, t.planned_end_date ASC
     `, [projectId, req.tenantId]);
@@ -242,3 +248,46 @@ router.get('/:taskId/slippages', async (req, res) => {
 });
 
 module.exports = router;
+
+// POST /api/projects/:projectId/tasks/:taskId/evidence-upload
+// Upload evidence file to Azure Blob Storage (max 1MB)
+router.post('/:taskId/evidence-upload', upload.single('file'), async (req, res) => {
+  const { taskId } = req.params;
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file provided' });
+
+    const connStr = process.env.AZURE_STORAGE_CONNECTION_STRING;
+    if (!connStr) return res.status(500).json({ error: 'Storage not configured' });
+
+    const blobService = BlobServiceClient.fromConnectionString(connStr);
+    const container   = blobService.getContainerClient('task-evidence');
+
+    const ext      = path.extname(req.file.originalname).toLowerCase();
+    const blobName = `${req.tenantId}/${taskId}/${uuidv4()}${ext}`;
+    const blob     = container.getBlockBlobClient(blobName);
+
+    await blob.uploadData(req.file.buffer, {
+      blobHTTPHeaders: { blobContentType: req.file.mimetype }
+    });
+
+    const url = blob.url;
+
+    // Save to task evidence_url_1
+    const client = await pool.connect();
+    try {
+      await client.query(`SET app.tenant_id = '${req.tenantId}'`);
+      await client.query(
+        `UPDATE tasks SET evidence_url_1 = $1, evidence_label_1 = $2 WHERE task_id = $3 AND tenant_id = $4`,
+        [url, req.file.originalname, taskId, req.tenantId]
+      );
+    } finally { client.release(); }
+
+    res.json({ url, filename: req.file.originalname });
+  } catch (err) {
+    if (err.message?.includes('File too large')) return res.status(400).json({ error: 'File exceeds 1MB limit' });
+    if (err.message?.includes('Only PDF')) return res.status(400).json({ error: err.message });
+    console.error('Evidence upload error:', err);
+    res.status(500).json({ error: 'Upload failed. Please try again.' });
+  }
+});
+
