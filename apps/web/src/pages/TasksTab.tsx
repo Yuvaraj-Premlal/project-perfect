@@ -385,7 +385,7 @@ function TaskPanel({
             if (ev) { evidenceUrl = ev.url; evidenceLabel = ev.label }
           } catch (err: any) {
             setEvidenceError(err?.response?.data?.error || 'Evidence upload failed')
-            setSavingTask(false); setEvidenceUploading(false)
+            setSavingTask(false)
             return
           }
         }
