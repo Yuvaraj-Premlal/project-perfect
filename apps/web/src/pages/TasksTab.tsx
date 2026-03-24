@@ -338,6 +338,32 @@ function TaskPanel({
     setUpdateForm(f => ({ ...f, [field]: value }))
   }
 
+  async function handleSaveEvidence() {
+    setEvidenceUploading(true); setEvidenceError(null)
+    try {
+      if (evidenceMode === 'link') {
+        if (!evidenceLink.trim()) { setEvidenceError('Please enter a URL'); return }
+        if (!evidenceLink.startsWith('http')) { setEvidenceError('Must be a valid URL starting with http'); return }
+        await updateTask(projectId, task.task_id, { evidence_url_1: evidenceLink, evidence_label_1: 'External link' })
+        setEvidenceSuccess('External link')
+      } else {
+        if (!evidenceFile) { setEvidenceError('Please select a file'); return }
+        const formData = new FormData()
+        formData.append('file', evidenceFile)
+        const resp = await import('../api/client').then(m => m.api.post(
+          `/api/projects/${projectId}/tasks/${task.task_id}/evidence-upload`,
+          formData,
+          { headers: { 'Content-Type': 'multipart/form-data' } }
+        ))
+        setEvidenceSuccess(resp.data.filename)
+      }
+    } catch (err: any) {
+      setEvidenceError(err?.response?.data?.error || 'Failed to save evidence')
+    } finally {
+      setEvidenceUploading(false)
+    }
+  }
+
   async function handleSaveTask() {
     if (taskForm.completion_status === 'complete' && !confirmComplete) {
       setError('You must confirm acceptance criteria before marking complete.')
@@ -467,6 +493,40 @@ function TaskPanel({
                   />
                   I confirm the acceptance criteria have been met
                 </label>
+              </div>
+            )}
+
+            {/* Evidence of completion */}
+            {(taskForm.completion_status === 'complete') && (
+              <div style={{ marginTop: 12, background: 'var(--bg)', borderRadius: 8, padding: '12px 14px', border: '1px solid var(--border)' }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>📎 Evidence of completion</div>
+                {evidenceSuccess ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 11, color: 'var(--green)' }}>✓ {evidenceSuccess}</span>
+                    {task.evidence_url_1 && (
+                      <a href={task.evidence_url_1} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: 'var(--blue)' }}>View</a>
+                    )}
+                    <button style={{ fontSize: 11, color: 'var(--text3)', background: 'none', border: 'none', cursor: 'pointer', marginLeft: 'auto' }} onClick={() => { setEvidenceSuccess(null) }}>Replace</button>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                      <button onClick={() => setEvidenceMode('file')} style={{ fontSize: 11, padding: '4px 10px', borderRadius: 6, border: '1px solid var(--border)', background: evidenceMode==='file'?'var(--blue)':'var(--white)', color: evidenceMode==='file'?'white':'var(--text2)', cursor: 'pointer' }}>📄 Upload file ≤1MB</button>
+                      <button onClick={() => setEvidenceMode('link')} style={{ fontSize: 11, padding: '4px 10px', borderRadius: 6, border: '1px solid var(--border)', background: evidenceMode==='link'?'var(--blue)':'var(--white)', color: evidenceMode==='link'?'white':'var(--text2)', cursor: 'pointer' }}>🔗 Paste link</button>
+                    </div>
+                    {evidenceMode === 'file' ? (
+                      <input type="file" accept=".pdf,.jpg,.jpeg,.png,.docx" style={{ fontSize: 11, width: '100%' }}
+                        onChange={e => setEvidenceFile(e.target.files?.[0] || null)} />
+                    ) : (
+                      <input className="form-input" type="url" placeholder="https://..." value={evidenceLink}
+                        onChange={e => setEvidenceLink(e.target.value)} style={{ fontSize: 11 }} />
+                    )}
+                    {evidenceError && <div style={{ fontSize: 11, color: 'var(--red)', marginTop: 4 }}>⚠ {evidenceError}</div>}
+                    <button className="tb-btn primary" onClick={handleSaveEvidence} disabled={evidenceUploading} style={{ marginTop: 8, fontSize: 11 }}>
+                      {evidenceUploading ? 'Saving...' : 'Save evidence'}
+                    </button>
+                  </>
+                )}
               </div>
             )}
 
@@ -1057,8 +1117,10 @@ export default function TasksTab({
 
       {/* Last review summary banner */}
       {(() => {
+        const lastReview = project?.reviews?.[0] || null
+        const lastReviewAt = project?.last_review_at
         const nextReviewDue = project?.next_review_due
-        if (!project?.last_review_at && !nextReviewDue) return null
+        if (!lastReviewAt && !nextReviewDue) return null
         const today = new Date().toISOString().split('T')[0]
         const isReviewOverdue = nextReviewDue && nextReviewDue < today
         return (
@@ -1071,10 +1133,10 @@ export default function TasksTab({
           }}>
             <span style={{ fontSize: 14, flexShrink: 0 }}>{isReviewOverdue ? '⚠' : 'ℹ'}</span>
             <div style={{ flex: 1, color: isReviewOverdue ? 'var(--red)' : 'var(--blue)' }}>
-              {project?.last_review_at ? (
+              {lastReviewAt ? (
                 <>
                   <strong>Last review: </strong>
-                  {new Date(project?.last_review_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  {new Date(lastReviewAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                   {project?.last_review_attended_by ? ` · Attended by ${project.last_review_attended_by}` : ''}
                   {nextReviewDue && (
                     <span style={{ marginLeft: 10, color: isReviewOverdue ? 'var(--red)' : 'var(--text3)' }}>
