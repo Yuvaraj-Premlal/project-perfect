@@ -5,8 +5,6 @@ import { api } from '../api/client'
 import TasksTab from './TasksTab'
 import ReviewsTab from './ReviewsTab'
 
-
-
 const TABS = ['Summary','Tasks','Status Kanban','Weekly Kanban','Function Kanban','Reviews','Reports','Closure'] as const
 type Tab = typeof TABS[number]
 
@@ -221,7 +219,6 @@ function SummaryTab({ project, tasks }: { project:any, tasks:any[] }) {
               <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'var(--text3)', marginBottom:5 }}><span>Completion progress</span><span>{progPct}%</span></div>
               <div style={{ background:'var(--bg2)', borderRadius:99, height:6 }}><div style={{ width:`${progPct}%`, height:6, borderRadius:99, background:'var(--blue2)', transition:'width 0.4s' }} /></div>
             </div>
-
           </div>
 
           {/* RSP Chart */}
@@ -337,6 +334,9 @@ function SummaryTab({ project, tasks }: { project:any, tasks:any[] }) {
               </div>
             ))}
           </div>
+        </div>
+        </div>
+        </div>
         </div>
       </div>
     </div>
