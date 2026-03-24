@@ -317,9 +317,7 @@ function TaskPanel({
   const [evidenceMode, setEvidenceMode]           = useState<'file' | 'link'>('file')
   const [evidenceLink, setEvidenceLink]           = useState('')
   const [evidenceFile, setEvidenceFile]           = useState<File | null>(null)
-  const [evidenceUploading, setEvidenceUploading] = useState(false)
   const [evidenceError, setEvidenceError]         = useState<string | null>(null)
-  const [evidenceSuccess, setEvidenceSuccess]     = useState<string | null>(null)
 
   const [taskForm, setTaskForm] = useState({
     current_ecd:       task.current_ecd || task.planned_end_date,
@@ -382,15 +380,14 @@ function TaskPanel({
 
         // Upload evidence if provided
         if (evidenceFile || evidenceLink.trim()) {
-          setEvidenceUploading(true)
-          try {
+            try {
             const ev = await getEvidenceUrlAndLabel()
             if (ev) { evidenceUrl = ev.url; evidenceLabel = ev.label }
           } catch (err: any) {
             setEvidenceError(err?.response?.data?.error || 'Evidence upload failed')
             setSavingTask(false); setEvidenceUploading(false)
             return
-          } finally { setEvidenceUploading(false) }
+          }
         }
 
         // Post completion update with evidence baked in
