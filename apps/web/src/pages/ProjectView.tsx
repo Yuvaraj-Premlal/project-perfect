@@ -334,11 +334,11 @@ function SummaryTab({ project, tasks }: { project:any, tasks:any[] }) {
               </div>
             ))}
           </div>
-          </div>
-          </div>
-          </div>
         </div>
       </div>
+    </div>
+    </div>
+    </div>
     </div>
   )
 }
