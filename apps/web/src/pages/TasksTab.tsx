@@ -795,7 +795,7 @@ function PhaseSection({
                     <th style={{ padding: '10px 16px', width: '20%' }}>Task name</th>
                     <th style={{ width: '8%' }}>Control</th>
                     <th style={{ width: '10%' }}>Owner</th>
-                    <th style={{ width: '7%' }}>Due date</th>
+                    <th style={{ width: '10%' }}>Duration</th>
                     <th style={{ width: '7%' }}>ECD</th>
                     <th style={{ width: '6%' }}>Delay</th>
                     <th style={{ width: '5%' }}>Slips</th>
@@ -858,9 +858,11 @@ function PhaseSection({
                           )}
                         </td>
 
-                        {/* Due date (planned, locked) */}
+                        {/* Duration: planned start → planned end */}
                         <td>
-                          <span className="mono" style={{ fontSize: 11 }}>
+                          <span className="mono" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
+                            {task.planned_start_date ? fmt(task.planned_start_date) : '—'}
+                            <span style={{ color: 'var(--text4)', margin: '0 3px' }}>→</span>
                             {fmt(task.planned_end_date)}
                           </span>
                         </td>
@@ -1055,6 +1057,7 @@ export default function TasksTab({
 
       {/* Last review summary banner */}
       {(() => {
+        const lastReview = project?.reviews?.[0] || null
         const lastReviewAt = project?.last_review_at
         const nextReviewDue = project?.next_review_due
         if (!lastReviewAt && !nextReviewDue) return null
