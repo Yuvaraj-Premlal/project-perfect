@@ -32,6 +32,8 @@ interface Task {
   comments: string | null
   last_update_pending: string | null
   last_update_at: string | null
+  evidence_url_1?: string | null
+  evidence_label_1?: string | null
 }
 
 interface TaskUpdate {
@@ -308,6 +310,13 @@ function TaskPanel({
   const [savingTask, setSavingTask]     = useState(false)
   const [error, setError]               = useState<string | null>(null)
   const [confirmComplete, setConfirm]   = useState(false)
+
+  const [evidenceMode, setEvidenceMode]           = useState<'file' | 'link'>('file')
+  const [evidenceLink, setEvidenceLink]           = useState('')
+  const [evidenceFile, setEvidenceFile]           = useState<File | null>(null)
+  const [evidenceUploading, setEvidenceUploading] = useState(false)
+  const [evidenceError, setEvidenceError]         = useState<string | null>(null)
+  const [evidenceSuccess, setEvidenceSuccess]     = useState<string | null>(null)
 
   const [taskForm, setTaskForm] = useState({
     current_ecd:       task.current_ecd || task.planned_end_date,
@@ -1118,7 +1127,6 @@ export default function TasksTab({
 
       {/* Last review summary banner */}
       {(() => {
-        const lastReview = project?.reviews?.[0] || null
         const lastReviewAt = project?.last_review_at
         const nextReviewDue = project?.next_review_due
         if (!lastReviewAt && !nextReviewDue) return null
