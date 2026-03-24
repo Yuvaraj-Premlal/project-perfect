@@ -284,7 +284,8 @@ router.get('/:taskId/updates', async (req, res) => {
 // ─────────────────────────────────────────────
 router.post('/:taskId/updates', requireRole('pm'), async (req, res) => {
   const { projectId, taskId } = req.params;
-  const { what_done, what_pending, issue_blocker, action_owner, action_due_date, impact_if_not_done } = req.body;
+  const { what_done, what_pending, issue_blocker, action_owner, action_due_date, impact_if_not_done,
+          is_completion_update, evidence_url, evidence_label } = req.body;
   const client = await pool.connect();
   try {
     await client.query(`SET app.tenant_id = '${req.tenantId}'`);
@@ -293,11 +294,12 @@ router.post('/:taskId/updates', requireRole('pm'), async (req, res) => {
     // Insert the update
     const result = await client.query(`
       INSERT INTO task_updates
-        (task_id, tenant_id, what_done, what_pending, issue_blocker, action_owner, action_due_date, impact_if_not_done, created_by)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        (task_id, tenant_id, what_done, what_pending, issue_blocker, action_owner, action_due_date, impact_if_not_done, created_by, is_completion_update, evidence_url, evidence_label)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING *
     `, [taskId, req.tenantId, what_done, what_pending, issue_blocker || null,
-        action_owner, action_due_date || null, impact_if_not_done, req.userId]);
+        action_owner, action_due_date || null, impact_if_not_done, req.userId,
+        is_completion_update || false, evidence_url || null, evidence_label || null]);
 
     const update = result.rows[0];
 
