@@ -22,7 +22,7 @@ function KPIRow({ project, tasks }: { project:any, tasks:any[] }) {
       <div className="kpi"><div className="kpi-label">LFV</div><div className={`kpi-val ${lfv<=1?'green':lfv<=1.2?'amber':'red'}`}>{lfv.toFixed(2)}</div><div className="kpi-sub">Target ≤ 1.2</div></div>
       <div className="kpi"><div className="kpi-label">Momentum</div><div className={`kpi-val ${mom>=0?'green':'red'}`}>{mom>=0?'+':''}{mom.toFixed(2)}</div><div className="kpi-sub">vs last review</div></div>
       <div className="kpi"><div className="kpi-label">High Risk</div><div className={`kpi-val ${high===0?'green':high<=2?'amber':'red'}`}>{high}</div><div className="kpi-sub">tasks</div></div>
-      <div className="kpi"><div className="kpi-label">ECD</div><div className="kpi-val navy" style={{ fontSize:14, marginTop:2 }}>{project.ecd_algorithmic ? new Date(project.ecd_algorithmic).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) : '--'}</div><div className="kpi-sub">Planned: {new Date(project.planned_end_date).toLocaleDateString('en-GB',{day:'2-digit',month:'short'})}</div></div>
+      <div className="kpi"><div className="kpi-label">ECD</div><div className="kpi-val navy" style={{ fontSize:14, marginTop:2 }}>{project.ecd_algorithmic ? new Date(project.ecd_algorithmic).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) : '—'}</div><div className="kpi-sub">Planned: {new Date(project.planned_end_date).toLocaleDateString('en-GB',{day:'2-digit',month:'short'})}</div></div>
     </div>
   )
 }
@@ -96,7 +96,7 @@ function RSPChart({ tasks, project }: { tasks:any[], project:any }) {
                       </>
                     )}
                   </div>
-                  <div style={{ width:38, flexShrink:0, textAlign:'right', fontFamily:'var(--mono)', fontSize:10, fontWeight:600, paddingLeft:6, color:rn===0?'var(--text4)':rn>=100?'var(--red)':rn>=50?'var(--amber)':'var(--blue)' }}>{rn||'--'}</div>
+                  <div style={{ width:38, flexShrink:0, textAlign:'right', fontFamily:'var(--mono)', fontSize:10, fontWeight:600, paddingLeft:6, color:rn===0?'var(--text4)':rn>=100?'var(--red)':rn>=50?'var(--amber)':'var(--blue)' }}>{rn||'—'}</div>
                 </div>
               )
             })}
@@ -118,7 +118,7 @@ function SlippageChart({ tasks, project }: { tasks:any[], project:any }) {
   // Use actual last review date from project, fallback to 7 days ago
   const lastReviewDate = project?.last_review_at ? new Date(project.last_review_at) : new Date(Date.now() - 7*24*60*60*1000)
   function allTimeSlips(key:string){return tasks.filter((t:any)=>t.control_type===key).reduce((s:number,t:any)=>s+(t.slippage_count||0),0)}
-  // Since last review -- tasks whose ECD was last updated after the last review date
+  // Since last review — tasks whose ECD was last updated after the last review date
   function recentSlips(key:string){return tasks.filter((t:any)=>t.control_type===key&&t.slippage_count>0&&t.last_update_at&&new Date(t.last_update_at)>lastReviewDate).reduce((s:number,t:any)=>s+(t.slippage_count||0),0)}
   const maxVal = Math.max(...groups.map(g=>allTimeSlips(g.key)),1)
   return (
@@ -183,7 +183,7 @@ function SummaryTab({ project, tasks }: { project:any, tasks:any[] }) {
   const pEnd   = project.planned_end_date ? new Date(project.planned_end_date) : null
   const ecd    = project.ecd_algorithmic ? new Date(project.ecd_algorithmic) : null
   const today  = new Date()
-  function fs(d:Date|null){if(!d)return'--';return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'})}
+  function fs(d:Date|null){if(!d)return'—';return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'})}
   const delayDays = pEnd&&ecd?Math.max(0,Math.round((ecd.getTime()-pEnd.getTime())/86400000)):0
   async function genBrief() {
     setBL(true)
@@ -191,9 +191,8 @@ function SummaryTab({ project, tasks }: { project:any, tasks:any[] }) {
       const d = await getPreReviewBrief(project.project_id)
       setBrief(d.brief)
     } catch(err:any) {
-      if (err?.response?.status === 429) {
-        setBrief('⚠ ' + (err.response.data?.error || 'Daily AI limit reached for this project. Try again tomorrow.'))
-      }
+      const msg = err?.response?.data?.error || err?.message || 'Failed to generate. Please try again.'
+      setBrief('⚠ ' + msg)
     } finally { setBL(false) }
   }
   // For project completion bar
@@ -214,8 +213,8 @@ function SummaryTab({ project, tasks }: { project:any, tasks:any[] }) {
               <span className={`status ${statusCls}`}>{statusText}</span>
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
-              <div><div className="section-label">Timeline</div><div style={{ fontSize:12, color:'var(--text2)', lineHeight:1.9 }}>Start: <span className="mono">{new Date(project.start_date).toLocaleDateString('en-GB')}</span><br/>Planned end: <span className="mono">{new Date(project.planned_end_date).toLocaleDateString('en-GB')}</span><br/>ECD: <span className="mono" style={{ color:'var(--red)' }}>{project.ecd_algorithmic ? new Date(project.ecd_algorithmic).toLocaleDateString('en-GB') : '--'}</span></div></div>
-              <div><div className="section-label">Progress</div><div style={{ fontSize:12, color:'var(--text2)', lineHeight:1.9 }}>{completedTasks} / {tasks.length} tasks complete<br/>PM: {project.pm_name || '--'}</div></div>
+              <div><div className="section-label">Timeline</div><div style={{ fontSize:12, color:'var(--text2)', lineHeight:1.9 }}>Start: <span className="mono">{new Date(project.start_date).toLocaleDateString('en-GB')}</span><br/>Planned end: <span className="mono">{new Date(project.planned_end_date).toLocaleDateString('en-GB')}</span><br/>ECD: <span className="mono" style={{ color:'var(--red)' }}>{project.ecd_algorithmic ? new Date(project.ecd_algorithmic).toLocaleDateString('en-GB') : '—'}</span></div></div>
+              <div><div className="section-label">Progress</div><div style={{ fontSize:12, color:'var(--text2)', lineHeight:1.9 }}>{completedTasks} / {tasks.length} tasks complete<br/>PM: {project.pm_name || '—'}</div></div>
             </div>
             {/* Completion progress bar */}
             <div style={{ marginTop:16 }}>
@@ -288,8 +287,8 @@ function SummaryTab({ project, tasks }: { project:any, tasks:any[] }) {
               </div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
                 {[
-                  {label:'TCR -- Task Chaos Ratio',val:tcr.toFixed(2),sub:`${Math.round(tcr*100)}% tasks external`},
-                  {label:'DCR -- Duration Chaos Ratio',val:dcr.toFixed(2),sub:`${Math.round(dcr*100)}% duration external`},
+                  {label:'TCR — Task Chaos Ratio',val:tcr.toFixed(2),sub:`${Math.round(tcr*100)}% tasks external`},
+                  {label:'DCR — Duration Chaos Ratio',val:dcr.toFixed(2),sub:`${Math.round(dcr*100)}% duration external`},
                 ].map(s=>(
                   <div key={s.label} style={{ background:'var(--bg)', borderRadius:7, padding:'8px 10px' }}>
                     <div style={{ fontSize:15, fontWeight:600, fontFamily:'var(--mono)', color:externalDep>=70?'var(--red)':externalDep>=40?'var(--amber)':'var(--green)' }}>{s.val}</div>
@@ -334,7 +333,7 @@ function SummaryTab({ project, tasks }: { project:any, tasks:any[] }) {
             {[['Customer',project.customer_name],['Project Code',project.project_code],['Risk Tier',project.risk_tier],['Status',project.status],['Start',new Date(project.start_date).toLocaleDateString('en-GB')],['Planned End',new Date(project.planned_end_date).toLocaleDateString('en-GB')]].map(([label,val])=>(
               <div key={label} style={{ display:'flex', justifyContent:'space-between', padding:'7px 0', borderBottom:'1px solid var(--border)', fontSize:12 }}>
                 <span style={{ color:'var(--text3)' }}>{label}</span>
-                <span style={{ color:'var(--text)', fontWeight:500, textTransform:'capitalize' }}>{val||'--'}</span>
+                <span style={{ color:'var(--text)', fontWeight:500, textTransform:'capitalize' }}>{val||'—'}</span>
               </div>
             ))}
           </div>
@@ -344,7 +343,7 @@ function SummaryTab({ project, tasks }: { project:any, tasks:any[] }) {
   )
 }
 
-// -- Kanban card shared component ---------------------------------
+// ── Kanban card shared component ─────────────────────────────────
 function KanbanCard({ t }: { t:any }) {
   const ecdDiffers = t.current_ecd && t.current_ecd !== t.planned_end_date
   return (
@@ -365,7 +364,7 @@ function KanbanCard({ t }: { t:any }) {
   )
 }
 
-// -- Status Kanban -------------------------------------------------
+// ── Status Kanban ─────────────────────────────────────────────────
 function StatusKanban({ tasks }: { tasks:any[] }) {
   const cols = [
     {key:'not_started', label:'Not Started'},
@@ -392,7 +391,7 @@ function StatusKanban({ tasks }: { tasks:any[] }) {
   )
 }
 
-// -- Weekly Kanban -------------------------------------------------
+// ── Weekly Kanban ─────────────────────────────────────────────────
 function WeeklyKanban({ tasks }: { tasks:any[] }) {
   const incompleteTasks = tasks.filter((t:any) => t.completion_status !== 'complete')
 
@@ -487,7 +486,7 @@ function WeeklyKanban({ tasks }: { tasks:any[] }) {
   )
 }
 
-// -- Function Kanban -----------------------------------------------
+// ── Function Kanban ───────────────────────────────────────────────
 function FunctionKanban({ tasks }: { tasks:any[] }) {
   const incompleteTasks = tasks.filter((t:any) => t.completion_status !== 'complete')
 
@@ -529,7 +528,7 @@ function FunctionKanban({ tasks }: { tasks:any[] }) {
   )
 }
 
-// -- Lock Screen ---------------------------------------------------
+// ── Lock Screen ───────────────────────────────────────────────────
 function LockScreen({ flaggedTasks }: { flaggedTasks: any[] }) {
   const today = new Date().toISOString().split('T')[0]
   const fourDaysAgo = new Date(); fourDaysAgo.setDate(fourDaysAgo.getDate() - 4)
@@ -686,7 +685,7 @@ function ClosureTab({ project }: { project:any }) {
     <div className="card">
       <div className="card-header"><div className="card-title">Project closed</div><span className="status green">Closed</span></div>
       {result && <div className="ai-panel"><div className="ai-panel-header">✦ AI Closure Report</div><div className="ai-panel-body">{result}</div></div>}
-      <div style={{ fontSize:12, color:'var(--text2)', marginTop:12 }}>Closed on {project.closed_at ? new Date(project.closed_at).toLocaleDateString('en-GB') : '--'}</div>
+      <div style={{ fontSize:12, color:'var(--text2)', marginTop:12 }}>Closed on {project.closed_at ? new Date(project.closed_at).toLocaleDateString('en-GB') : '—'}</div>
     </div>
   )
   return (
@@ -719,13 +718,13 @@ function ClosureTab({ project }: { project:any }) {
 
 export default function ProjectView({ projectId }: { projectId:string }) {
   const [activeTab, setActiveTab] = useState<Tab>('Summary')
-  // Lifted review state -- persists across tab switches
+  // Lifted review state — persists across tab switches
 
   const { data:project, isLoading, refetch:refetchProject } = useQuery({ queryKey:['project',projectId], queryFn:()=>getProject(projectId) })
   const { data:tasks=[], refetch:refetchTasks } = useQuery({ queryKey:['tasks',projectId], queryFn:()=>getTasks(projectId) })
   if (isLoading || !project) return <div style={{ textAlign:'center', padding:60, color:'var(--text4)' }}>Loading project...</div>
 
-  // Compute flagged tasks -- overdue ECD or stale update (4+ days)
+  // Compute flagged tasks — overdue ECD or stale update (4+ days)
   const today = new Date().toISOString().split('T')[0]
   const fourDaysAgo = new Date(); fourDaysAgo.setDate(fourDaysAgo.getDate() - 4)
   const flaggedTasks = (tasks as any[]).filter(t => {
