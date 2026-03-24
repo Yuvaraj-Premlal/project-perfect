@@ -11,12 +11,6 @@ function getOPVColor(opv: number) {
   return '#C0392B'
 }
 
-function getDelayPct(p: any): string {
-  const opv = parseFloat(p.opv)
-  if (opv <= 0) return '—'
-  const delay = Math.max(0, (1 - opv) * 100)
-  return `${delay.toFixed(0)}%`
-}
 
 export default function AppShell() {
   const [view, setView]       = useState<'portfolio' | 'project'>('portfolio')
@@ -69,13 +63,11 @@ export default function AppShell() {
           {projects?.map((p: any) => {
             const opv   = parseFloat(p.opv)
             const color = getOPVColor(opv)
-            const delay = getDelayPct(p)
             return (
               <button key={p.project_id} className={`proj-item ${activeProject === p.project_id ? 'active' : ''}`}
                 onClick={() => openProject(p.project_id)}>
                 <div className="proj-dot" style={{ background: color }} />
                 <span className="proj-name-text">{p.project_name}</span>
-                <span className="proj-delay" style={{ color }}>{delay}</span>
               </button>
             )
           })}
