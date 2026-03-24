@@ -1,4 +1,5 @@
 const router  = require('express').Router({ mergeParams: true });
+const { pool } = require('../db');
 const { requireRole } = require('../middleware/tenant');
 const { generateNudgeMessage, generatePreReviewBrief, generateReviewAgenda, generateReviewSummary } = require('../services/ai');
 
