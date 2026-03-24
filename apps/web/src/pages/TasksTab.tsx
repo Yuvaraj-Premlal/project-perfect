@@ -1057,10 +1057,8 @@ export default function TasksTab({
 
       {/* Last review summary banner */}
       {(() => {
-        const lastReview = project?.reviews?.[0] || null
-        const lastReviewAt = project?.last_review_at
         const nextReviewDue = project?.next_review_due
-        if (!lastReviewAt && !nextReviewDue) return null
+        if (!project?.last_review_at && !nextReviewDue) return null
         const today = new Date().toISOString().split('T')[0]
         const isReviewOverdue = nextReviewDue && nextReviewDue < today
         return (
@@ -1073,10 +1071,10 @@ export default function TasksTab({
           }}>
             <span style={{ fontSize: 14, flexShrink: 0 }}>{isReviewOverdue ? '⚠' : 'ℹ'}</span>
             <div style={{ flex: 1, color: isReviewOverdue ? 'var(--red)' : 'var(--blue)' }}>
-              {lastReviewAt ? (
+              {project?.last_review_at ? (
                 <>
                   <strong>Last review: </strong>
-                  {new Date(lastReviewAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  {new Date(project?.last_review_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                   {project?.last_review_attended_by ? ` · Attended by ${project.last_review_attended_by}` : ''}
                   {nextReviewDue && (
                     <span style={{ marginLeft: 10, color: isReviewOverdue ? 'var(--red)' : 'var(--text3)' }}>
