@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { createTask, updateTask, getTaskUpdates, createTaskUpdate } from '../api/projects'
+import { api } from '../api/client'
 
 // ─── Types ────────────────────────────────────────────────────────
 interface Phase {
@@ -350,11 +351,11 @@ function TaskPanel({
         if (!evidenceFile) { setEvidenceError('Please select a file'); return }
         const formData = new FormData()
         formData.append('file', evidenceFile)
-        const resp = await import('../api/client').then(m => m.api.post(
+        const resp = await api.post(
           `/api/projects/${projectId}/tasks/${task.task_id}/evidence-upload`,
           formData,
           { headers: { 'Content-Type': 'multipart/form-data' } }
-        ))
+        )
         setEvidenceSuccess(resp.data.filename)
       }
     } catch (err: any) {
