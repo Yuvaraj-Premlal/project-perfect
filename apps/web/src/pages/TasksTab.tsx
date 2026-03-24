@@ -47,6 +47,9 @@ interface TaskUpdate {
   impact_if_not_done: string
   created_by_name: string
   created_at: string
+  is_completion_update?: boolean
+  evidence_url?: string | null
+  evidence_label?: string | null
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────
@@ -348,29 +351,20 @@ function TaskPanel({
     setUpdateForm(f => ({ ...f, [field]: value }))
   }
 
-  async function handleSaveEvidence() {
-    setEvidenceUploading(true); setEvidenceError(null)
-    try {
-      if (evidenceMode === 'link') {
-        if (!evidenceLink.trim()) { setEvidenceError('Please enter a URL'); return }
-        if (!evidenceLink.startsWith('http')) { setEvidenceError('Must be a valid URL starting with http'); return }
-        await updateTask(projectId, task.task_id, { evidence_url_1: evidenceLink, evidence_label_1: 'External link' })
-        setEvidenceSuccess('External link')
-      } else {
-        if (!evidenceFile) { setEvidenceError('Please select a file'); return }
-        const formData = new FormData()
-        formData.append('file', evidenceFile)
-        const resp = await api.post(
-          `/api/projects/${projectId}/tasks/${task.task_id}/evidence-upload`,
-          formData,
-          { headers: { 'Content-Type': 'multipart/form-data' } }
-        )
-        setEvidenceSuccess(resp.data.filename)
-      }
-    } catch (err: any) {
-      setEvidenceError(err?.response?.data?.error || 'Failed to save evidence')
-    } finally {
-      setEvidenceUploading(false)
+  async function getEvidenceUrlAndLabel(): Promise<{url: string, label: string} | null> {
+    if (evidenceMode === 'link') {
+      if (!evidenceLink.trim()) return null
+      return { url: evidenceLink, label: 'External link' }
+    } else {
+      if (!evidenceFile) return null
+      const formData = new FormData()
+      formData.append('file', evidenceFile)
+      const resp = await api.post(
+        `/api/projects/${projectId}/tasks/${task.task_id}/evidence-upload`,
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      )
+      return { url: resp.data.url, label: resp.data.filename }
     }
   }
 
@@ -381,7 +375,47 @@ function TaskPanel({
     }
     setSavingTask(true); setError(null)
     try {
-      await updateTask(projectId, task.task_id, taskForm)
+      // If completing, upload evidence and post completion update atomically
+      if (isCompleting) {
+        let evidenceUrl: string | null = null
+        let evidenceLabel: string | null = null
+
+        // Upload evidence if provided
+        if (evidenceFile || evidenceLink.trim()) {
+          setEvidenceUploading(true)
+          try {
+            const ev = await getEvidenceUrlAndLabel()
+            if (ev) { evidenceUrl = ev.url; evidenceLabel = ev.label }
+          } catch (err: any) {
+            setEvidenceError(err?.response?.data?.error || 'Evidence upload failed')
+            setSavingTask(false); setEvidenceUploading(false)
+            return
+          } finally { setEvidenceUploading(false) }
+        }
+
+        // Post completion update with evidence baked in
+        if (updateForm.what_done.trim() && updateForm.what_pending.trim()) {
+          await createTaskUpdate(projectId, task.task_id, {
+            ...updateForm,
+            is_completion_update: true,
+            evidence_url: evidenceUrl,
+            evidence_label: evidenceLabel,
+          })
+        }
+
+        // Save evidence to task row
+        if (evidenceUrl) {
+          await updateTask(projectId, task.task_id, {
+            ...taskForm,
+            evidence_url_1: evidenceUrl,
+            evidence_label_1: evidenceLabel,
+          })
+        } else {
+          await updateTask(projectId, task.task_id, taskForm)
+        }
+      } else {
+        await updateTask(projectId, task.task_id, taskForm)
+      }
       onSaved()
       onClose()
     } catch (err: any) {
@@ -506,37 +540,22 @@ function TaskPanel({
               </div>
             )}
 
-            {/* Evidence of completion */}
-            {(taskForm.completion_status === 'complete') && (
+            {/* Evidence of completion — shown when marking complete */}
+            {isCompleting && (
               <div style={{ marginTop: 12, background: 'var(--bg)', borderRadius: 8, padding: '12px 14px', border: '1px solid var(--border)' }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>📎 Evidence of completion</div>
-                {evidenceSuccess ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 11, color: 'var(--green)' }}>✓ {evidenceSuccess}</span>
-                    {task.evidence_url_1 && (
-                      <a href={task.evidence_url_1} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: 'var(--blue)' }}>View</a>
-                    )}
-                    <button style={{ fontSize: 11, color: 'var(--text3)', background: 'none', border: 'none', cursor: 'pointer', marginLeft: 'auto' }} onClick={() => { setEvidenceSuccess(null) }}>Replace</button>
-                  </div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>📎 Evidence of completion <span style={{ fontSize: 10, color: 'var(--text3)', fontWeight: 400 }}>(optional — saved with changes)</span></div>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                  <button onClick={() => setEvidenceMode('file')} style={{ fontSize: 11, padding: '4px 10px', borderRadius: 6, border: '1px solid var(--border)', background: evidenceMode==='file'?'var(--blue)':'var(--white)', color: evidenceMode==='file'?'white':'var(--text2)', cursor: 'pointer' }}>📄 Upload file ≤1MB</button>
+                  <button onClick={() => setEvidenceMode('link')} style={{ fontSize: 11, padding: '4px 10px', borderRadius: 6, border: '1px solid var(--border)', background: evidenceMode==='link'?'var(--blue)':'var(--white)', color: evidenceMode==='link'?'white':'var(--text2)', cursor: 'pointer' }}>🔗 Paste link</button>
+                </div>
+                {evidenceMode === 'file' ? (
+                  <input type="file" accept=".pdf,.jpg,.jpeg,.png,.docx" style={{ fontSize: 11, width: '100%' }}
+                    onChange={e => setEvidenceFile(e.target.files?.[0] || null)} />
                 ) : (
-                  <>
-                    <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-                      <button onClick={() => setEvidenceMode('file')} style={{ fontSize: 11, padding: '4px 10px', borderRadius: 6, border: '1px solid var(--border)', background: evidenceMode==='file'?'var(--blue)':'var(--white)', color: evidenceMode==='file'?'white':'var(--text2)', cursor: 'pointer' }}>📄 Upload file ≤1MB</button>
-                      <button onClick={() => setEvidenceMode('link')} style={{ fontSize: 11, padding: '4px 10px', borderRadius: 6, border: '1px solid var(--border)', background: evidenceMode==='link'?'var(--blue)':'var(--white)', color: evidenceMode==='link'?'white':'var(--text2)', cursor: 'pointer' }}>🔗 Paste link</button>
-                    </div>
-                    {evidenceMode === 'file' ? (
-                      <input type="file" accept=".pdf,.jpg,.jpeg,.png,.docx" style={{ fontSize: 11, width: '100%' }}
-                        onChange={e => setEvidenceFile(e.target.files?.[0] || null)} />
-                    ) : (
-                      <input className="form-input" type="url" placeholder="https://..." value={evidenceLink}
-                        onChange={e => setEvidenceLink(e.target.value)} style={{ fontSize: 11 }} />
-                    )}
-                    {evidenceError && <div style={{ fontSize: 11, color: 'var(--red)', marginTop: 4 }}>⚠ {evidenceError}</div>}
-                    <button className="tb-btn primary" onClick={handleSaveEvidence} disabled={evidenceUploading} style={{ marginTop: 8, fontSize: 11 }}>
-                      {evidenceUploading ? 'Saving...' : 'Save evidence'}
-                    </button>
-                  </>
+                  <input className="form-input" type="url" placeholder="https://..." value={evidenceLink}
+                    onChange={e => setEvidenceLink(e.target.value)} style={{ fontSize: 11 }} />
                 )}
+                {evidenceError && <div style={{ fontSize: 11, color: 'var(--red)', marginTop: 4 }}>⚠ {evidenceError}</div>}
               </div>
             )}
 
@@ -671,6 +690,23 @@ function TaskPanel({
                           </div>
                         ))}
                       </div>
+
+                      {/* Completion evidence — permanent in history */}
+                      {u.is_completion_update && (
+                        <div style={{ padding: '8px 14px', background: 'var(--green-bg)', borderTop: '1px solid var(--border)' }}>
+                          <div style={{ fontSize: 11, color: 'var(--green)', fontWeight: 600, marginBottom: 4 }}>
+                            ✓ Acceptance criteria confirmed
+                          </div>
+                          {u.evidence_url ? (
+                            <a href={u.evidence_url} target="_blank" rel="noreferrer"
+                              style={{ fontSize: 11, color: 'var(--blue)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                              📎 {u.evidence_label || 'Evidence'} — View
+                            </a>
+                          ) : (
+                            <div style={{ fontSize: 11, color: 'var(--text3)' }}>📎 No evidence attached</div>
+                          )}
+                        </div>
+                      )}
 
                       {/* Action footer */}
                       <div style={{
