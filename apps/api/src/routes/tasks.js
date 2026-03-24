@@ -33,10 +33,16 @@ router.get('/', async (req, res) => {
       SELECT
         t.*,
         pp.phase_name,
-        s.supplier_name
+        s.supplier_name,
+        lu.what_pending  AS last_update_pending,
+        lu.created_at    AS last_update_at
       FROM tasks t
       LEFT JOIN project_phases pp ON pp.phase_id = t.phase_id
       LEFT JOIN suppliers s       ON s.supplier_id = t.supplier_id
+      LEFT JOIN LATERAL (
+        SELECT what_pending, created_at FROM task_updates
+        WHERE task_id = t.task_id ORDER BY created_at DESC LIMIT 1
+      ) lu ON true
       WHERE t.project_id = $1 AND t.tenant_id = $2
       ORDER BY t.risk_number DESC, t.planned_end_date ASC
     `, [projectId, req.tenantId]);
@@ -247,7 +253,79 @@ router.get('/:taskId/slippages', async (req, res) => {
   }
 });
 
-module.exports = router;
+
+// ─────────────────────────────────────────────
+// GET /api/projects/:projectId/tasks/:taskId/updates
+// Fetch all updates for a task
+// ─────────────────────────────────────────────
+router.get('/:taskId/updates', async (req, res) => {
+  const { taskId } = req.params;
+  const client = await pool.connect();
+  try {
+    await client.query(`SET app.tenant_id = '${req.tenantId}'`);
+    const result = await client.query(`
+      SELECT tu.*, u.full_name AS created_by_name
+      FROM task_updates tu
+      LEFT JOIN users u ON u.user_id = tu.created_by
+      WHERE tu.task_id = $1 AND tu.tenant_id = $2
+      ORDER BY tu.created_at DESC
+    `, [taskId, req.tenantId]);
+    res.json(result.rows);
+  } catch (err) {
+    throw err;
+  } finally {
+    client.release();
+  }
+});
+
+// ─────────────────────────────────────────────
+// POST /api/projects/:projectId/tasks/:taskId/updates
+// Create a task update
+// ─────────────────────────────────────────────
+router.post('/:taskId/updates', requireRole('pm'), async (req, res) => {
+  const { projectId, taskId } = req.params;
+  const { what_done, what_pending, issue_blocker, action_owner, action_due_date, impact_if_not_done } = req.body;
+  const client = await pool.connect();
+  try {
+    await client.query(`SET app.tenant_id = '${req.tenantId}'`);
+    await client.query('BEGIN');
+
+    // Insert the update
+    const result = await client.query(`
+      INSERT INTO task_updates
+        (task_id, tenant_id, what_done, what_pending, issue_blocker, action_owner, action_due_date, impact_if_not_done, created_by)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      RETURNING *
+    `, [taskId, req.tenantId, what_done, what_pending, issue_blocker || null,
+        action_owner, action_due_date || null, impact_if_not_done, req.userId]);
+
+    const update = result.rows[0];
+
+    // Write last_update_pending and last_update_at back to tasks row
+    await client.query(`
+      UPDATE tasks SET
+        last_update_pending = $1,
+        last_update_at      = $2
+      WHERE task_id = $3 AND tenant_id = $4
+    `, [what_pending, update.created_at, taskId, req.tenantId]);
+
+    await client.query('COMMIT');
+
+    // Get created_by name
+    const userResult = await client.query(
+      `SELECT full_name FROM users WHERE user_id = $1`, [req.userId]
+    );
+    update.created_by_name = userResult.rows[0]?.full_name || '';
+
+    res.json(update);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+});
+
 
 // POST /api/projects/:projectId/tasks/:taskId/evidence-upload
 // Upload evidence file to Azure Blob Storage (max 1MB)
@@ -291,3 +369,5 @@ router.post('/:taskId/evidence-upload', upload.single('file'), async (req, res) 
   }
 });
 
+
+module.exports = router;
