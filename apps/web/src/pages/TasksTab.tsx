@@ -50,6 +50,9 @@ interface TaskUpdate {
   is_completion_update?: boolean
   evidence_url?: string | null
   evidence_label?: string | null
+  lessons_went_well?: string | null
+  lessons_went_wrong?: string | null
+  lessons_do_differently?: string | null
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────
@@ -333,6 +336,16 @@ function TaskPanel({
     impact_if_not_done: '',
   })
 
+  const [completionForm, setCompletionForm] = useState({
+    what_completed:       '',
+    lessons_went_well:    '',
+    lessons_went_wrong:   '',
+    lessons_do_differently: '',
+  })
+  function setCompletion(field: string, value: string) {
+    setCompletionForm(f => ({ ...f, [field]: value }))
+  }
+
   React.useEffect(() => {
     setLoadingUpdates(true)
     getTaskUpdates(projectId, task.task_id)
@@ -371,16 +384,21 @@ function TaskPanel({
       setError('You must confirm acceptance criteria before marking complete.')
       return
     }
+    if (isCompleting) {
+      if (!completionForm.what_completed.trim()) { setError('Please describe what was completed.'); return }
+      if (!completionForm.lessons_went_well.trim()) { setError('Please fill in what went well.'); return }
+      if (!completionForm.lessons_went_wrong.trim()) { setError('Please fill in what went wrong / could be improved.'); return }
+      if (!completionForm.lessons_do_differently.trim()) { setError('Please fill in what you would do differently.'); return }
+    }
     setSavingTask(true); setError(null)
     try {
-      // If completing, upload evidence and post completion update atomically
       if (isCompleting) {
         let evidenceUrl: string | null = null
         let evidenceLabel: string | null = null
 
         // Upload evidence if provided
         if (evidenceFile || evidenceLink.trim()) {
-            try {
+          try {
             const ev = await getEvidenceUrlAndLabel()
             if (ev) { evidenceUrl = ev.url; evidenceLabel = ev.label }
           } catch (err: any) {
@@ -390,26 +408,27 @@ function TaskPanel({
           }
         }
 
-        // Post completion update with evidence baked in
-        if (updateForm.what_done.trim() && updateForm.what_pending.trim()) {
-          await createTaskUpdate(projectId, task.task_id, {
-            ...updateForm,
-            is_completion_update: true,
-            evidence_url: evidenceUrl,
-            evidence_label: evidenceLabel,
-          })
-        }
+        // Always post completion update with lessons learnt + evidence
+        await createTaskUpdate(projectId, task.task_id, {
+          what_done:            completionForm.what_completed,
+          what_pending:         'Task complete',
+          issue_blocker:        null,
+          action_owner:         '',
+          action_due_date:      '',
+          impact_if_not_done:   '',
+          is_completion_update: true,
+          evidence_url:         evidenceUrl,
+          evidence_label:       evidenceLabel,
+          lessons_went_well:    completionForm.lessons_went_well,
+          lessons_went_wrong:   completionForm.lessons_went_wrong,
+          lessons_do_differently: completionForm.lessons_do_differently,
+        })
 
         // Save evidence to task row
-        if (evidenceUrl) {
-          await updateTask(projectId, task.task_id, {
-            ...taskForm,
-            evidence_url_1: evidenceUrl,
-            evidence_label_1: evidenceLabel,
-          })
-        } else {
-          await updateTask(projectId, task.task_id, taskForm)
-        }
+        await updateTask(projectId, task.task_id, {
+          ...taskForm,
+          ...(evidenceUrl ? { evidence_url_1: evidenceUrl, evidence_label_1: evidenceLabel } : {}),
+        })
       } else {
         await updateTask(projectId, task.task_id, taskForm)
       }
@@ -562,79 +581,116 @@ function TaskPanel({
                 onClick={handleSaveTask}
                 disabled={savingTask || (isCompleting && !confirmComplete)}
               >
-                {savingTask ? 'Saving...' : 'Save changes'}
+                {savingTask ? 'Saving...' : isCompleting ? 'Complete task & save' : 'Save changes'}
               </button>
             </div>
           </div>
 
           <div style={{ borderTop: '1px solid var(--border)' }} />
 
-          {/* Add update form — PM only */}
-          <div>
-            <div className="section-label" style={{ marginBottom: 10 }}>Post update</div>
-            <form onSubmit={handlePostUpdate} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div className="form-group">
-                <label className="form-label">What has been done *</label>
-                <textarea
-                  className="form-input" rows={2} required
-                  value={updateForm.what_done}
-                  onChange={e => setUpdate('what_done', e.target.value)}
-                  placeholder="Progress since last update..."
-                />
-              </div>
-              <div className="form-group">
-                <label className="form-label">What is yet to be done *</label>
-                <textarea
-                  className="form-input" rows={2} required
-                  value={updateForm.what_pending}
-                  onChange={e => setUpdate('what_pending', e.target.value)}
-                  placeholder="Remaining work..."
-                />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Issue / blocker</label>
-                <textarea
-                  className="form-input" rows={2}
-                  value={updateForm.issue_blocker}
-                  onChange={e => setUpdate('issue_blocker', e.target.value)}
-                  placeholder="What is blocking or at risk? (optional)"
-                />
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          {/* Completion form OR normal update form */}
+          {isCompleting ? (
+            <div>
+              <div className="section-label" style={{ marginBottom: 10 }}>Complete task</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div className="form-group">
-                  <label className="form-label">Action owner *</label>
-                  <input
-                    className="form-input" required
-                    value={updateForm.action_owner}
-                    onChange={e => setUpdate('action_owner', e.target.value)}
-                    placeholder="Name or email"
+                  <label className="form-label">What was completed *</label>
+                  <textarea className="form-input" rows={2}
+                    value={completionForm.what_completed}
+                    onChange={e => setCompletion('what_completed', e.target.value)}
+                    placeholder="Brief summary of what was done to complete this task..."
+                  />
+                </div>
+                <div style={{ background: 'var(--bg)', borderRadius: 8, padding: '12px 14px', border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', marginBottom: 10 }}>🎓 Lessons learnt</div>
+                  <div className="form-group" style={{ marginBottom: 8 }}>
+                    <label className="form-label">What went well *</label>
+                    <textarea className="form-input" rows={2}
+                      value={completionForm.lessons_went_well}
+                      onChange={e => setCompletion('lessons_went_well', e.target.value)}
+                      placeholder="What worked as planned or better than expected?"
+                    />
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 8 }}>
+                    <label className="form-label">What went wrong / could be improved *</label>
+                    <textarea className="form-input" rows={2}
+                      value={completionForm.lessons_went_wrong}
+                      onChange={e => setCompletion('lessons_went_wrong', e.target.value)}
+                      placeholder="What caused delays, blockers, or rework?"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">What would you do differently next time *</label>
+                    <textarea className="form-input" rows={2}
+                      value={completionForm.lessons_do_differently}
+                      onChange={e => setCompletion('lessons_do_differently', e.target.value)}
+                      placeholder="Specific recommendation for future similar tasks..."
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <div className="section-label" style={{ marginBottom: 10 }}>Post update</div>
+              <form onSubmit={handlePostUpdate} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div className="form-group">
+                  <label className="form-label">What has been done *</label>
+                  <textarea className="form-input" rows={2} required
+                    value={updateForm.what_done}
+                    onChange={e => setUpdate('what_done', e.target.value)}
+                    placeholder="Progress since last update..."
                   />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Action due by *</label>
-                  <input
-                    className="form-input" type="date" required
-                    value={updateForm.action_due_date}
-                    onChange={e => setUpdate('action_due_date', e.target.value)}
+                  <label className="form-label">What is yet to be done *</label>
+                  <textarea className="form-input" rows={2} required
+                    value={updateForm.what_pending}
+                    onChange={e => setUpdate('what_pending', e.target.value)}
+                    placeholder="Remaining work..."
                   />
                 </div>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Impact if not done *</label>
-                <textarea
-                  className="form-input" rows={2} required
-                  value={updateForm.impact_if_not_done}
-                  onChange={e => setUpdate('impact_if_not_done', e.target.value)}
-                  placeholder="What happens if this action is missed?"
-                />
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <button type="submit" className="tb-btn primary" disabled={savingUpdate}>
-                  {savingUpdate ? 'Posting...' : '+ Post update'}
-                </button>
-              </div>
-            </form>
-          </div>
+                <div className="form-group">
+                  <label className="form-label">Issue / blocker</label>
+                  <textarea className="form-input" rows={2}
+                    value={updateForm.issue_blocker}
+                    onChange={e => setUpdate('issue_blocker', e.target.value)}
+                    placeholder="What is blocking or at risk? (optional)"
+                  />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div className="form-group">
+                    <label className="form-label">Action owner *</label>
+                    <input className="form-input" required
+                      value={updateForm.action_owner}
+                      onChange={e => setUpdate('action_owner', e.target.value)}
+                      placeholder="Name or email"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Action due by *</label>
+                    <input className="form-input" type="date" required
+                      value={updateForm.action_due_date}
+                      onChange={e => setUpdate('action_due_date', e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Impact if not done *</label>
+                  <textarea className="form-input" rows={2} required
+                    value={updateForm.impact_if_not_done}
+                    onChange={e => setUpdate('impact_if_not_done', e.target.value)}
+                    placeholder="What happens if this action is missed?"
+                  />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <button type="submit" className="tb-btn primary" disabled={savingUpdate}>
+                    {savingUpdate ? 'Posting...' : '+ Post update'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
 
           <div style={{ borderTop: '1px solid var(--border)' }} />
 
@@ -690,10 +746,8 @@ function TaskPanel({
 
                       {/* Completion evidence — permanent in history */}
                       {u.is_completion_update && (
-                        <div style={{ padding: '8px 14px', background: 'var(--green-bg)', borderTop: '1px solid var(--border)' }}>
-                          <div style={{ fontSize: 11, color: 'var(--green)', fontWeight: 600, marginBottom: 4 }}>
-                            ✓ Acceptance criteria confirmed
-                          </div>
+                        <div style={{ padding: '10px 14px', background: 'var(--green-bg)', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          <div style={{ fontSize: 11, color: 'var(--green)', fontWeight: 600 }}>✓ Acceptance criteria confirmed</div>
                           {u.evidence_url ? (
                             <a href={u.evidence_url} target="_blank" rel="noreferrer"
                               style={{ fontSize: 11, color: 'var(--blue)', display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -701,6 +755,29 @@ function TaskPanel({
                             </a>
                           ) : (
                             <div style={{ fontSize: 11, color: 'var(--text3)' }}>📎 No evidence attached</div>
+                          )}
+                          {(u.lessons_went_well || u.lessons_went_wrong || u.lessons_do_differently) && (
+                            <div style={{ marginTop: 4, borderTop: '1px solid #B3D9C7', paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)' }}>🎓 Lessons learnt</div>
+                              {u.lessons_went_well && (
+                                <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: 6 }}>
+                                  <span style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 500 }}>What went well</span>
+                                  <span style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.5 }}>{u.lessons_went_well}</span>
+                                </div>
+                              )}
+                              {u.lessons_went_wrong && (
+                                <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: 6 }}>
+                                  <span style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 500 }}>What went wrong</span>
+                                  <span style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.5 }}>{u.lessons_went_wrong}</span>
+                                </div>
+                              )}
+                              {u.lessons_do_differently && (
+                                <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: 6 }}>
+                                  <span style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 500 }}>Do differently</span>
+                                  <span style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.5 }}>{u.lessons_do_differently}</span>
+                                </div>
+                              )}
+                            </div>
                           )}
                         </div>
                       )}
