@@ -384,7 +384,7 @@ function TaskPanel({
       setError('You must confirm acceptance criteria before marking complete.')
       return
     }
-    if (isCompleting) {
+    if (taskForm.completion_status === 'complete') {
       if (!completionForm.what_completed.trim()) { setError('Please describe what was completed.'); return }
       if (!completionForm.lessons_went_well.trim()) { setError('Please fill in what went well.'); return }
       if (!completionForm.lessons_went_wrong.trim()) { setError('Please fill in what went wrong / could be improved.'); return }
@@ -392,7 +392,7 @@ function TaskPanel({
     }
     setSavingTask(true); setError(null)
     try {
-      if (isCompleting) {
+      if (taskForm.completion_status === 'complete') {
         let evidenceUrl: string | null = null
         let evidenceLabel: string | null = null
 
@@ -460,7 +460,7 @@ function TaskPanel({
   }
 
   const { cls: riskCls, text: riskText } = getRiskStyle(task.risk_label)
-  const isCompleting = taskForm.completion_status === 'complete' && task.completion_status !== 'complete'
+  const isCompleting = taskForm.completion_status === 'complete'
 
   return (
     <>
