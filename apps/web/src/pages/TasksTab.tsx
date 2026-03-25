@@ -742,10 +742,12 @@ function TaskPanel({
                       {/* Update card body */}
                       <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
                         {[
-                          { key: 'What was done',    val: u.what_done,          danger: false },
-                          { key: 'Yet to be done',   val: u.what_pending,       danger: false },
-                          { key: 'Issue / blocker',  val: u.issue_blocker,      danger: false },
-                          { key: 'Impact if missed', val: u.impact_if_not_done, danger: true  },
+                          { key: u.is_completion_update ? 'What was completed' : 'What was done', val: u.what_done, danger: false },
+                          ...(!u.is_completion_update ? [
+                            { key: 'Yet to be done',   val: u.what_pending,       danger: false },
+                            { key: 'Issue / blocker',  val: u.issue_blocker,      danger: false },
+                            { key: 'Impact if missed', val: u.impact_if_not_done, danger: true  },
+                          ] : []),
                         ].filter(row => row.val).map(row => (
                           <div key={row.key} style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 8, alignItems: 'start' }}>
                             <span style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 500, paddingTop: 1 }}>{row.key}</span>
@@ -792,23 +794,25 @@ function TaskPanel({
                         </div>
                       )}
 
-                      {/* Action footer */}
-                      <div style={{
-                        padding: '8px 14px', background: 'var(--bg)',
-                        borderTop: '1px solid var(--border)',
-                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                      }}>
-                        <span style={{ fontSize: 12, color: 'var(--text2)' }}>
-                          Owner: <strong>{u.action_owner}</strong>
-                        </span>
-                        <span className="mono" style={{
-                          fontSize: 11, fontWeight: 600,
-                          color: isOverdue ? 'var(--red)' : 'var(--text2)',
+                      {/* Action footer — only for non-completion updates */}
+                      {!u.is_completion_update && (
+                        <div style={{
+                          padding: '8px 14px', background: 'var(--bg)',
+                          borderTop: '1px solid var(--border)',
+                          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                         }}>
-                          Due: {new Date(u.action_due_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                          {isOverdue ? ' ⚠' : ''}
-                        </span>
-                      </div>
+                          <span style={{ fontSize: 12, color: 'var(--text2)' }}>
+                            Owner: <strong>{u.action_owner}</strong>
+                          </span>
+                          <span className="mono" style={{
+                            fontSize: 11, fontWeight: 600,
+                            color: isOverdue ? 'var(--red)' : 'var(--text2)',
+                          }}>
+                            Due: {new Date(u.action_due_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                            {isOverdue ? ' ⚠' : ''}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   )
                 })}
