@@ -413,9 +413,9 @@ function TaskPanel({
           what_done:            completionForm.what_completed,
           what_pending:         'Task complete',
           issue_blocker:        null,
-          action_owner:         '',
-          action_due_date:      '',
-          impact_if_not_done:   '',
+          action_owner:         'N/A',
+          action_due_date:      null,
+          impact_if_not_done:   'N/A',
           is_completion_update: true,
           evidence_url:         evidenceUrl,
           evidence_label:       evidenceLabel,
@@ -575,15 +575,6 @@ function TaskPanel({
               </div>
             )}
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
-              <button
-                className="tb-btn primary"
-                onClick={handleSaveTask}
-                disabled={savingTask || (isCompleting && !confirmComplete)}
-              >
-                {savingTask ? 'Saving...' : isCompleting ? 'Complete task & save' : 'Save changes'}
-              </button>
-            </div>
           </div>
 
           <div style={{ borderTop: '1px solid var(--border)' }} />
@@ -628,6 +619,15 @@ function TaskPanel({
                     />
                   </div>
                 </div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 14 }}>
+                <button
+                  className="tb-btn primary"
+                  onClick={handleSaveTask}
+                  disabled={savingTask || !confirmComplete}
+                >
+                  {savingTask ? 'Saving...' : 'Complete task & save'}
+                </button>
               </div>
             </div>
           ) : (
@@ -689,6 +689,15 @@ function TaskPanel({
                   </button>
                 </div>
               </form>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+                <button
+                  className="tb-btn"
+                  onClick={handleSaveTask}
+                  disabled={savingTask}
+                >
+                  {savingTask ? 'Saving...' : 'Save changes'}
+                </button>
+              </div>
             </div>
           )}
 
