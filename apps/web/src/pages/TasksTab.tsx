@@ -414,7 +414,7 @@ function TaskPanel({
           what_pending:         'Task complete',
           issue_blocker:        null,
           action_owner:         'N/A',
-          action_due_date:      null,
+          action_due_date:      new Date().toISOString().split('T')[0],
           impact_if_not_done:   'N/A',
           is_completion_update: true,
           evidence_url:         evidenceUrl,
@@ -435,7 +435,8 @@ function TaskPanel({
       onSaved()
       onClose()
     } catch (err: any) {
-      setError(err?.response?.data?.error || 'Failed to update task.')
+      const details = err?.response?.data?.details?.map((d: any) => d.message).join(', ')
+      setError(details || err?.response?.data?.error || err?.message || 'Failed to update task.')
     } finally {
       setSavingTask(false)
     }
