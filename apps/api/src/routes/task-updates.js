@@ -52,6 +52,12 @@ router.post('/', [
     action_owner,
     action_due_date,
     impact_if_not_done,
+    is_completion_update,
+    evidence_url,
+    evidence_label,
+    lessons_went_well,
+    lessons_went_wrong,
+    lessons_do_differently,
   } = req.body;
 
   const createdByName = nameFromEmail(req.email);
@@ -74,8 +80,9 @@ router.post('/', [
         task_id, project_id, tenant_id,
         what_done, what_pending, issue_blocker,
         action_owner, action_due_date, impact_if_not_done,
-        created_by_name
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        created_by_name, is_completion_update, evidence_url, evidence_label,
+        lessons_went_well, lessons_went_wrong, lessons_do_differently
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
       RETURNING *
     `, [
       taskId, projectId, req.tenantId,
@@ -86,6 +93,12 @@ router.post('/', [
       action_due_date,
       impact_if_not_done.trim(),
       createdByName,
+      is_completion_update || false,
+      evidence_url || null,
+      evidence_label || null,
+      lessons_went_well || null,
+      lessons_went_wrong || null,
+      lessons_do_differently || null,
     ]);
 
     res.status(201).json(result.rows[0]);
