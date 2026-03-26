@@ -25,7 +25,7 @@ function fmt(date: string | null) {
   return new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
 }
 
-type SortKey = 'project' | 'opv' | 'lfv' | 'planned_duration' | 'expected_delay' | 'delay_pct' | 'status'
+type SortKey = 'project' | 'opv' | 'lfv' | 'planned_duration' | 'ecd' | 'expected_delay' | 'delay_pct' | 'status'
 
 export default function PortfolioView({ projects, onOpenProject }: { projects: any[], onOpenProject: (id: string) => void }) {
   const [sortKey, setSortKey] = useState<SortKey>('delay_pct')
@@ -57,6 +57,7 @@ export default function PortfolioView({ projects, onOpenProject }: { projects: a
       case 'lfv':              return lfv
       case 'planned_duration': return plannedDuration
       case 'expected_delay':   return expectedDelayDays
+      case 'ecd':             return p.ecd_algorithmic ? new Date(p.ecd_algorithmic).getTime() : 0
       case 'delay_pct':        return delayPct
       case 'status':           return delayPct
       default:                 return 0
@@ -108,6 +109,7 @@ export default function PortfolioView({ projects, onOpenProject }: { projects: a
               <SortTh label="OPV"              col="opv" />
               <SortTh label="LFV"              col="lfv" />
               <SortTh label="Planned Duration" col="planned_duration" />
+              <SortTh label="ECD"              col="ecd" />
               <SortTh label="Expected Delay"   col="expected_delay" />
               <SortTh label="Delay %"          col="delay_pct" />
               <SortTh label="Status"           col="status" />
