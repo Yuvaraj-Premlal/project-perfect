@@ -49,7 +49,6 @@ app.get('/health', (req, res) => {
 
 // Protected
 app.use('/api', tenantMiddleware);
-app.use('/api/projects/:projectId/tasks/:taskId/updates', require('./routes/task-updates'));
 app.use('/api/projects/:projectId/tasks',             require('./routes/tasks'));
 app.use('/api/projects/:projectId/reviews',           require('./routes/reviews'));
 app.use('/api/projects/:projectId/nudges',            aiLimiter, require('./routes/nudges'));
