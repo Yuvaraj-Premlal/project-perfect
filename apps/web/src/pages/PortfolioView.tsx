@@ -143,6 +143,11 @@ export default function PortfolioView({ projects, onOpenProject }: { projects: a
                     </span>
                   </td>
                   <td>
+                    <span className="mono" style={{ fontSize:11, color: expectedDelayDays > 0 ? 'var(--red)' : 'var(--green)' }}>
+                      {ecd ? ecd.toLocaleDateString('en-GB', { day:'2-digit', month:'short' }) : '—'}
+                    </span>
+                  </td>
+                  <td>
                     {expectedDelayDays > 0
                       ? <span className="mono" style={{ color:'var(--red)', fontWeight:600 }}>+{expectedDelayDays}d</span>
                       : <span style={{ color:'var(--text4)' }}>—</span>}
