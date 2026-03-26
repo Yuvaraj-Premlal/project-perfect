@@ -264,9 +264,8 @@ router.get('/:taskId/updates', async (req, res) => {
   try {
     await client.query(`SET app.tenant_id = '${req.tenantId}'`);
     const result = await client.query(`
-      SELECT tu.*, u.full_name AS created_by_name
+      SELECT tu.*
       FROM task_updates tu
-      LEFT JOIN users u ON u.user_id = tu.created_by
       WHERE tu.task_id = $1 AND tu.tenant_id = $2
       ORDER BY tu.created_at DESC
     `, [taskId, req.tenantId]);
@@ -295,7 +294,7 @@ router.post('/:taskId/updates', requireRole('pm'), async (req, res) => {
     // Insert the update
     const result = await client.query(`
       INSERT INTO task_updates
-        (task_id, tenant_id, what_done, what_pending, issue_blocker, action_owner, action_due_date, impact_if_not_done, created_by, is_completion_update, evidence_url, evidence_label, lessons_went_well, lessons_went_wrong, lessons_do_differently)
+        (task_id, project_id, tenant_id, what_done, what_pending, issue_blocker, action_owner, action_due_date, impact_if_not_done, created_by_name, is_completion_update, evidence_url, evidence_label, lessons_went_well, lessons_went_wrong, lessons_do_differently)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       RETURNING *
     `, [taskId, req.tenantId, what_done, what_pending, issue_blocker || null,
