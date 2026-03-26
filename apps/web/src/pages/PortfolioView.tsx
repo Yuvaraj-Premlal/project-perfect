@@ -115,7 +115,7 @@ export default function PortfolioView({ projects, onOpenProject }: { projects: a
           </thead>
           <tbody>
             {sorted.length === 0 && (
-              <tr><td colSpan={7} style={{ textAlign:'center', padding:32, color:'var(--text4)' }}>No active projects</td></tr>
+              <tr><td colSpan={8} style={{ textAlign:'center', padding:32, color:'var(--text4)' }}>No active projects</td></tr>
             )}
             {sorted.map((p: any) => {
               const opv = parseFloat(p.opv)
