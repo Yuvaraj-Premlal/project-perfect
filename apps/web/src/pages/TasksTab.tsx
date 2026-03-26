@@ -511,13 +511,13 @@ function TaskPanel({
             <div className="section-label" style={{ marginBottom: 10 }}>Task status</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
               <div className="form-group">
-                <label className="form-label">Current ECD</label>
+                <label className="form-label">{isCompleting ? 'Completion date' : 'Current ECD'}</label>
                 <input
                   className="form-input" type="date"
                   value={taskForm.current_ecd}
                   onChange={e => setTask('current_ecd', e.target.value)}
                 />
-                {taskForm.current_ecd > task.planned_end_date && (
+                {!isCompleting && taskForm.current_ecd > task.planned_end_date && (
                   <div style={{ fontSize: 11, color: 'var(--amber)', marginTop: 3 }}>
                     ⚠ Past planned end — slippage will be recorded
                   </div>
