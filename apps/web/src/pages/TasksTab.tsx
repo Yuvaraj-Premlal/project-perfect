@@ -2,7 +2,8 @@ import React, { useState } from 'react'
 import { createTask, updateTask, getTaskUpdates, createTaskUpdate } from '../api/projects'
 import { api } from '../api/client'
 
-// ─── Types ────────────────────────────────────────────────────────
+// ─── Types ──────────────────────────────────────────────────────
+// v2.1 — completion history, lessons learnt, evidence──
 interface Phase {
   phase_id: string
   phase_name: string
