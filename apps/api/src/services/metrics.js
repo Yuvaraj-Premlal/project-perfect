@@ -122,6 +122,15 @@ async function recalculateProjectMetrics(projectId, tenantId) {
       ecdAlgorithmic.setDate(ecdAlgorithmic.getDate() + newDuration);
     }
 
+    // ── Take worst of algorithmic ECD and worst incomplete task ECD ──
+    const incompleteTasksWithECD = tasks.filter(t => t.completion_status !== 'complete' && t.current_ecd);
+    if (incompleteTasksWithECD.length > 0) {
+      const worstTaskECD = new Date(Math.max(...incompleteTasksWithECD.map(t => new Date(t.current_ecd).getTime())));
+      if (!ecdAlgorithmic || worstTaskECD > ecdAlgorithmic) {
+        ecdAlgorithmic = worstTaskECD;
+      }
+    }
+
     // ── Calculate TCR — Task Chaos Ratio ──
     // External tasks (CN=10 + CN=100) / total tasks
     const externalTasks = tasks.filter(t => t.cn_value === 10 || t.cn_value === 100).length;
