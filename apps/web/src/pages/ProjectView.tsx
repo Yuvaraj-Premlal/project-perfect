@@ -678,87 +678,86 @@ const SECTION_LABELS: Record<string,string> = {
   pm_closing_remarks:      'PM's Closing Remarks',
 }
 
+const SECTION_LABELS: Record<string,string> = {
+  project_overview:        "Project Overview",
+  key_events_timeline:     "Key Events Timeline",
+  what_went_right:         "What Went Right",
+  what_went_wrong:         "What Went Wrong",
+  stakeholder_performance: "Stakeholder Performance",
+  recommendations:         "Recommendations for Future Projects",
+  pm_closing_remarks:      "PM Closing Remarks",
+}
+
 function ClosureTab({ project, tasks }: { project:any, tasks:any[] }) {
-  const qc                          = useQueryClient()
-  const [pmNotes, setPmNotes]       = useState('')
-  const [date, setDate]             = useState(new Date().toISOString().split('T')[0])
-  const [saving, setSaving]         = useState(false)
-  const [error, setError]           = useState<string|null>(null)
+  const qc = useQueryClient()
+  const [pmNotes, setPmNotes] = useState("")
+  const [date, setDate] = useState(new Date().toISOString().split("T")[0])
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string|null>(null)
 
   const { data:report, isLoading:reportLoading } = useQuery({
-    queryKey: ['closure-report', project.project_id],
+    queryKey: ["closure-report", project.project_id],
     queryFn:  () => getClosureReport(project.project_id),
-    enabled:  project.status === 'closed',
+    enabled:  project.status === "closed",
     retry:    false,
   })
 
-  const incompleteTasks = tasks.filter((t:any) => t.completion_status !== 'complete')
+  const incompleteTasks = tasks.filter((t:any) => t.completion_status !== "complete")
 
   async function handleClose() {
     setError(null)
     setSaving(true)
     try {
       await closeProject(project.project_id, { pm_notes: pmNotes, actual_end_date: date })
-      qc.invalidateQueries({ queryKey: ['project', project.project_id] })
-      qc.invalidateQueries({ queryKey: ['closure-report', project.project_id] })
+      qc.invalidateQueries({ queryKey: ["project", project.project_id] })
+      qc.invalidateQueries({ queryKey: ["closure-report", project.project_id] })
     } catch(e:any) {
-      const msg = e?.response?.data?.error || 'Failed to close project. Please try again.'
-      setError(msg)
+      setError(e?.response?.data?.error || "Failed to close project. Please try again.")
     } finally {
       setSaving(false)
     }
   }
 
-  // ── Already closed — show full case study ──
-  if (project.status === 'closed') {
+  if (project.status === "closed") {
     if (reportLoading) return (
-      <div style={{ textAlign:'center', padding:60, color:'var(--text4)', fontSize:12 }}>Loading closure report...</div>
+      <div style={{ textAlign:"center", padding:60, color:"var(--text4)", fontSize:12 }}>Loading closure report...</div>
     )
     if (!report) return (
       <div className="card">
         <div className="card-header"><div className="card-title">Project Closed</div><span className="status green">Closed</span></div>
-        <div style={{ fontSize:12, color:'var(--text4)', padding:'20px 0' }}>Closure report not found.</div>
+        <div style={{ fontSize:12, color:"var(--text4)", padding:"20px 0" }}>Closure report not found.</div>
       </div>
     )
     const sections = report.sections || {}
     const tags: string[] = report.tags || []
     const daysVariance: number = report.days_variance || 0
+    const varianceText = daysVariance === 0 ? "Delivered on time" : daysVariance > 0 ? daysVariance + " days late" : Math.abs(daysVariance) + " days early"
     return (
       <div>
         <div className="card" style={{ marginBottom:16 }}>
           <div className="card-header">
             <div>
               <div className="card-title">Project Closure Case Study</div>
-              <div className="card-sub">
-                Closed {report.actual_end_date ? new Date(report.actual_end_date).toLocaleDateString('en-GB') : '—'}
-                {' · '}
-                {daysVariance === 0 ? 'Delivered on time' : daysVariance > 0 ? `${daysVariance} days late` : `${Math.abs(daysVariance)} days early`}
-                {' · '}
-                {report.completed_tasks}/{report.total_tasks} tasks completed
-              </div>
+              <div className="card-sub">{varianceText} · {report.completed_tasks}/{report.total_tasks} tasks completed</div>
             </div>
             <span className="status green">Closed</span>
           </div>
           {tags.length > 0 && (
-            <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginTop:12 }}>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginTop:12 }}>
               {tags.map((tag:string) => (
-                <span key={tag} style={{ fontSize:10, background:'var(--bg2)', color:'var(--text3)', borderRadius:99, padding:'3px 10px', fontFamily:'var(--mono)' }}>{tag}</span>
+                <span key={tag} style={{ fontSize:10, background:"var(--bg2)", color:"var(--text3)", borderRadius:99, padding:"3px 10px", fontFamily:"var(--mono)" }}>{tag}</span>
               ))}
             </div>
           )}
         </div>
-
         {Object.entries(SECTION_LABELS).map(([key, label]) => {
           const text = sections[key]
           if (!text) return null
-          const isWrong = key === 'what_went_wrong'
-          const isRight = key === 'what_went_right'
-          const isRec   = key === 'recommendations'
-          const accent  = isWrong ? 'var(--red)' : isRight ? 'var(--green)' : isRec ? 'var(--blue)' : 'var(--text3)'
+          const accent = key === "what_went_wrong" ? "var(--red)" : key === "what_went_right" ? "var(--green)" : key === "recommendations" ? "var(--blue)" : "var(--text3)"
           return (
             <div key={key} className="card" style={{ marginBottom:12 }}>
-              <div style={{ fontSize:11, fontWeight:700, color:accent, textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:10 }}>{label}</div>
-              <div style={{ fontSize:13, color:'var(--text2)', lineHeight:1.85, whiteSpace:'pre-wrap' }}>{text}</div>
+              <div style={{ fontSize:11, fontWeight:700, color:accent, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:10 }}>{label}</div>
+              <div style={{ fontSize:13, color:"var(--text2)", lineHeight:1.85, whiteSpace:"pre-wrap" }}>{text}</div>
             </div>
           )
         })}
@@ -766,8 +765,6 @@ function ClosureTab({ project, tasks }: { project:any, tasks:any[] }) {
     )
   }
 
-  // ── Not yet closed ──
-  // Blocker: incomplete tasks
   if (incompleteTasks.length > 0) {
     return (
       <div className="card">
@@ -780,13 +777,11 @@ function ClosureTab({ project, tasks }: { project:any, tasks:any[] }) {
         </div>
         <div style={{ marginTop:8 }}>
           {incompleteTasks.map((t:any) => (
-            <div key={t.task_id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid var(--border)', fontSize:12 }}>
-              <div style={{ color:'var(--text)', fontWeight:500 }}>{t.task_name}</div>
-              <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-                <span style={{ fontSize:11, color:'var(--text4)' }}>{t.phase_name || 'Unassigned'}</span>
-                <span className={`status ${t.control_type === 'internal' ? 'blue' : t.control_type === 'supplier' ? 'amber' : 'red'}`} style={{ textTransform:'capitalize' }}>
-                  {(t.control_type || '').replace('_',' ')}
-                </span>
+            <div key={t.task_id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 0", borderBottom:"1px solid var(--border)", fontSize:12 }}>
+              <div style={{ color:"var(--text)", fontWeight:500 }}>{t.task_name}</div>
+              <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+                <span style={{ fontSize:11, color:"var(--text4)" }}>{t.phase_name || "Unassigned"}</span>
+                <span className={`status ${t.control_type === "internal" ? "blue" : t.control_type === "supplier" ? "amber" : "red"}`} style={{ textTransform:"capitalize" }}>{(t.control_type || "").replace("_"," ")}</span>
               </div>
             </div>
           ))}
@@ -795,7 +790,6 @@ function ClosureTab({ project, tasks }: { project:any, tasks:any[] }) {
     )
   }
 
-  // ── All tasks complete — show closure form ──
   return (
     <div className="two-col">
       <div>
@@ -803,39 +797,26 @@ function ClosureTab({ project, tasks }: { project:any, tasks:any[] }) {
           <div className="card-header">
             <div>
               <div className="card-title">Close Project</div>
-              <div className="card-sub">All {tasks.length} tasks complete — ready to close</div>
+              <div className="card-sub">All {tasks.length} tasks complete - ready to close</div>
             </div>
             <span className="status green">Ready</span>
           </div>
-          <div style={{ display:'flex', flexDirection:'column', gap:14, marginTop:4 }}>
+          <div style={{ display:"flex", flexDirection:"column", gap:14, marginTop:4 }}>
             <div className="form-group">
               <label className="form-label">Actual end date</label>
               <input className="form-input" type="date" value={date} onChange={e=>setDate(e.target.value)} />
             </div>
             <div className="form-group">
-              <label className="form-label">Your observations & closing remarks</label>
-              <textarea
-                className="form-input"
-                value={pmNotes}
-                onChange={e=>setPmNotes(e.target.value)}
-                rows={6}
-                placeholder="Share your perspective on the project — what stood out, key relationships, team performance, anything the data alone won’t capture..."
-              />
+              <label className="form-label">Your observations and closing remarks</label>
+              <textarea className="form-input" value={pmNotes} onChange={e=>setPmNotes(e.target.value)} rows={6} placeholder="Share your perspective on the project..." />
             </div>
             {error && (
-              <div style={{ fontSize:12, color:'var(--red)', background:'var(--red-bg)', borderRadius:6, padding:'10px 14px' }}>{error}</div>
+              <div style={{ fontSize:12, color:"var(--red)", background:"var(--red-bg)", borderRadius:6, padding:"10px 14px" }}>{error}</div>
             )}
-            <button
-              className="tb-btn primary"
-              onClick={handleClose}
-              disabled={saving}
-              style={{ width:'fit-content' }}
-            >
-              {saving ? <><div className="ai-spinner" style={{ display:'inline-block', marginRight:6 }} />Generating case study...</> : '✦ Generate Closure Case Study'}
+            <button className="tb-btn primary" onClick={handleClose} disabled={saving} style={{ width:"fit-content" }}>
+              {saving ? "Generating case study..." : "Generate Closure Case Study"}
             </button>
-            <div style={{ fontSize:11, color:'var(--text4)' }}>
-              This will permanently close the project and generate an AI case study from the full update history and lessons learnt.
-            </div>
+            <div style={{ fontSize:11, color:"var(--text4)" }}>This will permanently close the project and generate an AI case study from the full update history and lessons learnt.</div>
           </div>
         </div>
       </div>
@@ -843,19 +824,19 @@ function ClosureTab({ project, tasks }: { project:any, tasks:any[] }) {
         <div className="card">
           <div className="card-header"><div className="card-title">What the AI will generate</div></div>
           {[
-            ['Project Overview','Timeline, customer, delivery outcome'],
-            ['Key Events Timeline','Significant moments drawn from update history'],
-            ['What Went Right','Patterns of success across tasks and phases'],
-            ['What Went Wrong','Root causes and systemic issues identified'],
-            ['Stakeholder Performance','Supplier, sub-supplier and internal assessment'],
-            ['Recommendations','Specific actions for future similar projects'],
-            ['PM's Closing Remarks','Your notes, preserved verbatim'],
+            ["Project Overview","Timeline, customer, delivery outcome"],
+            ["Key Events Timeline","Significant moments drawn from update history"],
+            ["What Went Right","Patterns of success across tasks and phases"],
+            ["What Went Wrong","Root causes and systemic issues identified"],
+            ["Stakeholder Performance","Supplier, sub-supplier and internal assessment"],
+            ["Recommendations","Specific actions for future similar projects"],
+            ["PM Closing Remarks","Your notes, preserved verbatim"],
           ].map(([title, sub]) => (
-            <div key={title} style={{ display:'flex', gap:10, padding:'9px 0', borderBottom:'1px solid var(--border)' }}>
-              <div style={{ width:6, height:6, borderRadius:99, background:'var(--blue)', marginTop:5, flexShrink:0 }} />
+            <div key={title} style={{ display:"flex", gap:10, padding:"9px 0", borderBottom:"1px solid var(--border)" }}>
+              <div style={{ width:6, height:6, borderRadius:99, background:"var(--blue)", marginTop:5, flexShrink:0 }} />
               <div>
-                <div style={{ fontSize:12, fontWeight:600, color:'var(--text)' }}>{title}</div>
-                <div style={{ fontSize:11, color:'var(--text4)', marginTop:2 }}>{sub}</div>
+                <div style={{ fontSize:12, fontWeight:600, color:"var(--text)" }}>{title}</div>
+                <div style={{ fontSize:11, color:"var(--text4)", marginTop:2 }}>{sub}</div>
               </div>
             </div>
           ))}
