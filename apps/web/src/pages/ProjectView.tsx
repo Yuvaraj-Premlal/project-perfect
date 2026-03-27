@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getProject, getTasks, getWeeklyReports, getPreReviewBrief, generateWeeklyReport } from '../api/projects'
+import { getProject, getTasks, getWeeklyReports, getPreReviewBrief, generateWeeklyReport, closeProject, getClosureReport } from '../api/projects'
 import { api } from '../api/client'
 import TasksTab from './TasksTab'
 import ReviewsTab from './ReviewsTab'
@@ -668,44 +668,195 @@ function ReportsTab({ projectId }: { projectId:string }) {
   )
 }
 
-function ClosureTab({ project }: { project:any }) {
-  const qc = useQueryClient()
-  const [notes, setNotes]   = useState('')
-  const [date, setDate]     = useState(new Date().toISOString().split('T')[0])
-  const [saving, setSaving] = useState(false)
-  const [result, setResult] = useState<string|null>(project.closure_report||null)
-  async function handleClose(e: React.FormEvent) {
-    e.preventDefault(); setSaving(true)
-    try { const r = await api.post(`/api/projects/${project.project_id}/close`, { actual_end_date:date, closure_notes:notes }); setResult(r.data.closure_report); qc.invalidateQueries({ queryKey:['project',project.project_id] }) }
-    finally { setSaving(false) }
+const SECTION_LABELS: Record<string,string> = {
+  project_overview:        'Project Overview',
+  key_events_timeline:     'Key Events Timeline',
+  what_went_right:         'What Went Right',
+  what_went_wrong:         'What Went Wrong',
+  stakeholder_performance: 'Stakeholder Performance',
+  recommendations:         'Recommendations for Future Projects',
+  pm_closing_remarks:      'PM's Closing Remarks',
+}
+
+function ClosureTab({ project, tasks }: { project:any, tasks:any[] }) {
+  const qc                          = useQueryClient()
+  const [pmNotes, setPmNotes]       = useState('')
+  const [date, setDate]             = useState(new Date().toISOString().split('T')[0])
+  const [saving, setSaving]         = useState(false)
+  const [error, setError]           = useState<string|null>(null)
+
+  const { data:report, isLoading:reportLoading } = useQuery({
+    queryKey: ['closure-report', project.project_id],
+    queryFn:  () => getClosureReport(project.project_id),
+    enabled:  project.status === 'closed',
+    retry:    false,
+  })
+
+  const incompleteTasks = tasks.filter((t:any) => t.completion_status !== 'complete')
+
+  async function handleClose() {
+    setError(null)
+    setSaving(true)
+    try {
+      await closeProject(project.project_id, { pm_notes: pmNotes, actual_end_date: date })
+      qc.invalidateQueries({ queryKey: ['project', project.project_id] })
+      qc.invalidateQueries({ queryKey: ['closure-report', project.project_id] })
+    } catch(e:any) {
+      const msg = e?.response?.data?.error || 'Failed to close project. Please try again.'
+      setError(msg)
+    } finally {
+      setSaving(false)
+    }
   }
-  if (project.status==='closed') return (
-    <div className="card">
-      <div className="card-header"><div className="card-title">Project closed</div><span className="status green">Closed</span></div>
-      {result && <div className="ai-panel"><div className="ai-panel-header">✦ AI Closure Report</div><div className="ai-panel-body">{result}</div></div>}
-      <div style={{ fontSize:12, color:'var(--text2)', marginTop:12 }}>Closed on {project.closed_at ? new Date(project.closed_at).toLocaleDateString('en-GB') : '—'}</div>
-    </div>
-  )
+
+  // ── Already closed — show full case study ──
+  if (project.status === 'closed') {
+    if (reportLoading) return (
+      <div style={{ textAlign:'center', padding:60, color:'var(--text4)', fontSize:12 }}>Loading closure report...</div>
+    )
+    if (!report) return (
+      <div className="card">
+        <div className="card-header"><div className="card-title">Project Closed</div><span className="status green">Closed</span></div>
+        <div style={{ fontSize:12, color:'var(--text4)', padding:'20px 0' }}>Closure report not found.</div>
+      </div>
+    )
+    const sections = report.sections || {}
+    const tags: string[] = report.tags || []
+    const daysVariance: number = report.days_variance || 0
+    return (
+      <div>
+        <div className="card" style={{ marginBottom:16 }}>
+          <div className="card-header">
+            <div>
+              <div className="card-title">Project Closure Case Study</div>
+              <div className="card-sub">
+                Closed {report.actual_end_date ? new Date(report.actual_end_date).toLocaleDateString('en-GB') : '—'}
+                {' · '}
+                {daysVariance === 0 ? 'Delivered on time' : daysVariance > 0 ? `${daysVariance} days late` : `${Math.abs(daysVariance)} days early`}
+                {' · '}
+                {report.completed_tasks}/{report.total_tasks} tasks completed
+              </div>
+            </div>
+            <span className="status green">Closed</span>
+          </div>
+          {tags.length > 0 && (
+            <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginTop:12 }}>
+              {tags.map((tag:string) => (
+                <span key={tag} style={{ fontSize:10, background:'var(--bg2)', color:'var(--text3)', borderRadius:99, padding:'3px 10px', fontFamily:'var(--mono)' }}>{tag}</span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {Object.entries(SECTION_LABELS).map(([key, label]) => {
+          const text = sections[key]
+          if (!text) return null
+          const isWrong = key === 'what_went_wrong'
+          const isRight = key === 'what_went_right'
+          const isRec   = key === 'recommendations'
+          const accent  = isWrong ? 'var(--red)' : isRight ? 'var(--green)' : isRec ? 'var(--blue)' : 'var(--text3)'
+          return (
+            <div key={key} className="card" style={{ marginBottom:12 }}>
+              <div style={{ fontSize:11, fontWeight:700, color:accent, textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:10 }}>{label}</div>
+              <div style={{ fontSize:13, color:'var(--text2)', lineHeight:1.85, whiteSpace:'pre-wrap' }}>{text}</div>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
+  // ── Not yet closed ──
+  // Blocker: incomplete tasks
+  if (incompleteTasks.length > 0) {
+    return (
+      <div className="card">
+        <div className="card-header">
+          <div>
+            <div className="card-title">Cannot Close Project</div>
+            <div className="card-sub">All tasks must be complete before closing</div>
+          </div>
+          <span className="status red">{incompleteTasks.length} incomplete</span>
+        </div>
+        <div style={{ marginTop:8 }}>
+          {incompleteTasks.map((t:any) => (
+            <div key={t.task_id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid var(--border)', fontSize:12 }}>
+              <div style={{ color:'var(--text)', fontWeight:500 }}>{t.task_name}</div>
+              <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                <span style={{ fontSize:11, color:'var(--text4)' }}>{t.phase_name || 'Unassigned'}</span>
+                <span className={`status ${t.control_type === 'internal' ? 'blue' : t.control_type === 'supplier' ? 'amber' : 'red'}`} style={{ textTransform:'capitalize' }}>
+                  {(t.control_type || '').replace('_',' ')}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  // ── All tasks complete — show closure form ──
   return (
     <div className="two-col">
       <div>
         <div className="card">
-          <div className="card-header"><div className="card-title">Close project</div></div>
-          <form onSubmit={handleClose} style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            <div className="form-group"><label className="form-label">Actual end date</label><input className="form-input" type="date" value={date} onChange={e=>setDate(e.target.value)} /></div>
-            <div className="form-group"><label className="form-label">Lessons learnt / closure notes</label><textarea className="form-input" value={notes} onChange={e=>setNotes(e.target.value)} rows={5} placeholder="What were the key lessons?" /></div>
-            <button type="submit" className="tb-btn primary" disabled={saving} style={{ width:'fit-content' }}>{saving ? 'Generating AI report...' : 'Close Project & Generate Report'}</button>
-          </form>
-          {result && <div className="ai-panel" style={{ marginTop:16 }}><div className="ai-panel-header">✦ AI Closure Report</div><div className="ai-panel-body">{result}</div></div>}
+          <div className="card-header">
+            <div>
+              <div className="card-title">Close Project</div>
+              <div className="card-sub">All {tasks.length} tasks complete — ready to close</div>
+            </div>
+            <span className="status green">Ready</span>
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:14, marginTop:4 }}>
+            <div className="form-group">
+              <label className="form-label">Actual end date</label>
+              <input className="form-input" type="date" value={date} onChange={e=>setDate(e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Your observations & closing remarks</label>
+              <textarea
+                className="form-input"
+                value={pmNotes}
+                onChange={e=>setPmNotes(e.target.value)}
+                rows={6}
+                placeholder="Share your perspective on the project — what stood out, key relationships, team performance, anything the data alone won’t capture..."
+              />
+            </div>
+            {error && (
+              <div style={{ fontSize:12, color:'var(--red)', background:'var(--red-bg)', borderRadius:6, padding:'10px 14px' }}>{error}</div>
+            )}
+            <button
+              className="tb-btn primary"
+              onClick={handleClose}
+              disabled={saving}
+              style={{ width:'fit-content' }}
+            >
+              {saving ? <><div className="ai-spinner" style={{ display:'inline-block', marginRight:6 }} />Generating case study...</> : '✦ Generate Closure Case Study'}
+            </button>
+            <div style={{ fontSize:11, color:'var(--text4)' }}>
+              This will permanently close the project and generate an AI case study from the full update history and lessons learnt.
+            </div>
+          </div>
         </div>
       </div>
       <div>
         <div className="card">
-          <div className="card-header"><div className="card-title">Closure checklist</div></div>
-          {['All tasks marked complete or formally deferred','Final review conducted and recorded','Lessons learnt captured','Customer sign-off obtained','Project documentation archived'].map((item,i) => (
-            <div key={i} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 0', borderBottom:'1px solid var(--border)', fontSize:12 }}>
-              <div style={{ width:16, height:16, borderRadius:4, border:'1.5px solid var(--border2)', flexShrink:0 }} />
-              <span style={{ color:'var(--text2)' }}>{item}</span>
+          <div className="card-header"><div className="card-title">What the AI will generate</div></div>
+          {[
+            ['Project Overview','Timeline, customer, delivery outcome'],
+            ['Key Events Timeline','Significant moments drawn from update history'],
+            ['What Went Right','Patterns of success across tasks and phases'],
+            ['What Went Wrong','Root causes and systemic issues identified'],
+            ['Stakeholder Performance','Supplier, sub-supplier and internal assessment'],
+            ['Recommendations','Specific actions for future similar projects'],
+            ['PM's Closing Remarks','Your notes, preserved verbatim'],
+          ].map(([title, sub]) => (
+            <div key={title} style={{ display:'flex', gap:10, padding:'9px 0', borderBottom:'1px solid var(--border)' }}>
+              <div style={{ width:6, height:6, borderRadius:99, background:'var(--blue)', marginTop:5, flexShrink:0 }} />
+              <div>
+                <div style={{ fontSize:12, fontWeight:600, color:'var(--text)' }}>{title}</div>
+                <div style={{ fontSize:11, color:'var(--text4)', marginTop:2 }}>{sub}</div>
+              </div>
             </div>
           ))}
         </div>
@@ -762,7 +913,7 @@ export default function ProjectView({ projectId }: { projectId:string }) {
         project={project}
       />)}
       {activeTab==='Reports'       && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <ReportsTab projectId={projectId} />)}
-      {activeTab==='Closure'       && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <ClosureTab project={project} />)}
+      {activeTab==='Closure'       && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <ClosureTab project={project} tasks={tasks as any[]} />)}
       {activeTab==='Charter'       && <CharterTab project={project} phases={project.phases || []} />}
     </div>
   )
