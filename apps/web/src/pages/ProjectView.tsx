@@ -738,7 +738,7 @@ function ClosureTab({ project, tasks }: { project:any, tasks:any[] }) {
           <div className="card-header">
             <div>
               <div className="card-title">Project Closure Case Study</div>
-              <div className="card-sub">{varianceText} · {report.completed_tasks}/{report.total_tasks} tasks completed</div>
+              <div className="card-sub">{varianceText} - {report.completed_tasks}/{report.total_tasks} tasks completed</div>
             </div>
             <span className="status green">Closed</span>
           </div>
