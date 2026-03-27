@@ -222,18 +222,6 @@ function SummaryTab({ project, tasks }: { project:any, tasks:any[] }) {
             </div>
           </div>
 
-          {/* RSP Chart */}
-          <div className="card">
-            <div className="card-header">
-              <div><div className="card-title">RSP chart</div><div className="card-sub">Risk driven · Stakeholder wise · sorted by RN · calendar to worst ECD</div></div>
-            </div>
-            <div style={{ display:'flex', gap:14, fontSize:10, color:'var(--text3)', marginBottom:12 }}>
-              <span style={{ display:'flex', alignItems:'center', gap:4 }}><span style={{ width:10, height:8, borderRadius:2, background:'var(--blue4)', display:'inline-block' }}/> Planned</span>
-              <span style={{ display:'flex', alignItems:'center', gap:4 }}><span style={{ width:10, height:8, borderRadius:2, background:'var(--red-bg)', display:'inline-block' }}/> Delay</span>
-              <span style={{ display:'flex', alignItems:'center', gap:4 }}><span style={{ width:10, height:8, borderRadius:2, background:'var(--green-bg)', display:'inline-block' }}/> Complete</span>
-            </div>
-            <RSPChart tasks={tasks} project={project} />
-          </div>
         </div>
 
         <div>
@@ -298,14 +286,6 @@ function SummaryTab({ project, tasks }: { project:any, tasks:any[] }) {
             </div>
           )}
 
-          {/* Slippage chart */}
-          <div className="card">
-            <div className="card-header">
-              <div><div className="card-title">Slippage by owner type</div><div className="card-sub">All time vs since last review · by control type</div></div>
-            </div>
-            <SlippageChart tasks={tasks} project={project} />
-          </div>
-
           {/* Top risks */}
           <div className="card">
             <div className="card-header"><div><div className="card-title">Top risks by stakeholder</div><div className="card-sub">Highest RN per control type</div></div></div>
@@ -336,6 +316,19 @@ function SummaryTab({ project, tasks }: { project:any, tasks:any[] }) {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* RSP Chart — full width */}
+      <div className="card">
+        <div className="card-header">
+          <div><div className="card-title">RSP chart</div><div className="card-sub">Risk driven · Stakeholder wise · sorted by RN · calendar to worst ECD</div></div>
+        </div>
+        <div style={{ display:'flex', gap:14, fontSize:10, color:'var(--text3)', marginBottom:12 }}>
+          <span style={{ display:'flex', alignItems:'center', gap:4 }}><span style={{ width:10, height:8, borderRadius:2, background:'var(--blue4)', display:'inline-block' }}/> Planned</span>
+          <span style={{ display:'flex', alignItems:'center', gap:4 }}><span style={{ width:10, height:8, borderRadius:2, background:'var(--red-bg)', display:'inline-block' }}/> Delay</span>
+          <span style={{ display:'flex', alignItems:'center', gap:4 }}><span style={{ width:10, height:8, borderRadius:2, background:'var(--green-bg)', display:'inline-block' }}/> Complete</span>
+        </div>
+        <RSPChart tasks={tasks} project={project} />
       </div>
     </div>
   )
