@@ -222,6 +222,13 @@ function SummaryTab({ project, tasks }: { project:any, tasks:any[] }) {
             </div>
           </div>
 
+          {/* Slippage chart */}
+          <div className="card">
+            <div className="card-header">
+              <div><div className="card-title">Slippage by owner type</div><div className="card-sub">All time vs since last review · by control type</div></div>
+            </div>
+            <SlippageChart tasks={tasks} project={project} />
+          </div>
         </div>
 
         <div>
