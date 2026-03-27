@@ -190,24 +190,92 @@ Internal performance: ${internalDelayed}/${internalTasks.length} internal tasks 
   return await callAI(system, user, 800)
 }
 
-async function generateClosureReport({ projectName, customerName, startDate, plannedEndDate, actualEndDate, finalOpv, finalLfv, totalTasks, completedTasks, totalSlippages, closureNotes }) {
-  const system = `You are a project management assistant writing formal project closure reports for manufacturing programmes. Be professional, factual, and constructive. Write in third person.`;
-  const daysVariance = Math.round((new Date(actualEndDate) - new Date(plannedEndDate)) / (1000 * 60 * 60 * 24));
-  const varianceNote = daysVariance > 0 ? `${daysVariance} days late` : daysVariance < 0 ? `${Math.abs(daysVariance)} days early` : 'on time';
+async function generateClosureReport({
+  projectName, customerName, startDate, plannedEndDate, actualEndDate,
+  finalOpv, finalLfv, totalTasks, completedTasks, totalSlippages,
+  pmNotes, taskUpdates, tasks
+}) {
+  const daysVariance   = Math.round((new Date(actualEndDate) - new Date(plannedEndDate)) / (1000 * 60 * 60 * 24));
+  const varianceNote   = daysVariance > 0 ? `${daysVariance} days late` : daysVariance < 0 ? `${Math.abs(daysVariance)} days early` : 'on time';
   const completionRate = totalTasks > 0 ? ((completedTasks / totalTasks) * 100).toFixed(0) : 0;
-  const user = `Write a project closure report:
-Project: ${projectName}
-Customer: ${customerName || 'Customer'}
-Start date: ${startDate}
-Planned completion: ${plannedEndDate}
-Actual completion: ${actualEndDate} (${varianceNote})
-Final OPV: ${(finalOpv * 100).toFixed(1)}%
-Final LFV: ${(finalLfv * 100).toFixed(1)}%
-Tasks completed: ${completedTasks} of ${totalTasks} (${completionRate}%)
-Total slippages recorded: ${totalSlippages}
-PM lessons learned: ${closureNotes || 'None provided'}
-Write a 5-6 sentence closure summary covering: delivery outcome, performance summary, key challenges, and one forward-looking recommendation.`;
-  return await callAI(system, user, 500);
+
+  const supplierTasks  = (tasks||[]).filter(t => t.control_type === 'supplier' || t.control_type === 'sub_supplier');
+  const slippedTasks   = (tasks||[]).filter(t => (t.slippage_count||0) > 0)
+    .map(t => `${t.task_name} (${t.slippage_count} slips, +${t.delay_days}d)`).join(', ');
+
+  const lessonsContext = (taskUpdates||[])
+    .filter(u => u.is_completion_update)
+    .map(u => {
+      const parts = [];
+      if (u.task_name)           parts.push(`Task: ${u.task_name} [${(u.control_type||'').replace('_',' ')}]`);
+      if (u.lessons_went_well)   parts.push(`What went right: ${u.lessons_went_well}`);
+      if (u.lessons_went_wrong)  parts.push(`What went wrong: ${u.lessons_went_wrong}`);
+      if (u.lessons_differently) parts.push(`Do differently: ${u.lessons_differently}`);
+      return parts.join('\n');
+    }).filter(Boolean).join('\n---\n');
+
+  const eventsContext = (taskUpdates||[])
+    .slice(0, 30)
+    .map(u => `[${u.created_at ? new Date(u.created_at).toLocaleDateString('en-GB') : ''}] ${u.task_name}: ${u.update_text || u.completion_notes || ''}`)
+    .filter(u => u.trim().length > 20)
+    .join('\n');
+
+  const system = `You are a senior project management consultant writing a detailed case study closure report for a manufacturing programme.
+This document will be read by future project managers as organisational learning material.
+Be specific, insightful, and draw out patterns not just lists of events.
+Write in professional third person prose.
+You MUST respond with valid JSON only. No markdown fences, no explanation, no preamble outside the JSON.`;
+
+  const pmNotesClean = (pmNotes || '').replace(/"/g, "'");
+  const user = `Generate a comprehensive closure case study for this manufacturing project.
+
+PROJECT FACTS:
+Project: ${projectName} | Customer: ${customerName || 'Customer'}
+Start: ${startDate} | Planned end: ${plannedEndDate} | Actual end: ${actualEndDate} (${varianceNote})
+Tasks: ${completedTasks}/${totalTasks} completed (${completionRate}%) | Total slippages: ${totalSlippages}
+Supplier/external tasks: ${supplierTasks.length} | Slipped tasks: ${slippedTasks || 'None'}
+
+LESSONS LEARNT FROM TASK COMPLETIONS:
+${lessonsContext || 'No task-level lessons recorded'}
+
+KEY EVENTS FROM UPDATE HISTORY:
+${eventsContext || 'No update history available'}
+
+PM NOTES:
+${pmNotes || 'None provided'}
+
+Return ONLY this JSON structure:
+{
+  "sections": {
+    "project_overview": "<2-3 sentences: what the project was, customer, timeline, delivery outcome>",
+    "key_events_timeline": "<narrative of 3-5 most significant events during the project with approximate timing>",
+    "what_went_right": "<specific things that worked well - draw patterns from task lessons>",
+    "what_went_wrong": "<specific problems and root causes - identify systemic patterns>",
+    "stakeholder_performance": "<how supplier sub-supplier and internal teams performed>",
+    "recommendations": "<3-5 specific actionable recommendations for future similar projects>",
+    "pm_closing_remarks": "${pmNotesClean || 'No additional remarks from PM.'}"
+  },
+  "tags": ["<3-6 short kebab-case tags e.g. supplier-documentation-delay phase-2-overrun>"]
+}`;
+
+  const raw = await callAI(system, user, 2000);
+  const clean = (raw || '').replace(/```json|```/g, '').trim();
+  try {
+    return JSON.parse(clean);
+  } catch {
+    return {
+      sections: {
+        project_overview:        raw || 'Report generation failed.',
+        key_events_timeline:     '',
+        what_went_right:         '',
+        what_went_wrong:         '',
+        stakeholder_performance: '',
+        recommendations:         '',
+        pm_closing_remarks:      pmNotes || ''
+      },
+      tags: []
+    };
+  }
 }
 
 // ─────────────────────────────────────────────

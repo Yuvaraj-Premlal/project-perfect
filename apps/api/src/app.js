@@ -54,7 +54,8 @@ app.use('/api/projects/:projectId/tasks',             require('./routes/tasks'))
 app.use('/api/projects/:projectId/reviews',           require('./routes/reviews'));
 app.use('/api/projects/:projectId/nudges',            aiLimiter, require('./routes/nudges'));
 app.use('/api/projects/:projectId/weekly-reports',    aiLimiter, require('./routes/weekly-reports'));
-app.use('/api/projects/:projectId/ccr',              require('./routes/ccr'));
+app.use('/api/projects/:projectId/ccr',               require('./routes/ccr'));
+app.use('/api/projects/:projectId/closure',           aiLimiter, require('./routes/closure'));
 app.use('/api/projects',                              require('./routes/projects'));
 app.use('/api/suppliers',                             require('./routes/suppliers'));
 
