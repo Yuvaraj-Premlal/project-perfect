@@ -17,11 +17,11 @@ function KPIRow({ project, tasks }: { project:any, tasks:any[] }) {
   const high = tasks.filter((t:any)=>t.risk_label==='high_risk').length
   return (
     <div className="kpi-row">
-      <div className="kpi"><div className="kpi-label">OPV</div><div className={`kpi-val ${opv>=1?'green':opv>=0.8?'amber':'red'}`}>{opv.toFixed(2)}</div><div className="kpi-sub">Target ≥ 0.8</div></div>
-      <div className="kpi"><div className="kpi-label">LFV</div><div className={`kpi-val ${lfv<=1?'green':lfv<=1.2?'amber':'red'}`}>{lfv.toFixed(2)}</div><div className="kpi-sub">Target ≤ 1.2</div></div>
+      <div className="kpi"><div className="kpi-label">OPV</div><div className={`kpi-val ${opv>=1?'green':opv>=0.8?'amber':'red'}`}>{opv.toFixed(2)}</div><div className="kpi-sub">Target >= 0.8</div></div>
+      <div className="kpi"><div className="kpi-label">LFV</div><div className={`kpi-val ${lfv<=1?'green':lfv<=1.2?'amber':'red'}`}>{lfv.toFixed(2)}</div><div className="kpi-sub">Target <= 1.2</div></div>
       <div className="kpi"><div className="kpi-label">Momentum</div><div className={`kpi-val ${mom>=0?'green':'red'}`}>{mom>=0?'+':''}{mom.toFixed(2)}</div><div className="kpi-sub">vs last review</div></div>
       <div className="kpi"><div className="kpi-label">High Risk</div><div className={`kpi-val ${high===0?'green':high<=2?'amber':'red'}`}>{high}</div><div className="kpi-sub">tasks</div></div>
-      <div className="kpi"><div className="kpi-label">ECD</div><div className="kpi-val navy" style={{ fontSize:14, marginTop:2 }}>{project.ecd_algorithmic ? new Date(project.ecd_algorithmic).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) : '—'}</div><div className="kpi-sub">Planned: {new Date(project.planned_end_date).toLocaleDateString('en-GB',{day:'2-digit',month:'short'})}</div></div>
+      <div className="kpi"><div className="kpi-label">ECD</div><div className="kpi-val navy" style={{ fontSize:14, marginTop:2 }}>{project.ecd_algorithmic ? new Date(project.ecd_algorithmic).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) : '-'}</div><div className="kpi-sub">Planned: {new Date(project.planned_end_date).toLocaleDateString('en-GB',{day:'2-digit',month:'short'})}</div></div>
     </div>
   )
 }
@@ -89,13 +89,13 @@ function RSPChart({ tasks, project }: { tasks:any[], project:any }) {
                         </div>
                         {cdP>peP && (
                           <div style={{ position:'absolute', top:1, height:20, left:`${peP}%`, width:`${Math.max(cdP-peP,2)}%`, background:'var(--red-bg)', borderRadius:'0 3px 3px 0', display:'flex', alignItems:'center', padding:'0 6px', overflow:'hidden' }}>
-                            <span style={{ fontSize:10, fontWeight:500, color:'var(--red)', whiteSpace:'nowrap' }}>+{delayDays}d · {fs(t.current_ecd)}</span>
+                            <span style={{ fontSize:10, fontWeight:500, color:'var(--red)', whiteSpace:'nowrap' }}>+{delayDays}d . {fs(t.current_ecd)}</span>
                           </div>
                         )}
                       </>
                     )}
                   </div>
-                  <div style={{ width:38, flexShrink:0, textAlign:'right', fontFamily:'var(--mono)', fontSize:10, fontWeight:600, paddingLeft:6, color:rn===0?'var(--text4)':rn>=100?'var(--red)':rn>=50?'var(--amber)':'var(--blue)' }}>{rn||'—'}</div>
+                  <div style={{ width:38, flexShrink:0, textAlign:'right', fontFamily:'var(--mono)', fontSize:10, fontWeight:600, paddingLeft:6, color:rn===0?'var(--text4)':rn>=100?'var(--red)':rn>=50?'var(--amber)':'var(--blue)' }}>{rn||'-'}</div>
                 </div>
               )
             })}
@@ -117,7 +117,7 @@ function SlippageChart({ tasks, project }: { tasks:any[], project:any }) {
   // Use actual last review date from project, fallback to 7 days ago
   const lastReviewDate = project?.last_review_at ? new Date(project.last_review_at) : new Date(Date.now() - 7*24*60*60*1000)
   function allTimeSlips(key:string){return tasks.filter((t:any)=>t.control_type===key).reduce((s:number,t:any)=>s+(t.slippage_count||0),0)}
-  // Since last review — tasks whose ECD was last updated after the last review date
+  // Since last review - tasks whose ECD was last updated after the last review date
   function recentSlips(key:string){return tasks.filter((t:any)=>t.control_type===key&&t.slippage_count>0&&t.last_update_at&&new Date(t.last_update_at)>lastReviewDate).reduce((s:number,t:any)=>s+(t.slippage_count||0),0)}
   const maxVal = Math.max(...groups.map(g=>allTimeSlips(g.key)),1)
   return (
@@ -182,7 +182,7 @@ function SummaryTab({ project, tasks }: { project:any, tasks:any[] }) {
   const pEnd   = project.planned_end_date ? new Date(project.planned_end_date) : null
   const ecd    = project.ecd_algorithmic ? new Date(project.ecd_algorithmic) : null
   const today  = new Date()
-  function fs(d:Date|null){if(!d)return'—';return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'})}
+  function fs(d:Date|null){if(!d)return'-';return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'})}
   const delayDays = pEnd&&ecd?Math.max(0,Math.round((ecd.getTime()-pEnd.getTime())/86400000)):0
   async function genBrief() {
     setBL(true)
@@ -191,7 +191,7 @@ function SummaryTab({ project, tasks }: { project:any, tasks:any[] }) {
       setBrief(d.brief)
     } catch(err:any) {
       const msg = err?.response?.data?.error || err?.message || 'Failed to generate. Please try again.'
-      setBrief('⚠ ' + msg)
+      setBrief('! ' + msg)
     } finally { setBL(false) }
   }
   // For project completion bar
@@ -208,12 +208,12 @@ function SummaryTab({ project, tasks }: { project:any, tasks:any[] }) {
           {/* Project details card */}
           <div className="card">
             <div className="card-header">
-              <div><div className="card-title">{project.project_name}</div><div className="card-sub">{project.risk_tier} risk · {project.customer_name}</div></div>
+              <div><div className="card-title">{project.project_name}</div><div className="card-sub">{project.risk_tier} risk . {project.customer_name}</div></div>
               <span className={`status ${statusCls}`}>{statusText}</span>
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
-              <div><div className="section-label">Timeline</div><div style={{ fontSize:12, color:'var(--text2)', lineHeight:1.9 }}>Start: <span className="mono">{new Date(project.start_date).toLocaleDateString('en-GB')}</span><br/>Planned end: <span className="mono">{new Date(project.planned_end_date).toLocaleDateString('en-GB')}</span><br/>ECD: <span className="mono" style={{ color:'var(--red)' }}>{project.ecd_algorithmic ? new Date(project.ecd_algorithmic).toLocaleDateString('en-GB') : '—'}</span></div></div>
-              <div><div className="section-label">Progress</div><div style={{ fontSize:12, color:'var(--text2)', lineHeight:1.9 }}>{completedTasks} / {tasks.length} tasks complete<br/>PM: {project.pm_name || '—'}</div></div>
+              <div><div className="section-label">Timeline</div><div style={{ fontSize:12, color:'var(--text2)', lineHeight:1.9 }}>Start: <span className="mono">{new Date(project.start_date).toLocaleDateString('en-GB')}</span><br/>Planned end: <span className="mono">{new Date(project.planned_end_date).toLocaleDateString('en-GB')}</span><br/>ECD: <span className="mono" style={{ color:'var(--red)' }}>{project.ecd_algorithmic ? new Date(project.ecd_algorithmic).toLocaleDateString('en-GB') : '-'}</span></div></div>
+              <div><div className="section-label">Progress</div><div style={{ fontSize:12, color:'var(--text2)', lineHeight:1.9 }}>{completedTasks} / {tasks.length} tasks complete<br/>PM: {project.pm_name || '-'}</div></div>
             </div>
             {/* Completion progress bar */}
             <div style={{ marginTop:16 }}>
@@ -225,7 +225,7 @@ function SummaryTab({ project, tasks }: { project:any, tasks:any[] }) {
           {/* Slippage chart */}
           <div className="card">
             <div className="card-header">
-              <div><div className="card-title">Slippage by owner type</div><div className="card-sub">All time vs since last review · by control type</div></div>
+              <div><div className="card-title">Slippage by owner type</div><div className="card-sub">All time vs since last review . by control type</div></div>
             </div>
             <SlippageChart tasks={tasks} project={project} />
           </div>
@@ -236,16 +236,16 @@ function SummaryTab({ project, tasks }: { project:any, tasks:any[] }) {
           <div className="card">
             <div className="card-header">
               <div><div className="card-title" style={{ display:'flex', alignItems:'center', gap:8 }}><span className="ai-tag">AI</span> Project Quick Glance</div><div className="card-sub">Quick snapshot of project status</div></div>
-              <button className="ai-btn" onClick={genBrief} disabled={briefLoading}>{briefLoading ? <><div className="ai-spinner" />&nbsp;Generating...</> : '✦ Generate'}</button>
+              <button className="ai-btn" onClick={genBrief} disabled={briefLoading}>{briefLoading ? <><div className="ai-spinner" />&nbsp;Generating...</> : '* Generate'}</button>
             </div>
-            {brief ? <div className="ai-panel"><div className="ai-panel-header">✦ AI Brief</div><div className="ai-panel-body">{brief}</div></div> : <div style={{ fontSize:11, color:'var(--text4)', textAlign:'center', padding:'18px 0' }}>Click Generate for a quick project glance</div>}
+            {brief ? <div className="ai-panel"><div className="ai-panel-header">* AI Brief</div><div className="ai-panel-body">{brief}</div></div> : <div style={{ fontSize:11, color:'var(--text4)', textAlign:'center', padding:'18px 0' }}>Click Generate for a quick project glance</div>}
           </div>
 
           {/* Completion range */}
           {pStart && pEnd && (
             <div className="card">
               <div className="card-header"><div><div className="card-title">Completion range</div><div className="card-sub">Estimated during planning based on dependencies</div></div></div>
-              <div style={{ fontSize:11, color:depColor, marginBottom:10 }}>{depLabel} · {externalDep}% external</div>
+              <div style={{ fontSize:11, color:depColor, marginBottom:10 }}>{depLabel} . {externalDep}% external</div>
               <div style={{ display:'flex', flexDirection:'column', gap:6, marginBottom:12 }}>
                 {[
                   {label:'Baseline',color:'#B5D4F4',textColor:'#0C447C',end:pEnd},
@@ -280,8 +280,8 @@ function SummaryTab({ project, tasks }: { project:any, tasks:any[] }) {
               </div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
                 {[
-                  {label:'TCR — Task Chaos Ratio',val:tcr.toFixed(2),sub:`${Math.round(tcr*100)}% tasks external`},
-                  {label:'DCR — Duration Chaos Ratio',val:dcr.toFixed(2),sub:`${Math.round(dcr*100)}% duration external`},
+                  {label:'TCR - Task Chaos Ratio',val:tcr.toFixed(2),sub:`${Math.round(tcr*100)}% tasks external`},
+                  {label:'DCR - Duration Chaos Ratio',val:dcr.toFixed(2),sub:`${Math.round(dcr*100)}% duration external`},
                 ].map(s=>(
                   <div key={s.label} style={{ background:'var(--bg)', borderRadius:7, padding:'8px 10px' }}>
                     <div style={{ fontSize:15, fontWeight:600, fontFamily:'var(--mono)', color:externalDep>=70?'var(--red)':externalDep>=40?'var(--amber)':'var(--green)' }}>{s.val}</div>
@@ -304,7 +304,7 @@ function SummaryTab({ project, tasks }: { project:any, tasks:any[] }) {
               const cls   = ct==='sub_supplier'?'red':ct==='supplier'?'amber':'blue'
               return (
                 <div key={ct} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid var(--border)' }}>
-                  <div><div style={{ fontSize:12, fontWeight:500, color:'var(--text)' }}>{top.task_name}</div><div style={{ fontSize:10, color:'var(--text4)', marginTop:2 }}>{label} · {top.delay_days} days delayed</div></div>
+                  <div><div style={{ fontSize:12, fontWeight:500, color:'var(--text)' }}>{top.task_name}</div><div style={{ fontSize:10, color:'var(--text4)', marginTop:2 }}>{label} . {top.delay_days} days delayed</div></div>
                   <span className={`status ${cls}`}>RN {top.risk_number}</span>
                 </div>
               )
@@ -318,17 +318,17 @@ function SummaryTab({ project, tasks }: { project:any, tasks:any[] }) {
             {[['Customer',project.customer_name],['Project Code',project.project_code],['Risk Tier',project.risk_tier],['Status',project.status],['Start',new Date(project.start_date).toLocaleDateString('en-GB')],['Planned End',new Date(project.planned_end_date).toLocaleDateString('en-GB')]].map(([label,val])=>(
               <div key={label} style={{ display:'flex', justifyContent:'space-between', padding:'7px 0', borderBottom:'1px solid var(--border)', fontSize:12 }}>
                 <span style={{ color:'var(--text3)' }}>{label}</span>
-                <span style={{ color:'var(--text)', fontWeight:500, textTransform:'capitalize' }}>{val||'—'}</span>
+                <span style={{ color:'var(--text)', fontWeight:500, textTransform:'capitalize' }}>{val||'-'}</span>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* RSP Chart — full width */}
+      {/* RSP Chart - full width */}
       <div className="card">
         <div className="card-header">
-          <div><div className="card-title">RSP chart</div><div className="card-sub">Risk driven · Stakeholder wise · sorted by RN · calendar to worst ECD</div></div>
+          <div><div className="card-title">RSP chart</div><div className="card-sub">Risk driven . Stakeholder wise . sorted by RN . calendar to worst ECD</div></div>
         </div>
         <div style={{ display:'flex', gap:14, fontSize:10, color:'var(--text3)', marginBottom:12 }}>
           <span style={{ display:'flex', alignItems:'center', gap:4 }}><span style={{ width:10, height:8, borderRadius:2, background:'var(--blue4)', display:'inline-block' }}/> Planned</span>
@@ -356,7 +356,7 @@ function KanbanCard({ t }: { t:any }) {
           ECD: {new Date(t.current_ecd).toLocaleDateString('en-GB',{day:'2-digit',month:'short'})}
         </div>
       )}
-      {t.delay_days>0 && <div style={{ fontSize:10, color:'var(--red)', marginTop:3, fontFamily:'var(--mono)' }}>+{t.delay_days}d · RN {t.risk_number||0}</div>}
+      {t.delay_days>0 && <div style={{ fontSize:10, color:'var(--red)', marginTop:3, fontFamily:'var(--mono)' }}>+{t.delay_days}d . RN {t.risk_number||0}</div>}
       {t.owner_department && <div style={{ fontSize:10, color:'var(--text4)', marginTop:3 }}>{t.owner_department}</div>}
     </div>
   )
@@ -434,7 +434,7 @@ function WeeklyKanban({ tasks }: { tasks:any[] }) {
     weeks.push({
       start: new Date(cursor),
       end,
-      label: `Week ${weekNum(cursor)} · ${fmtShort(cursor)} – ${fmtShort(end)}`,
+      label: `Week ${weekNum(cursor)} . ${fmtShort(cursor)} - ${fmtShort(end)}`,
       key: cursor.toISOString(),
     })
     cursor.setDate(cursor.getDate() + 7)
@@ -599,7 +599,7 @@ function printReport(report: any) {
     @media print{body{margin:20px}}
   </style></head><body>
   <h1>Weekly Executive Report</h1>
-  <div class="meta">Week ending ${date} &nbsp;·&nbsp; Generated ${new Date(report.created_at||Date.now()).toLocaleDateString('en-GB')}</div>
+  <div class="meta">Week ending ${date} &nbsp;.&nbsp; Generated ${new Date(report.created_at||Date.now()).toLocaleDateString('en-GB')}</div>
   <div class="metrics">
     <div class="metric"><div class="val">${(parseFloat(report.opv_snapshot||0)*100).toFixed(1)}%</div><div class="lbl">OPV</div></div>
     <div class="metric"><div class="val">${(parseFloat(report.lfv_snapshot||0)*100).toFixed(1)}%</div><div class="lbl">LFV</div></div>
@@ -624,11 +624,11 @@ function ReportsTab({ projectId }: { projectId:string }) {
   return (
     <div>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
-        <div style={{ fontSize:12, color:'var(--text3)' }}>Executive reports · 2 per week limit · stored for future retrieval</div>
-        <button className="ai-btn" onClick={()=>generate()} disabled={isPending}>{isPending ? <><div className="ai-spinner"/>&nbsp;Generating...</> : '✦ Generate Weekly Report'}</button>
+        <div style={{ fontSize:12, color:'var(--text3)' }}>Executive reports . 2 per week limit . stored for future retrieval</div>
+        <button className="ai-btn" onClick={()=>generate()} disabled={isPending}>{isPending ? <><div className="ai-spinner"/>&nbsp;Generating...</> : '* Generate Weekly Report'}</button>
       </div>
       {(genError as any)?.response?.status===429 && (
-        <div className="alert-banner red" style={{ marginBottom:12 }}>⚠ {(genError as any).response.data?.error || 'Weekly report limit reached. Try again next week.'}</div>
+        <div className="alert-banner red" style={{ marginBottom:12 }}>! {(genError as any).response.data?.error || 'Weekly report limit reached. Try again next week.'}</div>
       )}
       {(reports as any[]).length===0 && <div style={{ textAlign:'center', padding:40, color:'var(--text4)', fontSize:12 }}>No reports yet.</div>}
       {(reports as any[]).map((r:any) => {
@@ -644,11 +644,11 @@ function ReportsTab({ projectId }: { projectId:string }) {
                 </svg>
                 Week ending {new Date(r.week_ending).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}
               </div>
-              <div className="card-sub">OPV {(parseFloat(r.opv_snapshot)*100).toFixed(1)}% · LFV {(parseFloat(r.lfv_snapshot)*100).toFixed(1)}% · High risk: {r.high_risk_count}</div>
+              <div className="card-sub">OPV {(parseFloat(r.opv_snapshot)*100).toFixed(1)}% . LFV {(parseFloat(r.lfv_snapshot)*100).toFixed(1)}% . High risk: {r.high_risk_count}</div>
             </div>
             <div style={{ display:'flex', gap:8, alignItems:'center' }}>
               {r.escalation_active && <span className="status red">Escalation Active</span>}
-              <button className="tb-btn" style={{ fontSize:11 }} onClick={e=>{e.stopPropagation();printReport(r)}}>⬇ PDF</button>
+              <button className="tb-btn" style={{ fontSize:11 }} onClick={e=>{e.stopPropagation();printReport(r)}}>v PDF</button>
             </div>
           </div>
           {isOpen && (
@@ -848,13 +848,13 @@ function ClosureTab({ project, tasks }: { project:any, tasks:any[] }) {
 
 export default function ProjectView({ projectId }: { projectId:string }) {
   const [activeTab, setActiveTab] = useState<Tab>('Summary')
-  // Lifted review state — persists across tab switches
+  // Lifted review state - persists across tab switches
 
   const { data:project, isLoading, refetch:refetchProject } = useQuery({ queryKey:['project',projectId], queryFn:()=>getProject(projectId) })
   const { data:tasks=[], refetch:refetchTasks } = useQuery({ queryKey:['tasks',projectId], queryFn:()=>getTasks(projectId) })
   if (isLoading || !project) return <div style={{ textAlign:'center', padding:60, color:'var(--text4)' }}>Loading project...</div>
 
-  // Compute flagged tasks — overdue ECD or stale update (4+ days)
+  // Compute flagged tasks - overdue ECD or stale update (4+ days)
   const today = new Date().toISOString().split('T')[0]
   const fourDaysAgo = new Date(); fourDaysAgo.setDate(fourDaysAgo.getDate() - 4)
   const flaggedTasks = (tasks as any[]).filter(t => {
