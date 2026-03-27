@@ -18,13 +18,13 @@ const REQUESTED_BY_OPTIONS = [
 ]
 
 const AVAIL_OPTIONS = [
-  { value: 'yes',     label: 'Yes — all data ready' },
-  { value: 'partial', label: 'Partial — some gaps' },
-  { value: 'no',      label: 'No — data not ready' },
+  { value: 'yes',     label: 'Yes -- all data ready' },
+  { value: 'partial', label: 'Partial -- some gaps' },
+  { value: 'no',      label: 'No -- data not ready' },
 ]
 
 function fmt(date: string | null) {
-  if (!date) return '—'
+  if (!date) return '--'
   return new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
@@ -149,7 +149,7 @@ function CCRModal({ project, phases, onClose, onSaved }: {
             </div>
             <div className="form-group">
               <label className="form-label">
-                Description * <span style={{ color: 'var(--text4)', fontWeight: 400 }}>(min 50 chars — {form.description.length} typed)</span>
+                Description * <span style={{ color: 'var(--text4)', fontWeight: 400 }}>(min 50 chars -- {form.description.length} typed)</span>
               </label>
               <textarea className="form-input" rows={3} value={form.description}
                 onChange={e => setF('description', e.target.value)}
@@ -179,7 +179,7 @@ function CCRModal({ project, phases, onClose, onSaved }: {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isDeleted ? 0 : 10 }}>
                       <div style={{ fontSize: 12, fontWeight: 600, color: isDeleted ? 'var(--red)' : 'var(--text)' }}>
                         {p.phase_name}
-                        {isDeleted && <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 400 }}>— marked for deletion</span>}
+                        {isDeleted && <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 400 }}>-- marked for deletion</span>}
                       </div>
                       <button type="button"
                         onClick={() => setPhaseEdit(p.phase_id, 'marked_for_delete', !isDeleted)}
@@ -299,10 +299,10 @@ function CCRHistoryRow({ ccr }: { ccr: any }) {
             <span className="tag blue">{reasonLabel[ccr.reason_category] || ccr.reason_category}</span>
           </div>
           <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 3 }}>
-            {fmt(ccr.raised_at?.split('T')[0])} · Raised by {ccr.raised_by_name}
-            {summary.phases_modified > 0 && ` · ${summary.phases_modified} phase(s) modified`}
-            {summary.phases_added > 0 && ` · ${summary.phases_added} phase(s) added`}
-            {summary.phases_deleted > 0 && ` · ${summary.phases_deleted} phase(s) deleted`}
+            {fmt(ccr.raised_at?.split('T')[0])} - Raised by {ccr.raised_by_name}
+            {summary.phases_modified > 0 && ` - ${summary.phases_modified} phase(s) modified`}
+            {summary.phases_added > 0 && ` - ${summary.phases_added} phase(s) added`}
+            {summary.phases_deleted > 0 && ` - ${summary.phases_deleted} phase(s) deleted`}
           </div>
         </div>
         <span className="status green">Applied</span>
@@ -348,17 +348,17 @@ function CCRHistoryRow({ ccr }: { ccr: any }) {
                       </td>
                       <td>
                         {startChanged
-                          ? <><span style={{ color: 'var(--red)', textDecoration: 'line-through' }}>{fmt(bp.start_date)}</span>{' → '}<span style={{ color: 'var(--green)' }}>{fmt(ap.start_date)}</span></>
+                          ? <><span style={{ color: 'var(--red)', textDecoration: 'line-through' }}>{fmt(bp.start_date)}</span>{' -> '}<span style={{ color: 'var(--green)' }}>{fmt(ap.start_date)}</span></>
                           : fmt(ap.start_date)}
                       </td>
                       <td>
                         {endChanged
-                          ? <><span style={{ color: 'var(--red)', textDecoration: 'line-through' }}>{fmt(bp.target_date)}</span>{' → '}<span style={{ color: 'var(--green)' }}>{fmt(ap.target_date)}</span></>
+                          ? <><span style={{ color: 'var(--red)', textDecoration: 'line-through' }}>{fmt(bp.target_date)}</span>{' -> '}<span style={{ color: 'var(--green)' }}>{fmt(ap.target_date)}</span></>
                           : fmt(ap.target_date)}
                       </td>
                       <td>
                         {availChanged
-                          ? <><span style={{ color: 'var(--red)', textDecoration: 'line-through' }}>{bp.data_availability}</span>{' → '}<span style={{ color: 'var(--green)' }}>{ap.data_availability}</span></>
+                          ? <><span style={{ color: 'var(--red)', textDecoration: 'line-through' }}>{bp.data_availability}</span>{' -> '}<span style={{ color: 'var(--green)' }}>{ap.data_availability}</span></>
                           : ap.data_availability}
                       </td>
                       <td><span className={`tag ${isNew ? 'blue' : 'amber'}`}>{isNew ? 'Added' : 'Modified'}</span></td>
@@ -406,7 +406,7 @@ export default function CharterTab({ project, phases }: { project: any, phases: 
         <div>
           <div className="page-title">Charter Change Requests</div>
           <div className="page-sub">
-            {(ccrs as any[]).length} change request{(ccrs as any[]).length !== 1 ? 's' : ''} recorded · All changes applied immediately
+            {(ccrs as any[]).length} change request{(ccrs as any[]).length !== 1 ? 's' : ''} recorded - All changes applied immediately
           </div>
         </div>
         <button className="tb-btn primary" onClick={() => setShowModal(true)}>+ Raise Change Request</button>
