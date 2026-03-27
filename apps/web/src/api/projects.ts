@@ -21,3 +21,5 @@ export const getReviewAgenda   = (pid: string) => api.get(`/api/projects/${pid}/
 export const createReviewFull  = (pid: string, data: any) => api.post(`/api/projects/${pid}/reviews`, data).then(r => r.data)
 
 export const getReviewSummary = (pid: string) => api.get(`/api/projects/${pid}/nudges/review-summary`).then(r => r.data)
+export const getCCRs   = (pid: string) => api.get(`/api/projects/${pid}/ccr`).then(r => r.data)
+export const createCCR = (pid: string, data: any) => api.post(`/api/projects/${pid}/ccr`, data).then(r => r.data)
