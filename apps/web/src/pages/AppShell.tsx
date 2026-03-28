@@ -105,11 +105,11 @@ export default function AppShell() {
             ) : view === 'learnings' ? (
               <span>Project Learnings</span>
             ) : view === 'learning-detail' ? (
-              <><span style={{ cursor:'pointer' }} onClick={() => setView('learnings')}>Project Learnings</span><span className="sep"> > </span><span className="current">Case Study</span></>
+              <><span style={{ cursor:'pointer' }} onClick={() => setView('learnings')}>Project Learnings</span><span className="sep"> &gt; </span><span className="current">Case Study</span></>
             ) : (
               <>
                 <span style={{ cursor:'pointer' }} onClick={goPortfolio}>Portfolio</span>
-                <span className="sep"> > </span>
+                <span className="sep"> &gt; </span>
                 <span className="current">{currentProject?.project_name || '...'}</span>
               </>
             )}
