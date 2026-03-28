@@ -18,9 +18,12 @@ router.post('/', async (req, res) => {
   if (project.status === 'closed') return res.status(400).json({ error: 'Project already closed' });
 
   const tasksResult = await dbQuery(req.tenantId,
-    `SELECT task_id, task_name, completion_status, control_type,
-            delay_days, slippage_count, phase_name, planned_end_date
-     FROM tasks WHERE project_id = $1 AND tenant_id = $2`,
+    `SELECT t.task_id, t.task_name, t.completion_status, t.control_type,
+            t.delay_days, t.slippage_count, t.planned_end_date,
+            p.phase_name
+     FROM tasks t
+     LEFT JOIN phases p ON p.phase_id = t.phase_id AND p.tenant_id = t.tenant_id
+     WHERE t.project_id = $1 AND t.tenant_id = $2`,
     [projectId, req.tenantId]
   );
   const tasks = tasksResult.rows;
