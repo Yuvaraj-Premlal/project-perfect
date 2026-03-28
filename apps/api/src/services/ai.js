@@ -199,31 +199,49 @@ async function generateClosureReport({
   const varianceNote   = daysVariance > 0 ? `${daysVariance} days late` : daysVariance < 0 ? `${Math.abs(daysVariance)} days early` : 'on time';
   const completionRate = totalTasks > 0 ? ((completedTasks / totalTasks) * 100).toFixed(0) : 0;
 
-  const supplierTasks  = (tasks||[]).filter(t => t.control_type === 'supplier' || t.control_type === 'sub_supplier');
-  const slippedTasks   = (tasks||[]).filter(t => (t.slippage_count||0) > 0)
-    .map(t => `${t.task_name} (${t.slippage_count} slips, +${t.delay_days}d)`).join(', ');
+  // Enrich task context with all meaningful fields sorted by risk
+  const taskContext = (tasks||[])
+    .sort((a, b) => (b.risk_number||0) - (a.risk_number||0))
+    .map(t => {
+      const planned  = t.planned_end_date ? new Date(t.planned_end_date).toLocaleDateString('en-GB') : 'n/a';
+      const ecd      = t.current_ecd      ? new Date(t.current_ecd).toLocaleDateString('en-GB')      : 'n/a';
+      const delay    = (t.delay_days||0) > 0 ? `+${t.delay_days}d delay` : 'on time';
+      const slips    = t.slippage_count   ? `${t.slippage_count} slippage(s)` : 'no slippages';
+      const rn       = t.risk_number      ? `RN:${t.risk_number} (${t.risk_label||'unknown'})` : 'no risk score';
+      const phase    = t.phase_name       ? `Phase: ${t.phase_name}` : 'unassigned phase';
+      const criteria = t.acceptance_criteria ? `Acceptance: ${t.acceptance_criteria}` : '';
+      return `- ${t.task_name} [${(t.control_type||'').replace('_',' ')}, ${phase}, ${rn}]\n  Planned: ${planned} | ECD: ${ecd} | ${delay} | ${slips}\n  ${criteria}`;
+    }).join('\n');
 
+  // Build lessons learnt from completion updates
   const lessonsContext = (taskUpdates||[])
     .filter(u => u.is_completion_update)
     .map(u => {
       const parts = [];
-      if (u.task_name)           parts.push(`Task: ${u.task_name} [${(u.control_type||'').replace('_',' ')}]`);
-      if (u.lessons_went_well)   parts.push(`What went right: ${u.lessons_went_well}`);
-      if (u.lessons_went_wrong)  parts.push(`What went wrong: ${u.lessons_went_wrong}`);
-      if (u.lessons_do_differently) parts.push(`Do differently: ${u.lessons_differently}`);
+      if (u.task_name)              parts.push(`Task: ${u.task_name} [${(u.control_type||'').replace('_',' ')}]`);
+      if (u.lessons_went_well)      parts.push(`What went right: ${u.lessons_went_well}`);
+      if (u.lessons_went_wrong)     parts.push(`What went wrong: ${u.lessons_went_wrong}`);
+      if (u.lessons_do_differently) parts.push(`Do differently: ${u.lessons_do_differently}`);
       return parts.join('\n');
     }).filter(Boolean).join('\n---\n');
 
+  // Build chronological update history
   const eventsContext = (taskUpdates||[])
-    .slice(0, 30)
-    .map(u => `[${u.created_at ? new Date(u.created_at).toLocaleDateString('en-GB') : ''}] ${u.task_name}: ${u.update_text || u.completion_notes || ''}`)
-    .filter(u => u.trim().length > 20)
+    .slice(0, 40)
+    .map(u => {
+      const date  = u.created_at ? new Date(u.created_at).toLocaleDateString('en-GB') : '';
+      const type  = u.is_completion_update ? '[COMPLETION]' : '[UPDATE]';
+      const body  = u.what_done || u.what_pending || '';
+      const issue = u.issue_blocker ? ` Issue: ${u.issue_blocker}` : '';
+      return `${type} ${date} - ${u.task_name}: ${body}${issue}`.trim();
+    })
+    .filter(u => u.length > 20)
     .join('\n');
 
   const system = `You are a senior project management consultant writing a detailed case study closure report for a manufacturing programme.
 This document will be read by future project managers as organisational learning material.
-Be specific, insightful, and draw out patterns not just lists of events.
-Write in professional third person prose.
+Be specific and insightful - reference actual task names, risk numbers, delays, and lessons learnt directly from the data provided.
+Identify systemic patterns not just individual events. Write in professional third person prose.
 You MUST respond with valid JSON only. No markdown fences, no explanation, no preamble outside the JSON.`;
 
   const pmNotesClean = (pmNotes || '').replace(/"/g, "'");
@@ -232,13 +250,16 @@ You MUST respond with valid JSON only. No markdown fences, no explanation, no pr
 PROJECT FACTS:
 Project: ${projectName} | Customer: ${customerName || 'Customer'}
 Start: ${startDate} | Planned end: ${plannedEndDate} | Actual end: ${actualEndDate} (${varianceNote})
-Tasks: ${completedTasks}/${totalTasks} completed (${completionRate}%) | Total slippages: ${totalSlippages}
-Supplier/external tasks: ${supplierTasks.length} | Slipped tasks: ${slippedTasks || 'None'}
+Tasks completed: ${completedTasks}/${totalTasks} (${completionRate}%) | Total slippages: ${totalSlippages}
+Final OPV: ${(finalOpv*100).toFixed(1)}% | Final LFV: ${(finalLfv*100).toFixed(1)}%
+
+TASK DETAIL (sorted by risk):
+${taskContext || 'No task data available'}
 
 LESSONS LEARNT FROM TASK COMPLETIONS:
 ${lessonsContext || 'No task-level lessons recorded'}
 
-KEY EVENTS FROM UPDATE HISTORY:
+CHRONOLOGICAL UPDATE HISTORY:
 ${eventsContext || 'No update history available'}
 
 PM NOTES:
@@ -248,14 +269,14 @@ Return ONLY this JSON structure:
 {
   "sections": {
     "project_overview": "<2-3 sentences: what the project was, customer, timeline, delivery outcome>",
-    "key_events_timeline": "<narrative of 3-5 most significant events during the project with approximate timing>",
-    "what_went_right": "<specific things that worked well - draw patterns from task lessons>",
-    "what_went_wrong": "<specific problems and root causes - identify systemic patterns>",
-    "stakeholder_performance": "<how supplier sub-supplier and internal teams performed>",
-    "recommendations": "<3-5 specific actionable recommendations for future similar projects>",
+    "key_events_timeline": "<narrative of 3-5 most significant events referencing actual task names and dates>",
+    "what_went_right": "<specific successes referencing actual tasks, phases, or stakeholders by name>",
+    "what_went_wrong": "<specific problems with root causes - reference actual task names, delays, RN scores>",
+    "stakeholder_performance": "<how each control type performed - internal, supplier, sub-supplier - with specifics>",
+    "recommendations": "<3-5 specific actionable recommendations directly based on the lessons learnt and events above>",
     "pm_closing_remarks": "${pmNotesClean || 'No additional remarks from PM.'}"
   },
-  "tags": ["<3-6 short kebab-case tags e.g. supplier-documentation-delay phase-2-overrun>"]
+  "tags": ["<3-6 short kebab-case tags summarising key themes>"]
 }`;
 
   const raw = await callAI(system, user, 2000);

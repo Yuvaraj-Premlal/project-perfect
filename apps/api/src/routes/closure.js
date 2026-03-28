@@ -19,7 +19,8 @@ router.post('/', async (req, res) => {
 
   const tasksResult = await dbQuery(req.tenantId,
     `SELECT t.task_id, t.task_name, t.completion_status, t.control_type,
-            t.delay_days, t.slippage_count, t.planned_end_date,
+            t.delay_days, t.slippage_count, t.planned_end_date, t.current_ecd,
+            t.risk_number, t.risk_label, t.acceptance_criteria,
             pp.phase_name
      FROM tasks t
      LEFT JOIN project_phases pp ON pp.phase_id = t.phase_id AND pp.tenant_id = t.tenant_id
@@ -31,7 +32,7 @@ router.post('/', async (req, res) => {
   const incompleteTasks = tasks.filter(t => t.completion_status !== 'complete');
   if (incompleteTasks.length > 0) {
     return res.status(400).json({
-      error: 'Cannot close project — incomplete tasks remain',
+      error: 'Cannot close project - incomplete tasks remain',
       incomplete_tasks: incompleteTasks.map(t => ({
         task_id:   t.task_id,
         task_name: t.task_name,
@@ -53,9 +54,12 @@ router.post('/', async (req, res) => {
   );
   const taskUpdates = updatesResult.rows;
 
+  // Correct slippage count — only for this project
   const slippageResult = await dbQuery(req.tenantId,
-    `SELECT COUNT(*) FROM task_slippage_history WHERE tenant_id = $1`,
-    [req.tenantId]
+    `SELECT COUNT(*) FROM task_slippage_history tsh
+     JOIN tasks t ON t.task_id = tsh.task_id
+     WHERE t.project_id = $1 AND tsh.tenant_id = $2`,
+    [projectId, req.tenantId]
   );
   const totalSlippages = parseInt(slippageResult.rows[0].count);
 
