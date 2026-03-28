@@ -4,6 +4,8 @@ import { getProjects } from '../api/projects'
 import PortfolioView from './PortfolioView'
 import CreateProjectModal from './CreateProjectModal'
 import ProjectView from './ProjectView'
+import ProjectLearnings from './ProjectLearnings'
+import LearningDetail from './LearningDetail'
 
 function getOPVColor(opv: number) {
   if (opv >= 1.0) return '#0A7E4F'
@@ -13,7 +15,8 @@ function getOPVColor(opv: number) {
 
 
 export default function AppShell() {
-  const [view, setView]       = useState<'portfolio' | 'project'>('portfolio')
+  const [view, setView]       = useState<'portfolio' | 'project' | 'learnings' | 'learning-detail'>('portfolio')
+  const [activeLearning, setActiveLearning] = useState<string|null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [activeProject, setActiveProject] = useState<string | null>(null)
 
@@ -53,6 +56,10 @@ export default function AppShell() {
           <button className={`nav-item ${view==='portfolio' && !activeProject ? 'active' : ''}`} onClick={goPortfolio}>
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="5" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><rect x="9" y="2" width="5" height="3" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><rect x="9" y="7" width="5" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><rect x="2" y="10" width="5" height="4" rx="1.5" stroke="currentColor" strokeWidth="1.3"/></svg>
             Portfolio
+          </button>
+          <button className={`nav-item ${view==='learnings'||view==='learning-detail' ? 'active' : ''}`} onClick={() => { setView('learnings'); setActiveProject(null) }}>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 2h10a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" stroke="currentColor" strokeWidth="1.3"/><path d="M5 6h6M5 9h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+            Project Learnings
           </button>
         </div>
 
@@ -95,6 +102,10 @@ export default function AppShell() {
           <div className="breadcrumb">
             {view === 'portfolio' ? (
               <span>Portfolio</span>
+            ) : view === 'learnings' ? (
+              <span>Project Learnings</span>
+            ) : view === 'learning-detail' ? (
+              <><span style={{ cursor:'pointer' }} onClick={() => setView('learnings')}>Project Learnings</span><span className="sep"> › </span><span className="current">Case Study</span></>
             ) : (
               <>
                 <span style={{ cursor:'pointer' }} onClick={goPortfolio}>Portfolio</span>
@@ -118,10 +129,10 @@ export default function AppShell() {
         </div>
 
         <div className="content">
-          {view === 'portfolio'
-            ? <PortfolioView projects={projects || []} onOpenProject={openProject} />
-            : <ProjectView projectId={activeProject!} />
-          }
+          {view === 'portfolio'        && <PortfolioView projects={projects || []} onOpenProject={openProject} />}
+          {view === 'project'          && <ProjectView projectId={activeProject!} />}
+          {view === 'learnings'        && <ProjectLearnings onOpenLearning={(id) => { setActiveLearning(id); setView('learning-detail') }} />}
+          {view === 'learning-detail'  && <LearningDetail reportId={activeLearning!} onBack={() => setView('learnings')} />}
         </div>
       </div>
 
