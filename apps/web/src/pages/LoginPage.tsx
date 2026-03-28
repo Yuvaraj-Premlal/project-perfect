@@ -7,7 +7,7 @@ async function generateDevToken(email: string): Promise<string> {
   return new jose.SignJWT({
     sub: '00000000-0000-0000-0000-000000000002',
     tenant_id: '00000000-0000-0000-0000-000000000001',
-    role: 'pm', email
+    role, email
   }).setProtectedHeader({ alg: 'HS256' }).setExpirationTime('24h').setIssuedAt().sign(secret)
 }
 

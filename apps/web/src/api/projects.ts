@@ -31,3 +31,18 @@ export const createReviewFull  = (pid: string, data: any) => api.post(`/api/proj
 export const getReviewSummary = (pid: string) => api.get(`/api/projects/${pid}/nudges/review-summary`).then(r => r.data)
 export const getCCRs   = (pid: string) => api.get(`/api/projects/${pid}/ccr`).then(r => r.data)
 export const createCCR = (pid: string, data: any) => api.post(`/api/projects/${pid}/ccr`, data).then(r => r.data)
+
+// Admin
+export const getAdminUsers        = () => api.get('/api/admin/users').then(r => r.data)
+export const createAdminUser      = (data: any) => api.post('/api/admin/users', data).then(r => r.data)
+export const updateAdminUser      = (id: string, data: any) => api.put(`/api/admin/users/${id}`, data).then(r => r.data)
+export const deactivateAdminUser  = (id: string) => api.delete(`/api/admin/users/${id}`).then(r => r.data)
+
+export const getAdminDepartments  = () => api.get('/api/admin/departments').then(r => r.data)
+export const createDepartment     = (data: any) => api.post('/api/admin/departments', data).then(r => r.data)
+export const deleteDepartment     = (id: string) => api.delete(`/api/admin/departments/${id}`).then(r => r.data)
+
+export const getAdminSuppliers    = (type?: string) => api.get(`/api/admin/suppliers${type ? '?type='+type : ''}`).then(r => r.data)
+export const createAdminSupplier  = (data: any) => api.post('/api/admin/suppliers', data).then(r => r.data)
+export const updateAdminSupplier  = (id: string, data: any) => api.put(`/api/admin/suppliers/${id}`, data).then(r => r.data)
+export const deleteAdminSupplier  = (id: string) => api.delete(`/api/admin/suppliers/${id}`).then(r => r.data)

@@ -6,6 +6,8 @@ import CreateProjectModal from './CreateProjectModal'
 import ProjectView from './ProjectView'
 import ProjectLearnings from './ProjectLearnings'
 import LearningDetail from './LearningDetail'
+import AdminPortal from './AdminPortal'
+import { getCurrentUser } from '../api/auth'
 
 function getOPVColor(opv: number) {
   if (opv >= 1.0) return '#0A7E4F'
@@ -15,8 +17,9 @@ function getOPVColor(opv: number) {
 
 
 export default function AppShell() {
-  const [view, setView]       = useState<'portfolio' | 'project' | 'learnings' | 'learning-detail'>('portfolio')
+  const [view, setView]       = useState<'portfolio' | 'project' | 'learnings' | 'learning-detail' | 'admin'>('portfolio')
   const [activeLearning, setActiveLearning] = useState<string|null>(null)
+  const currentUser = getCurrentUser()
   const [showCreate, setShowCreate] = useState(false)
   const [activeProject, setActiveProject] = useState<string | null>(null)
 
@@ -61,6 +64,12 @@ export default function AppShell() {
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 2h10a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" stroke="currentColor" strokeWidth="1.3"/><path d="M5 6h6M5 9h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
             Project Learnings
           </button>
+          {currentUser?.role === 'super_user' && (
+            <button className={`nav-item ${view==='admin' ? 'active' : ''}`} onClick={() => { setView('admin'); setActiveProject(null) }}>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="5" r="2.5" stroke="currentColor" strokeWidth="1.3"/><path d="M3 13c0-2.8 2.2-5 5-5s5 2.2 5 5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+              Admin
+            </button>
+          )}
         </div>
 
         <div className="nav-section">
@@ -87,7 +96,7 @@ export default function AppShell() {
           <div className="avatar">YP</div>
           <div>
             <div className="user-name">Yuvaraj P.</div>
-            <div className="user-role">Project Manager</div>
+            <div className="user-role" style={{ textTransform:'capitalize' }}>{currentUser?.role?.replace('_',' ') || 'Project Manager'}</div>
           </div>
           <button onClick={() => { localStorage.removeItem('pp_token'); window.location.href='/login' }}
             style={{ marginLeft:'auto', background:'none', border:'none', cursor:'pointer', color:'rgba(255,255,255,0.3)', fontSize:18 }} title="Sign out">
@@ -102,6 +111,8 @@ export default function AppShell() {
           <div className="breadcrumb">
             {view === 'portfolio' ? (
               <span>Portfolio</span>
+            ) : view === 'admin' ? (
+              <span>Admin Portal</span>
             ) : view === 'learnings' ? (
               <span>Project Learnings</span>
             ) : view === 'learning-detail' ? (
@@ -133,6 +144,7 @@ export default function AppShell() {
           {view === 'project'          && <ProjectView projectId={activeProject!} />}
           {view === 'learnings'        && <ProjectLearnings onOpenLearning={(id) => { setActiveLearning(id); setView('learning-detail') }} />}
           {view === 'learning-detail'  && <LearningDetail reportId={activeLearning!} onBack={() => setView('learnings')} />}
+          {view === 'admin'           && <AdminPortal />}
         </div>
       </div>
 
