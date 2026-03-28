@@ -210,7 +210,7 @@ async function generateClosureReport({
       if (u.task_name)           parts.push(`Task: ${u.task_name} [${(u.control_type||'').replace('_',' ')}]`);
       if (u.lessons_went_well)   parts.push(`What went right: ${u.lessons_went_well}`);
       if (u.lessons_went_wrong)  parts.push(`What went wrong: ${u.lessons_went_wrong}`);
-      if (u.lessons_differently) parts.push(`Do differently: ${u.lessons_differently}`);
+      if (u.lessons_do_differently) parts.push(`Do differently: ${u.lessons_differently}`);
       return parts.join('\n');
     }).filter(Boolean).join('\n---\n');
 

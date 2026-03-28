@@ -20,13 +20,14 @@ router.post('/', async (req, res) => {
   const tasksResult = await dbQuery(req.tenantId,
     `SELECT t.task_id, t.task_name, t.completion_status, t.control_type,
             t.delay_days, t.slippage_count, t.planned_end_date,
-            p.phase_name
+            pp.phase_name
      FROM tasks t
-     LEFT JOIN project_phases p ON p.phase_id = t.phase_id AND p.tenant_id = t.tenant_id
+     LEFT JOIN project_phases pp ON pp.phase_id = t.phase_id AND pp.tenant_id = t.tenant_id
      WHERE t.project_id = $1 AND t.tenant_id = $2`,
     [projectId, req.tenantId]
   );
   const tasks = tasksResult.rows;
+
   const incompleteTasks = tasks.filter(t => t.completion_status !== 'complete');
   if (incompleteTasks.length > 0) {
     return res.status(400).json({
@@ -40,19 +41,21 @@ router.post('/', async (req, res) => {
   }
 
   const updatesResult = await dbQuery(req.tenantId,
-    `SELECT tu.*, t.task_name, t.control_type
+    `SELECT tu.task_id, tu.what_done, tu.what_pending, tu.issue_blocker,
+            tu.is_completion_update, tu.lessons_went_well, tu.lessons_went_wrong,
+            tu.lessons_do_differently, tu.created_at, tu.created_by_name,
+            t.task_name, t.control_type
      FROM task_updates tu
      JOIN tasks t ON t.task_id = tu.task_id
-     WHERE tu.project_id = $1 AND tu.tenant_id = $2
+     WHERE t.project_id = $1 AND tu.tenant_id = $2
      ORDER BY tu.created_at ASC`,
     [projectId, req.tenantId]
   );
   const taskUpdates = updatesResult.rows;
 
   const slippageResult = await dbQuery(req.tenantId,
-    `SELECT COUNT(*) FROM task_slippage_history
-     WHERE project_id = $1 AND tenant_id = $2`,
-    [projectId, req.tenantId]
+    `SELECT COUNT(*) FROM task_slippage_history WHERE tenant_id = $1`,
+    [req.tenantId]
   );
   const totalSlippages = parseInt(slippageResult.rows[0].count);
 
