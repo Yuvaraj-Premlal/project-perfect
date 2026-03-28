@@ -130,7 +130,7 @@ export default function ProjectLearnings({ onOpenLearning }: { onOpenLearning: (
                 <div style={{ display:'flex', gap:12, fontSize:12, color:'var(--text3)' }}>
                   {thumbs > 0   && <span>👍 {thumbs}</span>}
                   {bulb > 0     && <span>💡 {bulb}</span>}
-                  {warning > 0  && <span>⚠️ {warning}</span>}
+                  {warning > 0  && <span>!️ {warning}</span>}
                   {comments > 0 && <span>💬 {comments}</span>}
                 </div>
                 <div style={{ fontSize:11, color:'var(--text4)' }}>

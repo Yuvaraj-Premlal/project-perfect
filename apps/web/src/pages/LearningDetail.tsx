@@ -28,7 +28,7 @@ const TAG_LABELS: Record<string,string> = {
 const REACTIONS = [
   { type: 'thumbs_up', emoji: '👍', label: 'Helpful' },
   { type: 'lightbulb', emoji: '💡', label: 'Insightful' },
-  { type: 'warning',   emoji: '⚠️', label: 'Take note' },
+  { type: 'warning',   emoji: '!️', label: 'Take note' },
 ]
 
 export default function LearningDetail({ reportId, onBack }: { reportId: string, onBack: () => void }) {
