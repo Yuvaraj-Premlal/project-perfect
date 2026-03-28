@@ -46,3 +46,6 @@ export const getAdminSuppliers    = (type?: string) => api.get(`/api/admin/suppl
 export const createAdminSupplier  = (data: any) => api.post('/api/admin/suppliers', data).then(r => r.data)
 export const updateAdminSupplier  = (id: string, data: any) => api.put(`/api/admin/suppliers/${id}`, data).then(r => r.data)
 export const deleteAdminSupplier  = (id: string) => api.delete(`/api/admin/suppliers/${id}`).then(r => r.data)
+
+export const getUsers     = () => api.get('/api/users').then(r => r.data)
+export const getSuppliers = (type?: string) => api.get(`/api/suppliers${type ? '?type='+type : ''}`).then(r => r.data)

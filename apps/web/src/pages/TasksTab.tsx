@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { createTask, updateTask, getTaskUpdates, createTaskUpdate } from '../api/projects'
+import { createTask, updateTask, getTaskUpdates, createTaskUpdate, getUsers, getSuppliers } from '../api/projects'
+import { useQuery } from '@tanstack/react-query'
 import { api } from '../api/client'
 
 // ─── Types ──────────────────────────────────────────────────────
@@ -118,14 +119,21 @@ function AddTaskModal({
   const [error, setError]   = useState<string | null>(null)
   const [form, setForm] = useState({
     task_name:           '',
-    owner_email:         '',
-    owner_department:    '',
+    owner_user_id:       '',
+    supplier_id:         '',
     phase_id:            phase.phase_id,
     control_type:        'internal',
     planned_start_date:  '',
     planned_end_date:    '',
     acceptance_criteria: '',
   })
+
+  const { data: users = [] }     = useQuery({ queryKey: ['users'],     queryFn: getUsers })
+  const { data: suppliers = [] } = useQuery({ queryKey: ['suppliers'], queryFn: () => getSuppliers() })
+
+  const internalUsers    = (users as any[]).filter((u: any) => u.role !== 'visitor')
+  const supplierList     = (suppliers as any[]).filter((s: any) => s.supplier_type === 'supplier')
+  const subSupplierList  = (suppliers as any[]).filter((s: any) => s.supplier_type === 'sub_supplier')
 
   function set(field: string, value: string) {
     setForm(f => ({ ...f, [field]: value }))
@@ -184,27 +192,50 @@ function AddTaskModal({
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            {form.control_type === 'internal' && (
               <div className="form-group">
-                <label className="form-label">Owner email</label>
-                <input
-                  className="form-input"
-                  type="email"
-                  value={form.owner_email}
-                  onChange={e => set('owner_email', e.target.value)}
-                  placeholder="owner@company.com"
-                />
+                <label className="form-label">Owner</label>
+                <select className="form-input" value={form.owner_user_id} onChange={e => set('owner_user_id', e.target.value)}>
+                  <option value="">Select user...</option>
+                  {internalUsers.map((u: any) => (
+                    <option key={u.user_id} value={u.user_id}>
+                      {u.full_name}{u.department_name ? " - " + u.department_name : ""}
+                    </option>
+                  ))}
+                </select>
+                {internalUsers.length === 0 && (
+                  <div style={{ fontSize:11, color:'var(--amber)', marginTop:4 }}>No users registered. Add users in Admin portal first.</div>
+                )}
               </div>
+            )}
+            {form.control_type === 'supplier' && (
               <div className="form-group">
-                <label className="form-label">Owner department</label>
-                <input
-                  className="form-input"
-                  value={form.owner_department}
-                  onChange={e => set('owner_department', e.target.value)}
-                  placeholder="e.g. Engineering"
-                />
+                <label className="form-label">Supplier</label>
+                <select className="form-input" value={form.supplier_id} onChange={e => set('supplier_id', e.target.value)}>
+                  <option value="">Select supplier...</option>
+                  {supplierList.map((s: any) => (
+                    <option key={s.supplier_id} value={s.supplier_id}>{s.supplier_name}</option>
+                  ))}
+                </select>
+                {supplierList.length === 0 && (
+                  <div style={{ fontSize:11, color:'var(--amber)', marginTop:4 }}>No suppliers registered. Add suppliers in Admin portal first.</div>
+                )}
               </div>
-            </div>
+            )}
+            {form.control_type === 'sub_supplier' && (
+              <div className="form-group">
+                <label className="form-label">Sub-supplier</label>
+                <select className="form-input" value={form.supplier_id} onChange={e => set('supplier_id', e.target.value)}>
+                  <option value="">Select sub-supplier...</option>
+                  {subSupplierList.map((s: any) => (
+                    <option key={s.supplier_id} value={s.supplier_id}>{s.supplier_name}</option>
+                  ))}
+                </select>
+                {subSupplierList.length === 0 && (
+                  <div style={{ fontSize:11, color:'var(--amber)', marginTop:4 }}>No sub-suppliers registered. Add sub-suppliers in Admin portal first.</div>
+                )}
+              </div>
+            )}
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div className="form-group">
