@@ -22,13 +22,6 @@ export const getComments           = (rid: string) => api.get(`/api/learnings/${
 export const addComment            = (rid: string, data: any) => api.post(`/api/learnings/${rid}/comments`, data).then(r => r.data)
 export const deleteComment         = (rid: string, cid: string) => api.delete(`/api/learnings/${rid}/comments/${cid}`).then(r => r.data)
 
-export const getLearnings          = () => api.get('/api/learnings').then(r => r.data)
-export const getLearning           = (rid: string) => api.get(`/api/learnings/${rid}`).then(r => r.data)
-export const toggleReaction        = (rid: string, reaction_type: string) => api.post(`/api/learnings/${rid}/reactions`, { reaction_type }).then(r => r.data)
-export const getComments           = (rid: string) => api.get(`/api/learnings/${rid}/comments`).then(r => r.data)
-export const addComment            = (rid: string, data: any) => api.post(`/api/learnings/${rid}/comments`, data).then(r => r.data)
-export const deleteComment         = (rid: string, cid: string) => api.delete(`/api/learnings/${rid}/comments/${cid}`).then(r => r.data)
-
 export const getTaskUpdates  = (pid: string, tid: string) => api.get(`/api/projects/${pid}/tasks/${tid}/updates`).then(r => r.data)
 export const createTaskUpdate = (pid: string, tid: string, data: any) => api.post(`/api/projects/${pid}/tasks/${tid}/updates`, data).then(r => r.data)
 

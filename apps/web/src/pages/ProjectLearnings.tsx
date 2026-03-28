@@ -8,12 +8,6 @@ const RISK_COLOR: Record<string,string> = {
   low:    'green',
 }
 
-const TAG_LABELS: Record<string,string> = {
-  we_experienced_this:    'We experienced this',
-  different_outcome:      'Different outcome',
-  useful_recommendation:  'Useful recommendation',
-  general:                'General',
-}
 
 function excerpt(sections: any): string {
   if (!sections) return ''

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getLearning, getComments, addComment, deleteComment, toggleReaction } from '../api/projects'
 
 const SECTION_LABELS: Record<string,string> = {
