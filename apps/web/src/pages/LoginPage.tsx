@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import * as jose from 'jose'
 
-async function generateDevToken(email: string): Promise<string> {
+async function generateDevToken(email: string, role: string = 'pm'): Promise<string> {
   const secret = new TextEncoder().encode('test-secret')
   return new jose.SignJWT({
     sub: '00000000-0000-0000-0000-000000000002',
@@ -14,6 +14,7 @@ async function generateDevToken(email: string): Promise<string> {
 export default function LoginPage() {
   const [email, setEmail]       = useState('yuvaraj@testco.com')
   const [password, setPassword] = useState('')
+  const [role, setRole]         = useState('super_user')
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState('')
   const navigate = useNavigate()
@@ -21,7 +22,7 @@ export default function LoginPage() {
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault(); setLoading(true); setError('')
     try {
-      localStorage.setItem('pp_token', await generateDevToken(email))
+      localStorage.setItem('pp_token', await generateDevToken(email, role))
       navigate('/')
     } catch { setError('Login failed.') } finally { setLoading(false) }
   }
