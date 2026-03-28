@@ -193,19 +193,30 @@ function AddTaskModal({
             </div>
 
             {form.control_type === 'internal' && (
-              <div className="form-group">
-                <label className="form-label">Owner</label>
-                <select className="form-input" value={form.owner_user_id} onChange={e => set('owner_user_id', e.target.value)}>
-                  <option value="">Select user...</option>
-                  {internalUsers.map((u: any) => (
-                    <option key={u.user_id} value={u.user_id}>
-                      {u.full_name}{u.department_name ? " - " + u.department_name : ""}
-                    </option>
-                  ))}
-                </select>
-                {internalUsers.length === 0 && (
-                  <div style={{ fontSize:11, color:'var(--amber)', marginTop:4 }}>No users registered. Add users in Admin portal first.</div>
-                )}
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                <div className="form-group">
+                  <label className="form-label">Department</label>
+                  <select className="form-input" value={(form as any).owner_dept_filter || ''} onChange={e => setForm(f => ({ ...f, owner_dept_filter: e.target.value, owner_user_id: '' }))}>
+                    <option value="">All departments</option>
+                    {Array.from(new Set(internalUsers.map((u: any) => u.department_name).filter(Boolean))).map((d: any) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Owner</label>
+                  <select className="form-input" value={form.owner_user_id} onChange={e => set('owner_user_id', e.target.value)}>
+                    <option value="">Select user...</option>
+                    {internalUsers
+                      .filter((u: any) => !(form as any).owner_dept_filter || u.department_name === (form as any).owner_dept_filter)
+                      .map((u: any) => (
+                        <option key={u.user_id} value={u.user_id}>{u.full_name}</option>
+                      ))}
+                  </select>
+                  {internalUsers.length === 0 && (
+                    <div style={{ fontSize:11, color:'var(--amber)', marginTop:4 }}>No users in Admin portal yet.</div>
+                  )}
+                </div>
               </div>
             )}
             {form.control_type === 'supplier' && (
