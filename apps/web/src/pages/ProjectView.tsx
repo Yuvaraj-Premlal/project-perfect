@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getProject, getTasks, getWeeklyReports, getPreReviewBrief, generateWeeklyReport, closeProject, getClosureReport } from '../api/projects'
-import { api } from '../api/client'
 import TasksTab from './TasksTab'
 import ReviewsTab from './ReviewsTab'
 import CharterTab from './CharterTab'
@@ -17,8 +16,8 @@ function KPIRow({ project, tasks }: { project:any, tasks:any[] }) {
   const high = tasks.filter((t:any)=>t.risk_label==='high_risk').length
   return (
     <div className="kpi-row">
-      <div className="kpi"><div className="kpi-label">OPV</div><div className={`kpi-val ${opv>=1?'green':opv>=0.8?'amber':'red'}`}>{opv.toFixed(2)}</div><div className="kpi-sub">Target >= 0.8</div></div>
-      <div className="kpi"><div className="kpi-label">LFV</div><div className={`kpi-val ${lfv<=1?'green':lfv<=1.2?'amber':'red'}`}>{lfv.toFixed(2)}</div><div className="kpi-sub">Target <= 1.2</div></div>
+      <div className="kpi"><div className="kpi-label">OPV</div><div className={`kpi-val ${opv>=1?'green':opv>=0.8?'amber':'red'}`}>{opv.toFixed(2)}</div><div className="kpi-sub">Target &gt;= 0.8</div></div>
+      <div className="kpi"><div className="kpi-label">LFV</div><div className={`kpi-val ${lfv<=1?'green':lfv<=1.2?'amber':'red'}`}>{lfv.toFixed(2)}</div><div className="kpi-sub">Target &lt;= 1.2</div></div>
       <div className="kpi"><div className="kpi-label">Momentum</div><div className={`kpi-val ${mom>=0?'green':'red'}`}>{mom>=0?'+':''}{mom.toFixed(2)}</div><div className="kpi-sub">vs last review</div></div>
       <div className="kpi"><div className="kpi-label">High Risk</div><div className={`kpi-val ${high===0?'green':high<=2?'amber':'red'}`}>{high}</div><div className="kpi-sub">tasks</div></div>
       <div className="kpi"><div className="kpi-label">ECD</div><div className="kpi-val navy" style={{ fontSize:14, marginTop:2 }}>{project.ecd_algorithmic ? new Date(project.ecd_algorithmic).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) : '-'}</div><div className="kpi-sub">Planned: {new Date(project.planned_end_date).toLocaleDateString('en-GB',{day:'2-digit',month:'short'})}</div></div>
@@ -666,16 +665,6 @@ function ReportsTab({ projectId }: { projectId:string }) {
       })}
     </div>
   )
-}
-
-const SECTION_LABELS: Record<string,string> = {
-  project_overview:        'Project Overview',
-  key_events_timeline:     'Key Events Timeline',
-  what_went_right:         'What Went Right',
-  what_went_wrong:         'What Went Wrong',
-  stakeholder_performance: 'Stakeholder Performance',
-  recommendations:         'Recommendations for Future Projects',
-  pm_closing_remarks:      'PM's Closing Remarks',
 }
 
 const SECTION_LABELS: Record<string,string> = {
