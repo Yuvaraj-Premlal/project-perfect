@@ -22,7 +22,7 @@ router.post('/', async (req, res) => {
             t.delay_days, t.slippage_count, t.planned_end_date,
             p.phase_name
      FROM tasks t
-     LEFT JOIN phases p ON p.phase_id = t.phase_id AND p.tenant_id = t.tenant_id
+     LEFT JOIN project_phases p ON p.phase_id = t.phase_id AND p.tenant_id = t.tenant_id
      WHERE t.project_id = $1 AND t.tenant_id = $2`,
     [projectId, req.tenantId]
   );
