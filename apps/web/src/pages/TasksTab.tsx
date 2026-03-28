@@ -131,7 +131,7 @@ function AddTaskModal({
   const { data: users = [] }     = useQuery({ queryKey: ['users'],     queryFn: getUsers })
   const { data: suppliers = [] } = useQuery({ queryKey: ['suppliers'], queryFn: () => getSuppliers() })
 
-  const internalUsers    = (users as any[]).filter((u: any) => u.role !== 'visitor')
+  const internalUsers    = (users as any[])
   const supplierList     = (suppliers as any[]).filter((s: any) => s.supplier_type === 'supplier')
   const subSupplierList  = (suppliers as any[]).filter((s: any) => s.supplier_type === 'sub_supplier')
 

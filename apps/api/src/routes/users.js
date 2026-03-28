@@ -16,3 +16,11 @@ router.get('/', async (req, res) => {
 });
 
 module.exports = router;
+// GET /api/users/departments - public departments list for task form
+router.get('/departments', async (req, res) => {
+  const result = await dbQuery(req.tenantId,
+    `SELECT department_id, name FROM departments WHERE tenant_id = $1 ORDER BY name ASC`,
+    [req.tenantId]
+  );
+  res.json(result.rows);
+});

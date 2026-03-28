@@ -49,3 +49,5 @@ export const deleteAdminSupplier  = (id: string) => api.delete(`/api/admin/suppl
 
 export const getUsers     = () => api.get('/api/users').then(r => r.data)
 export const getSuppliers = (type?: string) => api.get(`/api/suppliers${type ? '?type='+type : ''}`).then(r => r.data)
+
+export const getDepartments = () => api.get('/api/users/departments').then(r => r.data)
