@@ -56,7 +56,16 @@ export default function LoginPage() {
             </div>
             <div className="form-group">
               <label className="form-label">Password</label>
-              <input className="form-input" type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" autoComplete="current-password" />
+              <input className="form-input" type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Password" autoComplete="current-password" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Role (dev only)</label>
+              <select className="form-input" value={role} onChange={e=>setRole(e.target.value)}>
+                <option value="super_user">Super User</option>
+                <option value="portfolio_manager">Portfolio Manager</option>
+                <option value="pm">PM</option>
+                <option value="visitor">Visitor</option>
+              </select>
             </div>
             {error && <div style={{ color:'var(--red)', fontSize:12 }}>{error}</div>}
             <button type="submit" className="tb-btn primary" disabled={loading} style={{ width:'100%', justifyContent:'center', padding:'10px 14px', fontSize:13, marginTop:4 }}>
