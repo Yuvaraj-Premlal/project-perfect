@@ -56,6 +56,7 @@ app.use('/api/projects/:projectId/nudges',            aiLimiter, require('./rout
 app.use('/api/projects/:projectId/weekly-reports',    aiLimiter, require('./routes/weekly-reports'));
 app.use('/api/projects/:projectId/ccr',               require('./routes/ccr'));
 app.use('/api/projects/:projectId/closure',           aiLimiter, require('./routes/closure'));
+app.use('/api/learnings',                             require('./routes/learnings'));
 app.use('/api/projects',                              require('./routes/projects'));
 app.use('/api/suppliers',                             require('./routes/suppliers'));
 
