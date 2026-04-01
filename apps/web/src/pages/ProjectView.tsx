@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getProject, getTasks, getWeeklyReports, getPreReviewBrief, generateWeeklyReport, closeProject, getClosureReport } from '../api/projects'
-import { getCurrentUser, canEditProject } from '../api/auth'
+import { canEditProject } from '../api/auth'
 import TasksTab from './TasksTab'
 import ReviewsTab from './ReviewsTab'
 import CharterTab from './CharterTab'
@@ -876,7 +876,7 @@ export default function ProjectView({ projectId }: { projectId:string }) {
         ))}
       </div>
       {activeTab==='Summary'       && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <SummaryTab project={project} tasks={tasks as any[]} />)}
-      {activeTab==='Tasks'         && <TasksTab projectId={projectId} project={project} tasks={tasks as any[]} refetch={()=>{ refetchTasks(); refetchProject(); }} canEdit={canEdit} />}
+      {activeTab==='Tasks'         && <TasksTab projectId={projectId} project={project} tasks={tasks as any[]} refetch={()=>{ refetchTasks(); refetchProject(); }} canEdit={canEdit}  />}
       {activeTab==='Status Kanban' && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <StatusKanban tasks={tasks as any[]} />)}
       {activeTab==='Weekly Kanban' && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <WeeklyKanban tasks={tasks as any[]} />)}
       {activeTab==='Function Kanban' && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <FunctionKanban tasks={tasks as any[]} />)}

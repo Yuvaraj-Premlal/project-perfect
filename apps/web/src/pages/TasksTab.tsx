@@ -877,12 +877,14 @@ function PhaseSection({
   projectId,
   phases,
   onRefetch,
+  canEdit = true,
 }: {
   phase: Phase
   tasks: Task[]
   projectId: string
   phases: Phase[]
   onRefetch: () => void
+  canEdit?: boolean
 }) {
   const [expanded, setExpanded]         = useState(true)
   const [showAddModal, setShowAddModal] = useState(false)
@@ -1016,16 +1018,11 @@ function PhaseSection({
                 No tasks in this phase yet.{' '}
                 <button
                   style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--blue)',
-                    cursor: 'pointer',
-                    fontSize: 12,
-                    fontFamily: 'var(--font)',
-                    textDecoration: 'underline',
+                    background: 'none', border: 'none', color: 'var(--blue)',
+                    cursor: 'pointer', fontSize: 12, fontFamily: 'var(--font)',
+                    textDecoration: 'underline', display: canEdit ? undefined : 'none'
                   }}
                   onClick={() => setShowAddModal(true)}
-                  style={{ display: canEdit ? undefined : "none" }}
                 >
                   Add the first task
                 </button>
@@ -1241,6 +1238,7 @@ export default function TasksTab({
   project: any
   tasks: Task[]
   refetch: () => void
+  canEdit?: boolean
 }) {
   const phases: Phase[] = (project?.phases || []).sort(
     (a: Phase, b: Phase) => a.phase_order - b.phase_order
@@ -1382,6 +1380,7 @@ export default function TasksTab({
           projectId={projectId}
           phases={phases}
           onRefetch={refetch}
+          canEdit={canEdit}
         />
       ))}
 
@@ -1389,6 +1388,7 @@ export default function TasksTab({
       {unassigned.length > 0 && (
         <PhaseSection
           key="__unassigned__"
+          canEdit={canEdit}
           phase={{
             phase_id: '__unassigned__',
             phase_name: 'Unassigned',
