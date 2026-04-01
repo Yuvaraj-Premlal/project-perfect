@@ -93,10 +93,10 @@ export default function AppShell() {
         </div>
 
         <div className="sidebar-footer">
-          <div className="avatar">YP</div>
+          <div className="avatar">{currentUser?.email?.slice(0,2).toUpperCase() || 'U'}</div>
           <div>
-            <div className="user-name">Yuvaraj P.</div>
-            <div className="user-role" style={{ textTransform:'capitalize' }}>{currentUser?.role?.replace('_',' ') || 'Project Manager'}</div>
+            <div className="user-name">{currentUser?.name || currentUser?.email || 'User'}</div>
+            <div className="user-role" style={{ textTransform:'capitalize' }}>{currentUser?.role?.replace(/_/g,' ') || 'Project Manager'}</div>
           </div>
           <button onClick={() => { localStorage.removeItem('pp_token'); window.location.href='/login' }}
             style={{ marginLeft:'auto', background:'none', border:'none', cursor:'pointer', color:'rgba(255,255,255,0.3)', fontSize:18 }} title="Sign out">

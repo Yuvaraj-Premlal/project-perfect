@@ -8,6 +8,7 @@ export function getCurrentUser() {
       email:    payload.email || payload.preferred_username || '',
       role:     payload.role || 'pm',
       tenantId: payload.tenant_id || null,
+      name:     payload.name || '',
     }
   } catch {
     return null
