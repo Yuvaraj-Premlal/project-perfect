@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const bcrypt = require('bcryptjs');
 const { dbQuery } = require('../middleware/db-context');
 const { requireRole } = require('../middleware/tenant');
 
@@ -51,20 +52,23 @@ router.get('/users', async (req, res) => {
 });
 
 router.post('/users', async (req, res) => {
-  const { email, full_name, role, department_id, contact_phone } = req.body;
+  const { email, full_name, role, department_id, contact_phone, password } = req.body;
   if (!email || !full_name || !role)
     return res.status(400).json({ error: 'email, full_name and role are required' });
+  if (!password || password.length < 8)
+    return res.status(400).json({ error: 'Password is required and must be at least 8 characters' });
   const validRoles = ['super_user', 'portfolio_manager', 'pm', 'visitor'];
   if (!validRoles.includes(role)) return res.status(400).json({ error: 'Invalid role' });
   const existing = await dbQuery(req.tenantId,
     `SELECT user_id FROM users WHERE email = $1`, [email.toLowerCase().trim()]);
   if (existing.rows.length > 0) return res.status(400).json({ error: 'Email already in use' });
+  const password_hash = await bcrypt.hash(password, 10);
   const result = await dbQuery(req.tenantId,
-    `INSERT INTO users (tenant_id, email, full_name, role, department_id, contact_phone, is_active)
-     VALUES ($1, $2, $3, $4, $5, $6, true)
+    `INSERT INTO users (tenant_id, email, full_name, role, department_id, contact_phone, is_active, password_hash)
+     VALUES ($1, $2, $3, $4, $5, $6, true, $7)
      RETURNING user_id, email, full_name, role, department_id, contact_phone, is_active, created_at`,
     [req.tenantId, email.toLowerCase().trim(), full_name.trim(), role,
-     department_id || null, contact_phone || null]);
+     department_id || null, contact_phone || null, password_hash]);
   res.status(201).json(result.rows[0]);
 });
 
