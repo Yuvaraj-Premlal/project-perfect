@@ -20,3 +20,14 @@ export function hasRole(...roles: string[]): boolean {
   if (!user) return false
   return roles.includes(user.role)
 }
+
+export function canEditProject(pmUserId: string): boolean {
+  const user = getCurrentUser()
+  if (!user) return false
+  // Super User and Portfolio Manager can edit all projects
+  if (user.role === 'super_user' || user.role === 'portfolio_manager') return true
+  // PM can only edit their own projects
+  if (user.role === 'pm') return user.userId === pmUserId
+  // Visitor cannot edit anything
+  return false
+}

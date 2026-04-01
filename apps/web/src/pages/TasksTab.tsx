@@ -347,11 +347,13 @@ function TaskPanel({
   projectId,
   onClose,
   onSaved,
+  canEdit = true,
 }: {
   task: Task
   projectId: string
   onClose: () => void
   onSaved: () => void
+  canEdit?: boolean
 }) {
   const [updates, setUpdates]           = useState<TaskUpdate[]>([])
   const [loadingUpdates, setLoadingUpdates] = useState(true)
@@ -728,9 +730,9 @@ function TaskPanel({
                   />
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <button type="submit" className="tb-btn primary" disabled={savingUpdate}>
+                  {canEdit && <button type="submit" className="tb-btn primary" disabled={savingUpdate}>
                     {savingUpdate ? 'Posting...' : '+ Post update'}
-                  </button>
+                  </button>}
                 </div>
               </form>
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
@@ -981,6 +983,7 @@ function PhaseSection({
           </span>
 
           {/* Add task button (stop propagation so it doesn't toggle expand) */}
+          {canEdit && (
           <button
             className="tb-btn primary"
             style={{ fontSize: 11, padding: '4px 10px', flexShrink: 0 }}
@@ -995,6 +998,7 @@ function PhaseSection({
             </svg>
             Add Task
           </button>
+          )}
         </div>
 
         {/* Task table */}
@@ -1021,6 +1025,7 @@ function PhaseSection({
                     textDecoration: 'underline',
                   }}
                   onClick={() => setShowAddModal(true)}
+                  style={{ display: canEdit ? undefined : "none" }}
                 >
                   Add the first task
                 </button>
@@ -1212,6 +1217,7 @@ function PhaseSection({
         <TaskPanel
           task={selectedTask}
           projectId={projectId}
+          canEdit={canEdit}
           onClose={() => setSelectedTask(null)}
           onSaved={() => {
             onRefetch()
@@ -1229,6 +1235,7 @@ export default function TasksTab({
   project,
   tasks,
   refetch,
+  canEdit = true,
 }: {
   projectId: string
   project: any

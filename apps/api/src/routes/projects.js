@@ -6,19 +6,45 @@ const { requireRole } = require('../middleware/tenant');
 
 // GET /api/projects
 router.get('/', async (req, res) => {
-  const result = await dbQuery(req.tenantId, `
-    SELECT
-      p.project_id, p.project_name, p.project_code, p.product_name,
-      p.customer_name, p.risk_tier, p.status,
-      p.start_date, p.planned_end_date, p.launch_date_target,
-      p.opv, p.lfv, p.momentum, p.en_value,
-      p.next_review_due, p.last_review_at, p.ecd_algorithmic,
-      u.full_name AS pm_name
-    FROM projects p
-    LEFT JOIN users u ON u.user_id = p.pm_user_id
-    WHERE p.tenant_id = $1 AND p.status = 'active'
-    ORDER BY p.created_at DESC
-  `, [req.tenantId]);
+  let query, params;
+
+  if (req.userRole === 'visitor') {
+    // Visitors only see projects where they are a task owner
+    query = `
+      SELECT DISTINCT
+        p.project_id, p.project_name, p.project_code, p.product_name,
+        p.customer_name, p.risk_tier, p.status,
+        p.start_date, p.planned_end_date, p.launch_date_target,
+        p.opv, p.lfv, p.momentum, p.en_value,
+        p.next_review_due, p.last_review_at, p.ecd_algorithmic,
+        u.full_name AS pm_name
+      FROM projects p
+      LEFT JOIN users u ON u.user_id = p.pm_user_id
+      JOIN tasks t ON t.project_id = p.project_id AND t.tenant_id = p.tenant_id
+      WHERE p.tenant_id = $1 AND p.status = 'active'
+        AND t.owner_user_id = $2
+      ORDER BY p.created_at DESC
+    `;
+    params = [req.tenantId, req.userId];
+  } else {
+    // All other roles see all active projects
+    query = `
+      SELECT
+        p.project_id, p.project_name, p.project_code, p.product_name,
+        p.customer_name, p.risk_tier, p.status,
+        p.start_date, p.planned_end_date, p.launch_date_target,
+        p.opv, p.lfv, p.momentum, p.en_value,
+        p.next_review_due, p.last_review_at, p.ecd_algorithmic,
+        u.full_name AS pm_name
+      FROM projects p
+      LEFT JOIN users u ON u.user_id = p.pm_user_id
+      WHERE p.tenant_id = $1 AND p.status = 'active'
+      ORDER BY p.created_at DESC
+    `;
+    params = [req.tenantId];
+  }
+
+  const result = await dbQuery(req.tenantId, query, params);
   res.json(result.rows);
 });
 

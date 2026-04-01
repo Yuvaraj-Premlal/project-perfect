@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getProject, getTasks, getWeeklyReports, getPreReviewBrief, generateWeeklyReport, closeProject, getClosureReport } from '../api/projects'
+import { getCurrentUser, canEditProject } from '../api/auth'
 import TasksTab from './TasksTab'
 import ReviewsTab from './ReviewsTab'
 import CharterTab from './CharterTab'
@@ -611,7 +612,7 @@ function printReport(report: any) {
   setTimeout(()=>win.print(), 500)
 }
 
-function ReportsTab({ projectId }: { projectId:string }) {
+function ReportsTab({ projectId, canEdit=true }: { projectId:string, canEdit?:boolean }) {
   const qc = useQueryClient()
   const [expanded, setExpanded] = useState<string|null>(null)
   const { data:reports=[], isLoading } = useQuery({ queryKey:['weekly-reports',projectId], queryFn:()=>getWeeklyReports(projectId) })
@@ -624,7 +625,7 @@ function ReportsTab({ projectId }: { projectId:string }) {
     <div>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
         <div style={{ fontSize:12, color:'var(--text3)' }}>Executive reports . 2 per week limit . stored for future retrieval</div>
-        <button className="ai-btn" onClick={()=>generate()} disabled={isPending}>{isPending ? <><div className="ai-spinner"/>&nbsp;Generating...</> : '* Generate Weekly Report'}</button>
+        {canEdit && <button className="ai-btn" onClick={()=>generate()} disabled={isPending}>{isPending ? <><div className="ai-spinner"/>&nbsp;Generating...</> : '* Generate Weekly Report'}</button>}
       </div>
       {(genError as any)?.response?.status===429 && (
         <div className="alert-banner red" style={{ marginBottom:12 }}>! {(genError as any).response.data?.error || 'Weekly report limit reached. Try again next week.'}</div>
@@ -677,7 +678,7 @@ const SECTION_LABELS: Record<string,string> = {
   pm_closing_remarks:      "PM Closing Remarks",
 }
 
-function ClosureTab({ project, tasks }: { project:any, tasks:any[] }) {
+function ClosureTab({ project, tasks, canEdit=true }: { project:any, tasks:any[], canEdit?:boolean }) {
   const qc = useQueryClient()
   const [pmNotes, setPmNotes] = useState("")
   const [date, setDate] = useState(new Date().toISOString().split("T")[0])
@@ -802,9 +803,9 @@ function ClosureTab({ project, tasks }: { project:any, tasks:any[] }) {
             {error && (
               <div style={{ fontSize:12, color:"var(--red)", background:"var(--red-bg)", borderRadius:6, padding:"10px 14px" }}>{error}</div>
             )}
-            <button className="tb-btn primary" onClick={handleClose} disabled={saving} style={{ width:"fit-content" }}>
+            {canEdit && <button className="tb-btn primary" onClick={handleClose} disabled={saving} style={{ width:"fit-content" }}>
               {saving ? "Generating case study..." : "Generate Closure Case Study"}
-            </button>
+            </button>}
             <div style={{ fontSize:11, color:"var(--text4)" }}>This will permanently close the project and generate an AI case study from the full update history and lessons learnt.</div>
           </div>
         </div>
@@ -854,6 +855,7 @@ export default function ProjectView({ projectId }: { projectId:string }) {
   })
   const isLocked = flaggedTasks.length > 0
   const lockedTabs = ['Summary','Status Kanban','Weekly Kanban','Function Kanban','Reviews','Reports','Closure']
+  const canEdit = canEditProject(project?.pm_user_id)
 
   return (
     <div>
@@ -874,7 +876,7 @@ export default function ProjectView({ projectId }: { projectId:string }) {
         ))}
       </div>
       {activeTab==='Summary'       && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <SummaryTab project={project} tasks={tasks as any[]} />)}
-      {activeTab==='Tasks'         && <TasksTab projectId={projectId} project={project} tasks={tasks as any[]} refetch={()=>{ refetchTasks(); refetchProject(); }} />}
+      {activeTab==='Tasks'         && <TasksTab projectId={projectId} project={project} tasks={tasks as any[]} refetch={()=>{ refetchTasks(); refetchProject(); }} canEdit={canEdit} />}
       {activeTab==='Status Kanban' && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <StatusKanban tasks={tasks as any[]} />)}
       {activeTab==='Weekly Kanban' && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <WeeklyKanban tasks={tasks as any[]} />)}
       {activeTab==='Function Kanban' && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <FunctionKanban tasks={tasks as any[]} />)}
@@ -882,8 +884,8 @@ export default function ProjectView({ projectId }: { projectId:string }) {
         projectId={projectId}
         project={project}
       />)}
-      {activeTab==='Reports'       && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <ReportsTab projectId={projectId} />)}
-      {activeTab==='Closure'       && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <ClosureTab project={project} tasks={tasks as any[]} />)}
+      {activeTab==='Reports'       && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <ReportsTab projectId={projectId} canEdit={canEdit} />)}
+      {activeTab==='Closure'       && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <ClosureTab project={project} tasks={tasks as any[]} canEdit={canEdit} />)}
       {activeTab==='Charter'       && <CharterTab project={project} phases={project.phases || []} />}
     </div>
   )
