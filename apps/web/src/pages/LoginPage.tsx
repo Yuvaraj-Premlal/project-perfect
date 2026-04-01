@@ -1,8 +1,11 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { api } from '../api/client'
 import * as jose from 'jose'
 
-async function generateDevToken(email: string, role: string = 'pm'): Promise<string> {
+const IS_DEV = import.meta.env.DEV
+
+async function generateDevToken(email: string, role: string): Promise<string> {
   const secret = new TextEncoder().encode('test-secret')
   return new jose.SignJWT({
     sub: '00000000-0000-0000-0000-000000000002',
@@ -12,7 +15,7 @@ async function generateDevToken(email: string, role: string = 'pm'): Promise<str
 }
 
 export default function LoginPage() {
-  const [email, setEmail]       = useState('yuvaraj@testco.com')
+  const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [role, setRole]         = useState('super_user')
   const [loading, setLoading]   = useState(false)
@@ -20,11 +23,25 @@ export default function LoginPage() {
   const navigate = useNavigate()
 
   async function handleLogin(e: React.FormEvent) {
-    e.preventDefault(); setLoading(true); setError('')
+    e.preventDefault()
+    setLoading(true)
+    setError('')
     try {
-      localStorage.setItem('pp_token', await generateDevToken(email, role))
+      if (IS_DEV && email === 'dev@test.com') {
+        // Dev shortcut — generates local token
+        const token = await generateDevToken(email, role)
+        localStorage.setItem('pp_token', token)
+      } else {
+        // Real auth — calls API
+        const res = await api.post('/auth/login', { email, password })
+        localStorage.setItem('pp_token', res.data.token)
+      }
       navigate('/')
-    } catch { setError('Login failed.') } finally { setLoading(false) }
+    } catch (err: any) {
+      setError(err?.response?.data?.error || 'Invalid email or password')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -52,29 +69,41 @@ export default function LoginPage() {
           <form onSubmit={handleLogin} style={{ display:'flex', flexDirection:'column', gap:14 }}>
             <div className="form-group">
               <label className="form-label">Email address</label>
-              <input className="form-input" type="email" value={email} onChange={e=>setEmail(e.target.value)} required />
+              <input className="form-input" type="email" value={email}
+                onChange={e => setEmail(e.target.value)} required
+                placeholder="you@company.com" />
             </div>
             <div className="form-group">
               <label className="form-label">Password</label>
-              <input className="form-input" type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Password" autoComplete="current-password" />
+              <input className="form-input" type="password" value={password}
+                onChange={e => setPassword(e.target.value)} required
+                placeholder="Enter your password" autoComplete="current-password" />
             </div>
-            <div className="form-group">
-              <label className="form-label">Role (dev only)</label>
-              <select className="form-input" value={role} onChange={e=>setRole(e.target.value)}>
-                <option value="super_user">Super User</option>
-                <option value="portfolio_manager">Portfolio Manager</option>
-                <option value="pm">PM</option>
-                <option value="visitor">Visitor</option>
-              </select>
-            </div>
-            {error && <div style={{ color:'var(--red)', fontSize:12 }}>{error}</div>}
-            <button type="submit" className="tb-btn primary" disabled={loading} style={{ width:'100%', justifyContent:'center', padding:'10px 14px', fontSize:13, marginTop:4 }}>
-              {loading ? 'Signing in...' : 'Sign in →'}
+            {IS_DEV && email === 'dev@test.com' && (
+              <div className="form-group">
+                <label className="form-label" style={{ color:'var(--amber)' }}>Dev role override</label>
+                <select className="form-input" value={role} onChange={e => setRole(e.target.value)}>
+                  <option value="super_user">Super User</option>
+                  <option value="portfolio_manager">Portfolio Manager</option>
+                  <option value="pm">PM</option>
+                  <option value="visitor">Visitor</option>
+                </select>
+              </div>
+            )}
+            {error && (
+              <div style={{ color:'var(--red)', fontSize:12, background:'var(--red-bg)',
+                borderRadius:6, padding:'8px 12px' }}>{error}</div>
+            )}
+            <button type="submit" className="tb-btn primary" disabled={loading}
+              style={{ width:'100%', justifyContent:'center', padding:'10px 14px', fontSize:13, marginTop:4 }}>
+              {loading ? 'Signing in...' : 'Sign in'}
             </button>
           </form>
         </div>
 
-        <div style={{ color:'rgba(255,255,255,0.35)', fontSize:11 }}>projectperfect.in · Manufacturing IPM</div>
+        <div style={{ color:'rgba(255,255,255,0.35)', fontSize:11 }}>
+          projectperfect.in - Manufacturing IPM
+        </div>
       </div>
     </div>
   )

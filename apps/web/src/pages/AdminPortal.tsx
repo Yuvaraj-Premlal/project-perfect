@@ -39,6 +39,7 @@ export default function AdminPortal() {
   const [uRole, setURole]           = useState('pm')
   const [uDept, setUDept]           = useState('')
   const [uPhone, setUPhone]         = useState('')
+  const [uPassword, setUPassword]   = useState('')
 
   // Supplier form state
   const [sName, setSName]   = useState('')
@@ -49,7 +50,7 @@ export default function AdminPortal() {
 
   function openNewUser() {
     setEditUser(null)
-    setUEmail(''); setUName(''); setURole('pm'); setUDept(''); setUPhone('')
+    setUEmail(''); setUName(''); setURole('pm'); setUDept(''); setUPhone(''); setUPassword('')
     setError(''); setUserModal(true)
   }
 
@@ -63,7 +64,7 @@ export default function AdminPortal() {
   async function saveUser() {
     setError(''); setSaving(true)
     try {
-      const data = { email: uEmail, full_name: uName, role: uRole, department_id: uDept || null, contact_phone: uPhone || null }
+      const data = { email: uEmail, full_name: uName, role: uRole, department_id: uDept || null, contact_phone: uPhone || null, password: uPassword || undefined }
       if (editUser) await updateAdminUser(editUser.user_id, data)
       else await createAdminUser(data)
       qc.invalidateQueries({ queryKey: ['admin-users'] })
@@ -290,6 +291,14 @@ export default function AdminPortal() {
                 <label className="form-label">Contact phone</label>
                 <input className="form-input" value={uPhone} onChange={e => setUPhone(e.target.value)} />
               </div>
+              {!editUser && (
+                <div className="form-group">
+                  <label className="form-label">Password *</label>
+                  <input className="form-input" type="password" value={uPassword}
+                    onChange={e => setUPassword(e.target.value)}
+                    placeholder="Min 8 characters" />
+                </div>
+              )}
               {error && <div style={{ fontSize:12, color:'var(--red)', background:'var(--red-bg)', borderRadius:6, padding:'8px 12px' }}>{error}</div>}
               <button className="tb-btn primary" onClick={saveUser} disabled={saving}>
                 {saving ? 'Saving...' : editUser ? 'Save changes' : 'Create user'}

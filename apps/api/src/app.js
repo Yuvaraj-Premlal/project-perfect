@@ -47,6 +47,10 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Public auth routes (no tenant middleware)
+app.use('/auth',    require('./routes/auth'));
+app.use('/onboard', require('./routes/onboard'));
+
 // Protected
 app.use('/api', tenantMiddleware);
 app.use('/api/projects/:projectId/tasks/:taskId/updates', require('./routes/task-updates'));

@@ -10,9 +10,14 @@ async function tenantMiddleware(req, res, next) {
     }
 
     const token = authHeader.split(' ')[1];
-    const decoded = jwt.decode(token);
+    const JWT_SECRET = process.env.JWT_SECRET || 'test-secret';
 
-    console.log('Decoded token:', JSON.stringify(decoded));
+    let decoded;
+    try {
+      decoded = jwt.verify(token, JWT_SECRET);
+    } catch (err) {
+      return res.status(401).json({ error: 'Invalid or expired token' });
+    }
 
     if (!decoded) {
       return res.status(401).json({ error: 'Invalid token' });
