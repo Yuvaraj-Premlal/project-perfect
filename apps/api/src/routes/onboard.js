@@ -35,10 +35,12 @@ router.post('/', platformAuth, async (req, res) => {
       return res.status(400).json({ error: 'Email already in use' });
     }
 
-    // Create tenant
+    // Create tenant - generate subdomain from org name
+    const subdomain = org_name.trim().toLowerCase()
+      .replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
     const tenantResult = await client.query(
-      `INSERT INTO tenants (name) VALUES ($1) RETURNING tenant_id, name`,
-      [org_name.trim()]
+      `INSERT INTO tenants (company_name, subdomain) VALUES ($1, $2) RETURNING tenant_id, company_name`,
+      [org_name.trim(), subdomain + '-' + Date.now()]
     );
     const tenant = tenantResult.rows[0];
 
@@ -59,7 +61,7 @@ router.post('/', platformAuth, async (req, res) => {
     res.status(201).json({
       message:   `Tenant "${org_name}" created successfully`,
       tenant_id: tenant.tenant_id,
-      org_name:  tenant.name,
+      org_name:  tenant.company_name,
       super_user: {
         user_id:   user.user_id,
         email:     user.email,
