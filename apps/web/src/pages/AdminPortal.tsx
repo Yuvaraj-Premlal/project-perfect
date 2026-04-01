@@ -57,7 +57,7 @@ export default function AdminPortal() {
   function openEditUser(u: any) {
     setEditUser(u)
     setUEmail(u.email); setUName(u.full_name); setURole(u.role)
-    setUDept(u.department_id || ''); setUPhone(u.contact_phone || '')
+    setUDept(u.department_id || ''); setUPhone(u.contact_phone || ''); setUPassword('')
     setError(''); setUserModal(true)
   }
 
@@ -297,6 +297,20 @@ export default function AdminPortal() {
                   <input className="form-input" type="password" value={uPassword}
                     onChange={e => setUPassword(e.target.value)}
                     placeholder="Min 8 characters" />
+                </div>
+              )}
+              {editUser && (
+                <div style={{ borderTop:'1px solid var(--border)', paddingTop:12, marginTop:4 }}>
+                  <div style={{ fontSize:11, fontWeight:600, color:'var(--text3)', marginBottom:8, textTransform:'uppercase', letterSpacing:'0.06em' }}>Reset Password</div>
+                  <div className="form-group">
+                    <label className="form-label">New password</label>
+                    <input className="form-input" type="password" value={uPassword}
+                      onChange={e => setUPassword(e.target.value)}
+                      placeholder="Leave blank to keep current password" />
+                  </div>
+                  {uPassword && uPassword.length < 8 && (
+                    <div style={{ fontSize:11, color:'var(--red)', marginTop:2 }}>Must be at least 8 characters</div>
+                  )}
                 </div>
               )}
               {error && <div style={{ fontSize:12, color:'var(--red)', background:'var(--red-bg)', borderRadius:6, padding:'8px 12px' }}>{error}</div>}
