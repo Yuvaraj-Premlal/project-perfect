@@ -666,7 +666,7 @@ function TaskPanel({
                   </div>
                 </div>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 14 }}>
+              {canEdit && <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 14 }}>
                 <button
                   className="tb-btn primary"
                   onClick={handleSaveTask}
@@ -674,7 +674,7 @@ function TaskPanel({
                 >
                   {savingTask ? 'Saving...' : 'Complete task & save'}
                 </button>
-              </div>
+              </div>}
             </div>
           ) : (
             <div>
