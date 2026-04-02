@@ -34,11 +34,13 @@ router.get('/', async (req, res) => {
         t.*,
         pp.phase_name,
         s.supplier_name,
+        u.full_name      AS owner_name,
         lu.what_pending  AS last_update_pending,
         lu.created_at    AS last_update_at
       FROM tasks t
       LEFT JOIN project_phases pp ON pp.phase_id = t.phase_id
       LEFT JOIN suppliers s       ON s.supplier_id = t.supplier_id
+      LEFT JOIN users u           ON u.user_id = t.owner_user_id
       LEFT JOIN LATERAL (
         SELECT what_pending, created_at FROM task_updates
         WHERE task_id = t.task_id ORDER BY created_at DESC LIMIT 1

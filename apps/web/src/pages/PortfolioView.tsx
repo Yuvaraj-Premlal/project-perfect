@@ -87,6 +87,12 @@ export default function PortfolioView({ projects, onOpenProject }: { projects: a
     )
   }
 
+  if (projects.length === 0) return (
+    <div style={{ textAlign:"center", padding:80, color:"var(--text4)", fontSize:13 }}>
+      <div style={{ fontSize:16, fontWeight:600, marginBottom:8, color:"var(--text3)" }}>No projects yet</div>
+      <div>You have no active projects assigned to you.</div>
+    </div>
+  )
   return (
     <div>
       <div className="page-header">

@@ -1085,8 +1085,8 @@ function PhaseSection({
                         {/* Owner */}
                         <td>
                           <div style={{ fontSize: 11, color: 'var(--text2)' }}>
-                            {task.owner_email
-                              ? task.owner_email.split('@')[0]
+                            {task.owner_name || task.owner_email
+                              ? (task.owner_name || task.owner_email.split('@')[0])
                               : <span style={{ color: 'var(--text4)' }}>—</span>
                             }
                           </div>
