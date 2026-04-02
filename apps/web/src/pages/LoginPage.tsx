@@ -27,15 +27,16 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
     try {
-      if (IS_DEV && email === 'dev@test.com') {
-        // Dev shortcut — generates local token
+      if (email === 'dev@test.com') {
+        // Dev shortcut — generates local token, no API call
         const token = await generateDevToken(email, role)
         localStorage.setItem('pp_token', token)
-      } else {
-        // Real auth — calls API
-        const res = await api.post('/auth/login', { email, password })
-        localStorage.setItem('pp_token', res.data.token)
+        navigate('/')
+        return
       }
+      // Real auth — calls API
+      const res = await api.post('/auth/login', { email, password })
+      localStorage.setItem('pp_token', res.data.token)
       navigate('/')
     } catch (err: any) {
       setError(err?.response?.data?.error || 'Invalid email or password')
@@ -79,7 +80,7 @@ export default function LoginPage() {
                 onChange={e => setPassword(e.target.value)} required
                 placeholder="Enter your password" autoComplete="current-password" />
             </div>
-            {IS_DEV && email === 'dev@test.com' && (
+            {email === 'dev@test.com' && (
               <div className="form-group">
                 <label className="form-label" style={{ color:'var(--amber)' }}>Dev role override</label>
                 <select className="form-input" value={role} onChange={e => setRole(e.target.value)}>
