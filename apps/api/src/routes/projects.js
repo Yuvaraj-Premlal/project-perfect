@@ -23,7 +23,7 @@ router.get('/', async (req, res) => {
       JOIN tasks t ON t.project_id = p.project_id AND t.tenant_id = p.tenant_id
       WHERE p.tenant_id = $1 AND p.status = 'active'
         AND t.owner_user_id = $2
-      ORDER BY p.created_at DESC
+      ORDER BY p.project_id
     `;
     params = [req.tenantId, req.userId];
   } else {
