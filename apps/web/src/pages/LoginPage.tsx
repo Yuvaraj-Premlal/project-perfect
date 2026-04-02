@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import * as jose from 'jose'
 
-const IS_DEV = import.meta.env.DEV
 
 async function generateDevToken(email: string, role: string): Promise<string> {
   const secret = new TextEncoder().encode('test-secret')
