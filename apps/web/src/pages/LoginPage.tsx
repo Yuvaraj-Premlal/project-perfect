@@ -1,22 +1,10 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
-import * as jose from 'jose'
-
-
-async function generateDevToken(email: string, role: string): Promise<string> {
-  const secret = new TextEncoder().encode('test-secret')
-  return new jose.SignJWT({
-    sub: '00000000-0000-0000-0000-000000000002',
-    tenant_id: '00000000-0000-0000-0000-000000000001',
-    role, email
-  }).setProtectedHeader({ alg: 'HS256' }).setExpirationTime('24h').setIssuedAt().sign(secret)
-}
 
 export default function LoginPage() {
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
-  const [role, setRole]         = useState('super_user')
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState('')
   const navigate = useNavigate()
@@ -26,14 +14,6 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
     try {
-      if (email === 'dev@test.com') {
-        // Dev shortcut — generates local token, no API call
-        const token = await generateDevToken(email, role)
-        localStorage.setItem('pp_token', token)
-        navigate('/')
-        return
-      }
-      // Real auth — calls API
       const res = await api.post('/auth/login', { email, password })
       localStorage.setItem('pp_token', res.data.token)
       navigate('/')
@@ -79,17 +59,6 @@ export default function LoginPage() {
                 onChange={e => setPassword(e.target.value)} required
                 placeholder="Enter your password" autoComplete="current-password" />
             </div>
-            {email === 'dev@test.com' && (
-              <div className="form-group">
-                <label className="form-label" style={{ color:'var(--amber)' }}>Dev role override</label>
-                <select className="form-input" value={role} onChange={e => setRole(e.target.value)}>
-                  <option value="super_user">Super User</option>
-                  <option value="portfolio_manager">Portfolio Manager</option>
-                  <option value="pm">PM</option>
-                  <option value="visitor">Visitor</option>
-                </select>
-              </div>
-            )}
             {error && (
               <div style={{ color:'var(--red)', fontSize:12, background:'var(--red-bg)',
                 borderRadius:6, padding:'8px 12px' }}>{error}</div>
