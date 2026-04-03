@@ -184,25 +184,26 @@ export default function PortfolioView({ projects, onOpenProject }: { projects: a
           </div>
           <div>
             {sorted.map((p: any) => {
-              const opv = parseFloat(p.opv)
-              const delayPct = Math.max(0, (1 - opv) * 100)
-              const start = new Date(p.start_date)
-              const end = new Date(p.planned_end_date)
-              const yearStart = new Date(start.getFullYear(), 0, 1)
-              const yearEnd = new Date(start.getFullYear(), 11, 31)
-              const total = yearEnd.getTime() - yearStart.getTime()
-              const left = ((start.getTime() - yearStart.getTime()) / total * 100).toFixed(1)
-              const width = ((end.getTime() - start.getTime()) / total * 100).toFixed(1)
-              const delayW = (parseFloat(width) * delayPct / 100).toFixed(1)
-              const today = ((new Date().getTime() - yearStart.getTime()) / total * 100).toFixed(1)
+              const start      = new Date(p.start_date)
+              const end        = new Date(p.planned_end_date)
+              const ecd        = p.ecd_algorithmic ? new Date(p.ecd_algorithmic) : end
+              const hasDelay   = ecd > end
+              const yearStart  = new Date(new Date().getFullYear(), 0, 1)
+              const yearEnd    = new Date(new Date().getFullYear(), 11, 31)
+              const total      = yearEnd.getTime() - yearStart.getTime()
+              const left       = ((start.getTime() - yearStart.getTime()) / total * 100).toFixed(1)
+              const width      = ((end.getTime() - start.getTime()) / total * 100).toFixed(1)
+              const delayW     = hasDelay ? ((ecd.getTime() - end.getTime()) / total * 100).toFixed(1) : '0'
+              const delayDays  = hasDelay ? Math.round((ecd.getTime() - end.getTime()) / 86400000) : 0
+              const today      = ((new Date().getTime() - yearStart.getTime()) / total * 100).toFixed(1)
               return (
                 <div key={p.project_id} className="gantt-row">
                   <div className="gantt-label" style={{ fontWeight:500 }}>{p.project_name}</div>
                   <div className="gantt-track">
                     <div className="gantt-today" style={{ left:`${today}%` }} />
                     <div className="gantt-bar planned" style={{ left:`${left}%`, width:`${width}%` }}>Planned</div>
-                    {delayPct > 0 && (
-                      <div className="gantt-bar delay" style={{ left:`${parseFloat(left)+parseFloat(width)}%`, width:`${delayW}%` }}>+{delayPct.toFixed(0)}%</div>
+                    {hasDelay && (
+                      <div className="gantt-bar delay" style={{ left:`${parseFloat(left)+parseFloat(width)}%`, width:`${delayW}%` }}>+{delayDays}d</div>
                     )}
                   </div>
                 </div>
