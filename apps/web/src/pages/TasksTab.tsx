@@ -21,6 +21,8 @@ interface Task {
   control_type: 'internal' | 'supplier' | 'sub_supplier'
   owner_email: string | null
   owner_name: string | null
+  owner_department_name: string | null
+  supplier_name: string | null
   owner_department: string | null
   phase_id: string | null
   phase_name: string | null
@@ -1086,14 +1088,14 @@ function PhaseSection({
                         {/* Owner */}
                         <td>
                           <div style={{ fontSize: 11, color: 'var(--text2)' }}>
-                            {task.owner_name || (task.owner_email
+                            {task.owner_name || task.supplier_name || (task.owner_email
                               ? task.owner_email.split('@')[0]
                               : <span style={{ color: 'var(--text4)' }}>—</span>
                             )}
                           </div>
-                          {task.owner_department && (
+                          {(task.owner_department_name || task.owner_department) && (
                             <div style={{ fontSize: 10, color: 'var(--text4)', marginTop: 1 }}>
-                              {task.owner_department}
+                              {task.owner_department_name || task.owner_department}
                             </div>
                           )}
                         </td>
