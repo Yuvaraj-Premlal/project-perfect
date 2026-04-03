@@ -491,7 +491,7 @@ function FunctionKanban({ tasks }: { tasks:any[] }) {
   // Group by owner_department
   const deptMap: Record<string, any[]> = {}
   incompleteTasks.forEach((t:any) => {
-    const dept = t.owner_department_name?.trim() || t.owner_department?.trim() || '__unassigned__'
+    const dept = t.owner_department_name?.trim() || t.owner_department?.trim() || t.supplier_name?.trim() || '__unassigned__'
     if (!deptMap[dept]) deptMap[dept] = []
     deptMap[dept].push(t)
   })
