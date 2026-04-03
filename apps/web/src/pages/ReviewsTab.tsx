@@ -73,8 +73,8 @@ export default function ReviewsTab({
       const agendaItems: TaskAgendaItem[] = incompleteTasks.map(t => {
         // Find matching AI question from agenda response
         const aiItem = [
-          ...(data?.critical || []),
-          ...(data?.watch || [])
+          ...(data?.agenda?.critical || data?.critical || []),
+          ...(data?.agenda?.watch || data?.watch || [])
         ].find((item: any) => item.task_id === t.task_id || item.task_name === t.task_name)
 
         return {
@@ -220,11 +220,16 @@ export default function ReviewsTab({
             </button>
           </div>
         )}
-        {canEdit && agenda.length === 0 && (
-          <button className="ai-btn" onClick={handleGenerateAgenda} disabled={generating}>
-            {generating ? <><div className="ai-spinner" />&nbsp;Generating...</> : '* Generate Agenda'}
-          </button>
-        )}
+        <div style={{ display:'flex', gap:8 }}>
+          {canEdit && (
+            <button className="ai-btn" onClick={handleGenerateAgenda} disabled={generating}>
+              {generating ? <><div className="ai-spinner" />&nbsp;Generating...</> : agenda.length > 0 ? '* Regenerate Agenda' : '* Generate Agenda'}
+            </button>
+          )}
+          {agenda.length > 0 && (
+            <button className="tb-btn" onClick={() => { setAgenda([]); setResponses({}); setCustomPoints([]) }} style={{ fontSize:11 }}>Clear</button>
+          )}
+        </div>
       </div>
 
       {error && <div className="alert-banner red" style={{ marginBottom:12 }}>! {error}</div>}
