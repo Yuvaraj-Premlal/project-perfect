@@ -178,9 +178,19 @@ export default function PortfolioView({ projects, onOpenProject }: { projects: a
             </div>
           </div>
           <div className="gantt-months">
-            {['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map(m => (
-              <div key={m} className="gantt-month">{m}</div>
-            ))}
+            {(() => {
+              const allStarts = sorted.map((x:any) => new Date(x.start_date).getTime())
+              const allECDs   = sorted.map((x:any) => x.ecd_algorithmic ? new Date(x.ecd_algorithmic).getTime() : new Date(x.planned_end_date).getTime())
+              const rStart    = new Date(Math.min(...allStarts)); rStart.setMonth(0,1)
+              const rEnd      = new Date(Math.max(...allECDs));   rEnd.setMonth(11,31)
+              const months    = []
+              const cur       = new Date(rStart)
+              while (cur <= rEnd) {
+                months.push(cur.toLocaleDateString('en-GB', { month:'short', year: cur.getFullYear() !== rStart.getFullYear() ? '2-digit' : undefined }))
+                cur.setMonth(cur.getMonth() + 1)
+              }
+              return months.map(m => <div key={m} className="gantt-month">{m}</div>)
+            })()}
           </div>
           <div>
             {sorted.map((p: any) => {
@@ -188,8 +198,15 @@ export default function PortfolioView({ projects, onOpenProject }: { projects: a
               const end        = new Date(p.planned_end_date)
               const ecd        = p.ecd_algorithmic ? new Date(p.ecd_algorithmic) : end
               const hasDelay   = ecd > end
-              const yearStart  = new Date(new Date().getFullYear(), 0, 1)
-              const yearEnd    = new Date(new Date().getFullYear(), 11, 31)
+              // Use dynamic range based on earliest start and latest ECD across all projects
+              const allStarts  = sorted.map((x:any) => new Date(x.start_date).getTime())
+              const allECDs    = sorted.map((x:any) => x.ecd_algorithmic ? new Date(x.ecd_algorithmic).getTime() : new Date(x.planned_end_date).getTime())
+              const rangeStart = new Date(Math.min(...allStarts))
+              const rangeEnd   = new Date(Math.max(...allECDs))
+              rangeStart.setMonth(0, 1)
+              rangeEnd.setMonth(11, 31)
+              const yearStart  = rangeStart
+              const yearEnd    = rangeEnd
               const total      = yearEnd.getTime() - yearStart.getTime()
               const left       = ((start.getTime() - yearStart.getTime()) / total * 100).toFixed(1)
               const width      = ((end.getTime() - start.getTime()) / total * 100).toFixed(1)
