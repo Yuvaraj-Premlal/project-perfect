@@ -373,32 +373,38 @@ function ReviewRow({ review }: { review: any }) {
         <tr>
           <td colSpan={6} style={{ background:'var(--bg)', padding:'16px 20px' }}>
             {responses.length > 0 ? (
-              <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+              <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
                 {responses.map((r: any, i: number) => (
-                  <div key={i}>
-                    <div style={{ fontSize:12, fontWeight:600, color:'var(--text)', marginBottom:4 }}>{r.task_name}</div>
+                  <div key={i} style={{ borderLeft:'3px solid var(--blue)', paddingLeft:12 }}>
+                    <div style={{ fontSize:13, fontWeight:700, color:'var(--text)', marginBottom:6 }}>{r.task_name}</div>
                     {r.ai_questions?.map((q: string, qi: number) => (
-                      <div key={qi} style={{ fontSize:11, color:'var(--blue)', marginBottom:2 }}>Q{qi+1}. {q}</div>
+                      <div key={qi} style={{ fontSize:11, color:'var(--blue)', marginBottom:4, opacity:0.8 }}>Q{qi+1}. {q}</div>
                     ))}
                     {r.pm_response && (
-                      <div style={{ fontSize:12, color:'var(--text2)', marginTop:4, padding:'6px 10px', background:'white', borderRadius:6 }}>{r.pm_response}</div>
+                      <div style={{ fontSize:12, color:'var(--text2)', marginTop:6, padding:'8px 12px', background:'white', borderRadius:6, lineHeight:1.7 }}>
+                        {r.pm_response}
+                      </div>
                     )}
-                    {r.extra_points?.map((p: any, pi: number) => (
-                      <div key={pi} style={{ fontSize:11, color:'var(--text3)', marginTop:4, paddingLeft:10 }}>- {p.text}</div>
+                    {r.extra_points?.filter((p:any) => p.text).map((p: any, pi: number) => (
+                      <div key={pi} style={{ fontSize:12, color:'var(--text3)', marginTop:6, padding:'6px 12px', background:'white', borderRadius:6, borderLeft:'2px solid var(--border)' }}>
+                        - {p.text}
+                      </div>
                     ))}
                   </div>
                 ))}
               </div>
             ) : review.discussion_points ? (
-              <div style={{ fontSize:12, color:'var(--text2)' }}>{review.discussion_points}</div>
+              <div style={{ fontSize:12, color:'var(--text2)', lineHeight:1.7 }}>{review.discussion_points}</div>
             ) : (
               <div style={{ fontSize:12, color:'var(--text4)' }}>No details recorded</div>
             )}
             {customPoints.length > 0 && (
-              <div style={{ marginTop:12 }}>
-                <div style={{ fontSize:12, fontWeight:600, color:'var(--text)', marginBottom:6 }}>Additional items</div>
+              <div style={{ marginTop:16, paddingTop:12, borderTop:'1px solid var(--border)' }}>
+                <div style={{ fontSize:12, fontWeight:600, color:'var(--text)', marginBottom:8 }}>Additional Agenda Items</div>
                 {customPoints.map((p: any, i: number) => (
-                  <div key={i} style={{ fontSize:12, color:'var(--text2)', marginBottom:4 }}>- {p.text || p}</div>
+                  <div key={i} style={{ fontSize:12, color:'var(--text2)', marginBottom:6, padding:'6px 12px', background:'white', borderRadius:6 }}>
+                    - {p.text || p}
+                  </div>
                 ))}
               </div>
             )}

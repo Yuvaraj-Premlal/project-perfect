@@ -39,7 +39,7 @@ router.post("/", [
   const { projectId } = req.params;
   const {
     discussion_points, blockers, actions_agreed, review_date,
-    attended_by, ai_summary, action_items,
+    attended_by, ai_summary, action_items, review_responses,
     task_updates: reviewTaskUpdates
   } = req.body;
 
@@ -81,10 +81,10 @@ router.post("/", [
       INSERT INTO reviews (
         project_id, tenant_id, review_date,
         discussion_points, blockers, actions_agreed,
-        attended_by, ai_summary, action_items,
+        attended_by, ai_summary, action_items, review_responses,
         opv_snapshot, lfv_snapshot, vr_snapshot, momentum_snapshot,
         escalation_triggered, conducted_by
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
       RETURNING *
     `, [
       projectId, req.tenantId,
@@ -95,6 +95,7 @@ router.post("/", [
       attended_by || null,
       ai_summary || null,
       action_items ? JSON.stringify(action_items) : null,
+      review_responses ? JSON.stringify(review_responses) : null,
       currentOPV.toFixed(4),
       currentLFV.toFixed(4),
       parseFloat(project.vr).toFixed(4),
