@@ -52,6 +52,7 @@ export default function ReviewsTab({
 }) {
   const qc = useQueryClient()
   const [generating, setGenerating] = useState(false)
+  const [agendaUsedToday, setAgendaUsedToday] = useState(0)
   const [saving, setSaving]         = useState(false)
   const [error, setError]           = useState('')
   const [success, setSuccess]       = useState('')
@@ -93,6 +94,7 @@ export default function ReviewsTab({
         }
       })
       setAgenda(agendaItems)
+      setAgendaUsedToday(prev => prev + 1)
       // Initialise empty responses for each task
       const initResponses: Record<string, TaskResponse> = {}
       agendaItems.forEach(item => {
@@ -102,7 +104,12 @@ export default function ReviewsTab({
       })
       setResponses({ ...responses, ...initResponses })
     } catch (err: any) {
-      setError(err?.response?.data?.error || 'Failed to generate agenda')
+      if (err?.response?.status === 429) {
+        setAgendaUsedToday(2)
+        setError(err?.response?.data?.error || 'Daily limit reached - 2 agenda generations per day')
+      } else {
+        setError(err?.response?.data?.error || 'Failed to generate agenda')
+      }
     } finally {
       setGenerating(false)
     }
@@ -226,12 +233,13 @@ export default function ReviewsTab({
             </button>
           </div>
         )}
-        <div style={{ display:'flex', gap:8 }}>
+        <div style={{ display:'flex', gap:8, alignItems:'center' }}>
           {canEdit && (
-            <button className="ai-btn" onClick={handleGenerateAgenda} disabled={generating}>
+            <button className="ai-btn" onClick={handleGenerateAgenda} disabled={generating || agendaUsedToday >= 2}>
               {generating ? <><div className="ai-spinner" />&nbsp;Generating...</> : agenda.length > 0 ? '* Regenerate Agenda' : '* Generate Agenda'}
             </button>
           )}
+          <span style={{ fontSize:11, color:'var(--text4)' }}>{agendaUsedToday}/2 used today</span>
           {agenda.length > 0 && (
             <button className="tb-btn" onClick={() => { setAgenda([]); setResponses({}); setCustomPoints([]) }} style={{ fontSize:11 }}>Clear</button>
           )}
