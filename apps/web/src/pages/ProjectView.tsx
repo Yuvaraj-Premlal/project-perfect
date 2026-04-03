@@ -886,7 +886,6 @@ export default function ProjectView({ projectId }: { projectId:string }) {
       {activeTab==='Function Kanban' && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <FunctionKanban tasks={tasks as any[]} />)}
       {activeTab==='Reviews'       && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <ReviewsTab
         projectId={projectId}
-        project={project}
         tasks={tasks as any[]}
         agenda={reviewAgenda}
         setAgenda={setReviewAgenda}
