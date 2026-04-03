@@ -119,19 +119,19 @@ export default function ReviewsTab({
       ...responses,
       [taskId]: {
         ...current,
-        extra_points: [...current.extra_points, { id: Date.now().toString(), text: '' }]
+        extra_points: [...current.extra_points, { id: Date.now().toString(), question: '', answer: '', text: '' }]
       }
     })
   }
 
-  function updateExtraPoint(taskId: string, pointId: string, value: string) {
+  function updateExtraPoint(taskId: string, pointId: string, question: string, answer: string) {
     const current = responses[taskId] || { response: '', extra_points: [] }
     setResponses({
       ...responses,
       [taskId]: {
         ...current,
         extra_points: current.extra_points.map(p =>
-          p.id === pointId ? { ...p, text: value } : p
+          p.id === pointId ? { ...p, question, answer, text: question } : p
         )
       }
     })
@@ -276,14 +276,22 @@ export default function ReviewsTab({
                 style={{ fontSize:12, marginBottom:8 }} />
 
               {/* Extra points */}
-              {(responses[item.task_id]?.extra_points || []).map(point => (
-                <div key={point.id} style={{ display:'flex', gap:8, marginBottom:6 }}>
-                  <input className="form-input" placeholder="Additional point..."
-                    value={point.text}
-                    onChange={e => updateExtraPoint(item.task_id, point.id, e.target.value)}
-                    style={{ fontSize:12, flex:1 }} />
-                  <button className="tb-btn" style={{ fontSize:11, color:'var(--red)' }}
-                    onClick={() => removeExtraPoint(item.task_id, point.id)}>Remove</button>
+              {(responses[item.task_id]?.extra_points || []).map((point, pi) => (
+                <div key={point.id} style={{ marginBottom:10, borderLeft:'2px solid var(--border)', paddingLeft:12 }}>
+                  <div style={{ display:'flex', gap:8, marginBottom:4, alignItems:'center' }}>
+                    <span style={{ fontSize:11, color:'var(--blue)', opacity:0.7, whiteSpace:'nowrap' }}>Q{item.ai_questions.length + pi + 1}.</span>
+                    <input className="form-input" placeholder="Type your question..."
+                      value={point.question || ''}
+                      onChange={e => updateExtraPoint(item.task_id, point.id, e.target.value, point.answer || '')}
+                      style={{ fontSize:12, flex:1 }} />
+                    <button className="tb-btn" style={{ fontSize:11, color:'var(--red)', flexShrink:0 }}
+                      onClick={() => removeExtraPoint(item.task_id, point.id)}>Remove</button>
+                  </div>
+                  <textarea className="form-input" rows={2}
+                    placeholder="Response / decision..."
+                    value={point.answer || ''}
+                    onChange={e => updateExtraPoint(item.task_id, point.id, point.question || '', e.target.value)}
+                    style={{ fontSize:12 }} />
                 </div>
               ))}
 
