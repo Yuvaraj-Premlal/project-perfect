@@ -173,7 +173,11 @@ export default function ReviewsTab({
         task_name:    item.task_name,
         ai_questions: item.ai_questions,
         pm_response:  responses[item.task_id]?.response || '',
-        extra_points: responses[item.task_id]?.extra_points || []
+        extra_points: (responses[item.task_id]?.extra_points || []).map(p => ({
+          id:       p.id,
+          question: p.question || p.text || '',
+          answer:   p.answer || ''
+        }))
       }))
 
       await createReviewFull(projectId, {
@@ -400,9 +404,10 @@ function ReviewRow({ review }: { review: any }) {
                         {r.pm_response}
                       </div>
                     )}
-                    {r.extra_points?.filter((p:any) => p.text).map((p: any, pi: number) => (
-                      <div key={pi} style={{ fontSize:12, color:'var(--text3)', marginTop:6, padding:'6px 12px', background:'white', borderRadius:6, borderLeft:'2px solid var(--border)' }}>
-                        - {p.text}
+                    {r.extra_points?.filter((p:any) => p.question || p.text).map((p: any, pi: number) => (
+                      <div key={pi} style={{ marginTop:8, borderLeft:'2px solid var(--border)', paddingLeft:10 }}>
+                        {(p.question || p.text) && <div style={{ fontSize:11, color:'var(--blue)', marginBottom:3 }}>Q. {p.question || p.text}</div>}
+                        {p.answer && <div style={{ fontSize:12, color:'var(--text2)', padding:'4px 8px', background:'white', borderRadius:4 }}>{p.answer}</div>}
                       </div>
                     ))}
                   </div>
