@@ -280,8 +280,8 @@ function SummaryTab({ project, tasks }: { project:any, tasks:any[] }) {
               </div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
                 {[
-                  {label:'TCR - Task Chaos Ratio',val:tcr.toFixed(2),sub:`${Math.round(tcr*100)}% tasks external`},
-                  {label:'DCR - Duration Chaos Ratio',val:dcr.toFixed(2),sub:`${Math.round(dcr*100)}% duration external`},
+                  {label:'TCR - Task Chaos Ratio (Baseline)',val:tcr.toFixed(2),sub:`${Math.round(tcr*100)}% tasks external at baseline`},
+                  {label:'DCR - Duration Chaos Ratio (Baseline)',val:dcr.toFixed(2),sub:`${Math.round(dcr*100)}% duration external at baseline`},
                 ].map(s=>(
                   <div key={s.label} style={{ background:'var(--bg)', borderRadius:7, padding:'8px 10px' }}>
                     <div style={{ fontSize:15, fontWeight:600, fontFamily:'var(--mono)', color:externalDep>=70?'var(--red)':externalDep>=40?'var(--amber)':'var(--green)' }}>{s.val}</div>
