@@ -74,9 +74,19 @@ router.post('/users', async (req, res) => {
 
 router.put('/users/:userId', async (req, res) => {
   const { userId } = req.params;
-  const { full_name, role, department_id, contact_phone, is_active } = req.body;
+  const { full_name, role, department_id, contact_phone, is_active, password } = req.body;
   const validRoles = ['super_user', 'portfolio_manager', 'pm', 'visitor'];
   if (role && !validRoles.includes(role)) return res.status(400).json({ error: 'Invalid role' });
+
+  // Update password if provided
+  if (password) {
+    if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    const password_hash = await bcrypt.hash(password, 10);
+    await dbQuery(req.tenantId,
+      `UPDATE users SET password_hash = $1 WHERE user_id = $2 AND tenant_id = $3`,
+      [password_hash, userId, req.tenantId]);
+  }
+
   const result = await dbQuery(req.tenantId,
     `UPDATE users SET
        full_name     = COALESCE($1, full_name),
