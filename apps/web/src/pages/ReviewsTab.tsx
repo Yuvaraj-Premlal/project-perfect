@@ -25,7 +25,6 @@ interface TaskResponse {
 
 export default function ReviewsTab({
   projectId,
-  project,
   tasks,
   agenda,
   setAgenda,
@@ -38,7 +37,6 @@ export default function ReviewsTab({
   canEdit = true,
 }: {
   projectId: string
-  project: any
   tasks: any[]
   agenda: TaskAgendaItem[]
   setAgenda: (a: TaskAgendaItem[]) => void
