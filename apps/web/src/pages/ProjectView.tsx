@@ -839,6 +839,10 @@ function ClosureTab({ project, tasks, canEdit=true }: { project:any, tasks:any[]
 export default function ProjectView({ projectId }: { projectId:string }) {
   const [activeTab, setActiveTab] = useState<Tab>('Summary')
   // Lifted review state - persists across tab switches
+  const [reviewAgenda, setReviewAgenda]           = useState<any[]>([])
+  const [reviewResponses, setReviewResponses]     = useState<Record<string,any>>({})
+  const [reviewCustomPoints, setReviewCustomPoints] = useState<any[]>([])
+  const [reviewAttendedBy, setReviewAttendedBy]   = useState('')
 
   const { data:project, isLoading, refetch:refetchProject } = useQuery({ queryKey:['project',projectId], queryFn:()=>getProject(projectId) })
   const { data:tasks=[], refetch:refetchTasks } = useQuery({ queryKey:['tasks',projectId], queryFn:()=>getTasks(projectId) })
@@ -883,6 +887,16 @@ export default function ProjectView({ projectId }: { projectId:string }) {
       {activeTab==='Reviews'       && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <ReviewsTab
         projectId={projectId}
         project={project}
+        tasks={tasks as any[]}
+        agenda={reviewAgenda}
+        setAgenda={setReviewAgenda}
+        responses={reviewResponses}
+        setResponses={setReviewResponses}
+        customPoints={reviewCustomPoints}
+        setCustomPoints={setReviewCustomPoints}
+        attendedBy={reviewAttendedBy}
+        setAttendedBy={setReviewAttendedBy}
+        canEdit={canEdit}
       />)}
       {activeTab==='Reports'       && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <ReportsTab projectId={projectId} canEdit={canEdit} />)}
       {activeTab==='Closure'       && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <ClosureTab project={project} tasks={tasks as any[]} canEdit={canEdit} />)}

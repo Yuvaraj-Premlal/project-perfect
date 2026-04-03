@@ -1,829 +1,412 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getReviewAgenda, createReviewFull, getReviews } from '../api/projects'
 
-// ─── Types ────────────────────────────────────────────────────────
-interface AgendaItem {
-  task_id: string | null
+interface TaskAgendaItem {
+  task_id: string
   task_name: string
-  reason: string
-  context: string
-  ai_question: string
-  suggested_minutes: number
-  current_ecd?: string | null
+  risk_label: string
+  risk_number: number
+  current_ecd: string | null
+  delay_days: number
+  control_type: string
+  ai_questions: string[]
 }
 
-interface Agenda {
-  suggested_duration_minutes: number
-  critical: AgendaItem[]
-  watch: AgendaItem[]
-  quick_wins: string[]
-  error?: string
+interface CustomPoint {
+  id: string
+  text: string
 }
 
-interface AgendaResponse {
-  task_id: string | null
-  new_ecd: string
-  what_done: string
-  what_pending: string
-  issue_blocker: string
-  action_owner: string
-  action_due_date: string
-  impact_if_not_done: string
+interface TaskResponse {
+  response: string
+  extra_points: CustomPoint[]
 }
 
-interface Review {
-  review_id: string
-  review_date: string
-  attended_by: string | null
-  discussion_points: string | null
-  blockers: string | null
-  actions_agreed: string | null
-  review_responses: any[] | null
-  opv_snapshot: string
-  lfv_snapshot: string
-  vr_snapshot: string
-  momentum_snapshot: string
-  conducted_by_name: string | null
-  escalation_triggered: boolean
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────
-function fmt(date: string | null) {
-  if (!date) return '—'
-  return new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-}
-
-
-function monoColor(val: number, good: number, bad: number, higherIsBetter = true): string {
-  if (higherIsBetter) return val >= good ? 'var(--green)' : val <= bad ? 'var(--red)' : 'var(--amber)'
-  return val <= good ? 'var(--green)' : val >= bad ? 'var(--red)' : 'var(--amber)'
-}
-
-function daysDiff(dateStr: string) {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const target = new Date(dateStr)
-  target.setHours(0, 0, 0, 0)
-  return Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-}
-
-// ─── Agenda Item Component ────────────────────────────────────────
-function AgendaItemCard({
-  item,
-  priority,
-  response,
-  onChange,
-}: {
-  item: AgendaItem
-  index: number
-  priority: 'critical' | 'watch'
-  response: AgendaResponse
-  onChange: (field: keyof AgendaResponse, value: string) => void
-}) {
-  const [expanded, setExpanded] = useState(true)
-  const isResponded = response.what_pending.trim().length > 0
-
-  const dotColor = priority === 'critical' ? 'var(--red)' : 'var(--amber)'
-
-  return (
-    <div
-      style={{
-        border: `1px solid ${isResponded ? '#B3D9C7' : 'var(--border)'}`,
-        borderRadius: 8,
-        overflow: 'hidden',
-        transition: 'border-color 0.2s',
-      }}
-    >
-      {/* Item header */}
-      <div
-        style={{
-          padding: '10px 14px',
-          background: 'var(--bg)',
-          borderBottom: expanded ? '1px solid var(--border)' : 'none',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          cursor: 'pointer',
-          userSelect: 'none',
-        }}
-        onClick={() => setExpanded(e => !e)}
-      >
-        <div style={{
-          width: 8, height: 8, borderRadius: '50%',
-          background: dotColor, flexShrink: 0,
-        }} />
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text)' }}>
-            {item.task_name}
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>
-            {item.reason}
-          </div>
-        </div>
-        {isResponded && (
-          <span style={{
-            fontSize: 10, fontWeight: 500,
-            background: 'var(--green-bg)', color: 'var(--green)',
-            padding: '2px 8px', borderRadius: 20, flexShrink: 0,
-          }}>
-            ✓ Responded
-          </span>
-        )}
-        <span style={{
-          fontSize: 11, fontFamily: 'var(--mono)',
-          background: 'var(--white)', border: '1px solid var(--border)',
-          borderRadius: 6, padding: '2px 8px',
-          color: 'var(--text3)', flexShrink: 0,
-        }}>
-          {item.suggested_minutes} min
-        </span>
-        <svg
-          width="13" height="13" viewBox="0 0 16 16" fill="none"
-          style={{
-            flexShrink: 0, color: 'var(--text3)',
-            transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)',
-            transition: 'transform 0.2s',
-          }}
-        >
-          <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </div>
-
-      {expanded && (
-        <>
-          {/* Context */}
-          <div style={{
-            padding: '10px 14px',
-            background: 'var(--bg)',
-            borderBottom: '1px solid var(--border)',
-            fontSize: 11, color: 'var(--text3)', lineHeight: 1.6,
-          }}>
-            <strong style={{ color: 'var(--text2)' }}>Context: </strong>{item.context}
-          </div>
-
-          {/* AI question */}
-          <div style={{
-            padding: '10px 14px',
-            background: 'var(--ai-bg)',
-            borderBottom: '1px solid var(--ai-border)',
-          }}>
-            <div style={{
-              fontSize: 10, fontWeight: 700,
-              textTransform: 'uppercase', letterSpacing: '0.07em',
-              color: 'var(--ai)', marginBottom: 5,
-            }}>
-              ✦ AI question
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.6 }}>
-              {item.ai_question}
-            </div>
-          </div>
-
-          {/* Response form — same structure as task updates */}
-          <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text2)', marginBottom: 2 }}>
-              Response
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontSize: 11, fontWeight: 500, color: 'var(--text3)' }}>
-                What has been done
-              </label>
-              <textarea
-                className="form-input"
-                rows={2}
-                value={response.what_done}
-                onChange={e => onChange('what_done', e.target.value)}
-                placeholder="Progress or actions completed..."
-              />
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontSize: 11, fontWeight: 500, color: 'var(--text3)' }}>
-                What is yet to be done *
-              </label>
-              <textarea
-                className="form-input"
-                rows={2}
-                value={response.what_pending}
-                onChange={e => onChange('what_pending', e.target.value)}
-                placeholder="What was decided / what needs to happen next..."
-              />
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontSize: 11, fontWeight: 500, color: 'var(--text3)' }}>
-                Issue / blocker
-              </label>
-              <textarea
-                className="form-input"
-                rows={2}
-                value={response.issue_blocker}
-                onChange={e => onChange('issue_blocker', e.target.value)}
-                placeholder="Any blockers or risks raised? (optional)"
-              />
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <label style={{ fontSize: 11, fontWeight: 500, color: 'var(--text3)' }}>
-                  Action owner *
-                </label>
-                <input
-                  className="form-input"
-                  value={response.action_owner}
-                  onChange={e => onChange('action_owner', e.target.value)}
-                  placeholder="Who owns the next step?"
-                />
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <label style={{ fontSize: 11, fontWeight: 500, color: 'var(--text3)' }}>
-                  Action due by *
-                </label>
-                <input
-                  className="form-input"
-                  type="date"
-                  value={response.action_due_date}
-                  onChange={e => onChange('action_due_date', e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontSize: 11, fontWeight: 500, color: 'var(--text3)' }}>
-                Impact if not done *
-              </label>
-              <textarea
-                className="form-input"
-                rows={2}
-                value={response.impact_if_not_done}
-                onChange={e => onChange('impact_if_not_done', e.target.value)}
-                placeholder="What happens if this action is missed?"
-              />
-            </div>
-
-            {/* ECD update — only for task items */}
-            {item.task_id && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <label style={{ fontSize: 11, fontWeight: 500, color: 'var(--text3)' }}>
-                  Update ECD (if changed in this review)
-                </label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <input
-                    className="form-input"
-                    type="date"
-                    value={response.new_ecd}
-                    onChange={e => onChange('new_ecd', e.target.value)}
-                    style={{ maxWidth: 180 }}
-                  />
-                  {item.current_ecd && (
-                    <span style={{
-                      fontSize: 11, fontFamily: 'var(--mono)',
-                      color: 'var(--text4)',
-                      background: 'var(--bg)',
-                      border: '1px solid var(--border)',
-                      borderRadius: 6,
-                      padding: '5px 10px',
-                    }}>
-                      Current: {new Date(item.current_ecd).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                    </span>
-                  )}
-                </div>
-                {response.new_ecd && (
-                  <div style={{ fontSize: 11, color: 'var(--amber)' }}>
-                    ⚠ ECD change will be applied to the task and recorded as a slippage if later than current ECD
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </>
-      )}
-    </div>
-  )
-}
-
-// ─── Review History ───────────────────────────────────────────────
-function ReviewHistoryRow({ r }: { r: Review }) {
-  const [expanded, setExpanded] = useState(false)
-  const opv = parseFloat(r.opv_snapshot)
-  const lfv = parseFloat(r.lfv_snapshot || '1')
-  const vr  = parseFloat(r.vr_snapshot || '0')
-  const mom = parseFloat(r.momentum_snapshot || '0')
-  return (
-    <>
-      <tr
-        style={{ cursor: 'pointer' }}
-        onClick={() => setExpanded(e => !e)}
-      >
-        <td style={{ padding: '10px 14px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none"
-              style={{ flexShrink: 0, color: 'var(--text3)', transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
-              <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            <span className="mono" style={{ fontSize: 11 }}>{fmt(r.review_date)}</span>
-          </div>
-        </td>
-        <td style={{ fontSize: 11, color: 'var(--text3)', maxWidth: 160 }}>
-          {r.attended_by || r.conducted_by_name || '—'}
-        </td>
-        <td><span className="mono" style={{ color: monoColor(opv, 1.0, 0.8), fontWeight: 600, fontSize: 11 }}>{opv.toFixed(2)}</span></td>
-        <td><span className="mono" style={{ color: monoColor(lfv, 1.0, 1.2, false), fontWeight: 600, fontSize: 11 }}>{lfv.toFixed(2)}</span></td>
-        <td><span className="mono" style={{ color: monoColor(vr, 0.9, 0.6), fontWeight: 600, fontSize: 11 }}>{vr.toFixed(2)}</span></td>
-        <td><span className="mono" style={{ color: mom >= 0 ? 'var(--green)' : 'var(--red)', fontWeight: 600, fontSize: 11 }}>{mom >= 0 ? '+' : ''}{mom.toFixed(2)}</span></td>
-        <td>{r.escalation_triggered ? <span className="status red">Triggered</span> : <span className="status green">Clear</span>}</td>
-      </tr>
-      {expanded && (
-        <tr>
-          <td colSpan={7} style={{ padding: 0, background: 'var(--bg)' }}>
-            <div style={{ padding: '14px 20px', display: 'flex', flexDirection: 'column', gap: 14, borderTop: '1px solid var(--border)' }}>
-
-              {/* Narrative fields */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
-                {r.discussion_points && (
-                  <div>
-                    <div className="section-label" style={{ marginBottom: 6 }}>Discussion points</div>
-                    <div style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.6 }}>{r.discussion_points}</div>
-                  </div>
-                )}
-                {r.blockers && (
-                  <div>
-                    <div className="section-label" style={{ marginBottom: 6 }}>Blockers</div>
-                    <div style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.6 }}>{r.blockers}</div>
-                  </div>
-                )}
-                {r.actions_agreed && (
-                  <div>
-                    <div className="section-label" style={{ marginBottom: 6 }}>Actions agreed</div>
-                    <div style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.6 }}>{r.actions_agreed}</div>
-                  </div>
-                )}
-              </div>
-
-              {/* Per-item responses */}
-              {r.review_responses && r.review_responses.length > 0 && (
-                <div>
-                  <div className="section-label" style={{ marginBottom: 8 }}>Item responses</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {r.review_responses.filter((item: any) => item.what_pending || item.new_ecd).map((item: any, i: number) => (
-                      <div key={i} style={{ border: '1px solid var(--border)', borderRadius: 7, overflow: 'hidden' }}>
-                        <div style={{ padding: '8px 12px', background: 'var(--bg2)', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text2)' }}>Task update</span>
-                          {item.new_ecd && (
-                            <span className="mono" style={{ fontSize: 11, color: 'var(--amber)', fontWeight: 600 }}>
-                              ECD → {new Date(item.new_ecd).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                            </span>
-                          )}
-                        </div>
-                        <div style={{ padding: '10px 12px', display: 'grid', gridTemplateColumns: '120px 1fr', gap: 6, fontSize: 12 }}>
-                          {item.what_done && <><span style={{ color: 'var(--text3)', fontWeight: 500 }}>What was done</span><span style={{ color: 'var(--text)' }}>{item.what_done}</span></>}
-                          {item.what_pending && <><span style={{ color: 'var(--text3)', fontWeight: 500 }}>Yet to be done</span><span style={{ color: 'var(--text)' }}>{item.what_pending}</span></>}
-                          {item.issue_blocker && <><span style={{ color: 'var(--text3)', fontWeight: 500 }}>Blocker</span><span style={{ color: 'var(--text)' }}>{item.issue_blocker}</span></>}
-                          {item.action_owner && <><span style={{ color: 'var(--text3)', fontWeight: 500 }}>Action owner</span><span style={{ color: 'var(--text)' }}>{item.action_owner}</span></>}
-                          {item.impact_if_not_done && <><span style={{ color: 'var(--text3)', fontWeight: 500 }}>Impact</span><span style={{ color: 'var(--red)' }}>{item.impact_if_not_done}</span></>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {!r.discussion_points && !r.blockers && !r.actions_agreed && (!r.review_responses || r.review_responses.length === 0) && (
-                <div style={{ fontSize: 12, color: 'var(--text4)' }}>No details recorded for this review.</div>
-              )}
-            </div>
-          </td>
-        </tr>
-      )}
-    </>
-  )
-}
-
-function ReviewHistory({ reviews }: { reviews: Review[] }) {
-  if (reviews.length === 0) return null
-  return (
-    <div className="card">
-      <div className="card-header">
-        <div>
-          <div className="card-title">Review history</div>
-          <div className="card-sub">Click any row to see full review details</div>
-        </div>
-      </div>
-      <table className="tbl">
-        <thead>
-          <tr>
-            <th style={{ padding: '10px 14px' }}>Date</th>
-            <th>Attended by</th>
-            <th>OPV</th>
-            <th>LFV</th>
-            <th>VR</th>
-            <th>Momentum</th>
-            <th>Escalation</th>
-          </tr>
-        </thead>
-        <tbody>
-          {reviews.map((r: Review) => (
-            <ReviewHistoryRow key={r.review_id} r={r} />
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
-// ─── Main ReviewsTab ──────────────────────────────────────────────
 export default function ReviewsTab({
   projectId,
   project,
-  tasks = [],
+  tasks,
+  agenda,
+  setAgenda,
+  responses,
+  setResponses,
+  customPoints,
+  setCustomPoints,
+  attendedBy,
+  setAttendedBy,
+  canEdit = true,
 }: {
   projectId: string
   project: any
-  tasks?: any[]
+  tasks: any[]
+  agenda: TaskAgendaItem[]
+  setAgenda: (a: TaskAgendaItem[]) => void
+  responses: Record<string, TaskResponse>
+  setResponses: (r: Record<string, TaskResponse>) => void
+  customPoints: CustomPoint[]
+  setCustomPoints: (p: CustomPoint[]) => void
+  attendedBy: string
+  setAttendedBy: (s: string) => void
+  canEdit?: boolean
 }) {
-  const [reviews, setReviews]       = useState<Review[]>([])
-  const [agendaData, setAgendaData] = useState<any>(null)
-  const [loading, setLoading]       = useState(true)
+  const qc = useQueryClient()
   const [generating, setGenerating] = useState(false)
   const [saving, setSaving]         = useState(false)
-  const [error, setError]           = useState<string | null>(null)
-  const [success, setSuccess]       = useState(false)
+  const [error, setError]           = useState('')
+  const [success, setSuccess]       = useState('')
 
-  // Review form state
-  const [attendedBy, setAttendedBy]         = useState('')
-  const [reviewDate]                        = useState(new Date().toISOString().split('T')[0])
-  const [discussionPoints, setDiscussion]   = useState('')
-  const [blockers, setBlockers]             = useState('')
-  const [actionsAgreed, setActions]         = useState('')
+  const { data: reviews = [] } = useQuery({
+    queryKey: ['reviews', projectId],
+    queryFn: () => getReviews(projectId)
+  })
 
-  // Per-item responses keyed by index string
-  const [responses, setResponses] = useState<Record<string, AgendaResponse>>({})
+  // Sort incomplete tasks by risk number descending
+  const incompleteTasks = (tasks as any[])
+    .filter(t => t.completion_status !== 'complete')
+    .sort((a, b) => (b.risk_number || 0) - (a.risk_number || 0))
 
-  useEffect(() => {
-    Promise.all([
-      getReviews(projectId),
-    ]).then(([reviewData]) => {
-      setReviews(reviewData as Review[])
-    }).finally(() => setLoading(false))
-  }, [projectId])
-
-  async function generateAgenda() {
-    setGenerating(true); setError(null)
+  async function handleGenerateAgenda() {
+    setGenerating(true)
+    setError('')
     try {
       const data = await getReviewAgenda(projectId)
-      // Enrich agenda items with current_ecd from tasks data
-      const taskMap: Record<string, any> = {}
-      tasks.forEach((t: any) => { taskMap[t.task_id] = t })
-      if (data.agenda?.critical) {
-        data.agenda.critical = data.agenda.critical.map((item: AgendaItem) => ({
-          ...item,
-          current_ecd: item.task_id && taskMap[item.task_id] ? taskMap[item.task_id].current_ecd : item.current_ecd
-        }))
-      }
-      if (data.agenda?.watch) {
-        data.agenda.watch = data.agenda.watch.map((item: AgendaItem) => ({
-          ...item,
-          current_ecd: item.task_id && taskMap[item.task_id] ? taskMap[item.task_id].current_ecd : item.current_ecd
-        }))
-      }
-      setAgendaData(data)
-      // Initialise empty responses for each item
-      const initResponses: Record<string, AgendaResponse> = {}
-      const allItems = [
-        ...(data.agenda?.critical || []).map((item: AgendaItem, i: number) => ({ item, key: `critical_${i}` })),
-        ...(data.agenda?.watch || []).map((item: AgendaItem, i: number) => ({ item, key: `watch_${i}` })),
-      ]
-      allItems.forEach(({ item, key }) => {
-        // Always use task_id from verified taskMap, not AI output
-        const verifiedTaskId = item.task_id && taskMap[item.task_id] ? item.task_id : ''
-        initResponses[key] = {
-          task_id:            verifiedTaskId,
-          new_ecd:            '',
-          what_done:          '',
-          what_pending:       '',
-          issue_blocker:      '',
-          action_owner:       '',
-          action_due_date:    '',
-          impact_if_not_done: '',
+      // Build agenda items from tasks + AI questions
+      const agendaItems: TaskAgendaItem[] = incompleteTasks.map(t => {
+        // Find matching AI question from agenda response
+        const aiItem = [
+          ...(data?.critical || []),
+          ...(data?.watch || [])
+        ].find((item: any) => item.task_id === t.task_id)
+
+        return {
+          task_id:      t.task_id,
+          task_name:    t.task_name,
+          risk_label:   t.risk_label,
+          risk_number:  t.risk_number || 0,
+          current_ecd:  t.current_ecd,
+          delay_days:   t.delay_days || 0,
+          control_type: t.control_type,
+          ai_questions: aiItem?.ai_question
+            ? [aiItem.ai_question]
+            : [`What is the current status of "${t.task_name}"?`, `Are there any blockers preventing completion?`]
         }
       })
-      setResponses(initResponses)
+      setAgenda(agendaItems)
+      // Initialise empty responses for each task
+      const initResponses: Record<string, TaskResponse> = {}
+      agendaItems.forEach(item => {
+        if (!responses[item.task_id]) {
+          initResponses[item.task_id] = { response: '', extra_points: [] }
+        }
+      })
+      setResponses({ ...responses, ...initResponses })
     } catch (err: any) {
-      if (err?.response?.status === 429) {
-        setError(err.response.data?.error || 'Daily AI limit reached for this project. Try again tomorrow.')
-      } else {
-        setError('Failed to generate summary. Please try again.')
-      }
+      setError(err?.response?.data?.error || 'Failed to generate agenda')
     } finally {
       setGenerating(false)
     }
   }
 
-  function updateResponse(key: string, field: keyof AgendaResponse, value: string) {
-    setResponses(prev => ({
-      ...prev,
-      [key]: { ...prev[key], [field]: value },
-    }))
+  function updateResponse(taskId: string, value: string) {
+    setResponses({
+      ...responses,
+      [taskId]: { ...responses[taskId], response: value }
+    })
+  }
+
+  function addExtraPoint(taskId: string) {
+    const current = responses[taskId] || { response: '', extra_points: [] }
+    setResponses({
+      ...responses,
+      [taskId]: {
+        ...current,
+        extra_points: [...current.extra_points, { id: Date.now().toString(), text: '' }]
+      }
+    })
+  }
+
+  function updateExtraPoint(taskId: string, pointId: string, value: string) {
+    const current = responses[taskId] || { response: '', extra_points: [] }
+    setResponses({
+      ...responses,
+      [taskId]: {
+        ...current,
+        extra_points: current.extra_points.map(p =>
+          p.id === pointId ? { ...p, text: value } : p
+        )
+      }
+    })
+  }
+
+  function removeExtraPoint(taskId: string, pointId: string) {
+    const current = responses[taskId] || { response: '', extra_points: [] }
+    setResponses({
+      ...responses,
+      [taskId]: {
+        ...current,
+        extra_points: current.extra_points.filter(p => p.id !== pointId)
+      }
+    })
+  }
+
+  function addCustomPoint() {
+    setCustomPoints([...customPoints, { id: Date.now().toString(), text: '' }])
+  }
+
+  function updateCustomPoint(id: string, value: string) {
+    setCustomPoints(customPoints.map(p => p.id === id ? { ...p, text: value } : p))
+  }
+
+  function removeCustomPoint(id: string) {
+    setCustomPoints(customPoints.filter(p => p.id !== id))
   }
 
   async function handleSave() {
-    if (!discussionPoints.trim()) {
-      setError('Please fill in key discussion points before saving.')
-      return
-    }
-    setSaving(true); setError(null)
-
-    // Build task_updates array from responded agenda items
-    const taskUpdates = Object.entries(responses)
-      .filter(([, r]) => r.what_pending.trim().length > 0 || r.new_ecd.trim().length > 0)
-      .map(([, r]) => ({
-        task_id:            r.task_id || null,
-        new_ecd:            r.new_ecd || null,
-        what_done:          r.what_done,
-        what_pending:       r.what_pending,
-        issue_blocker:      r.issue_blocker || null,
-        action_owner:       r.action_owner || 'PM',
-        action_due_date:    r.action_due_date || r.new_ecd || null,
-        impact_if_not_done: r.impact_if_not_done || 'ECD updated during review.',
-      }))
-      .filter(item => item.task_id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.task_id))
-
+    setSaving(true)
+    setError('')
+    setSuccess('')
     try {
+      // Build review_responses for DB
+      const reviewResponses = agenda.map(item => ({
+        task_id:      item.task_id,
+        task_name:    item.task_name,
+        ai_questions: item.ai_questions,
+        pm_response:  responses[item.task_id]?.response || '',
+        extra_points: responses[item.task_id]?.extra_points || []
+      }))
+
       await createReviewFull(projectId, {
-        review_date:       reviewDate,
-        attended_by:       attendedBy,
-        discussion_points: discussionPoints,
-        blockers:          blockers || null,
-        actions_agreed:    actionsAgreed || null,
-        task_updates:      taskUpdates,
+        review_date:      new Date().toISOString().split('T')[0],
+        attended_by:      attendedBy,
+        discussion_points: reviewResponses.map(r =>
+          `${r.task_name}: ${r.pm_response}`
+        ).filter(Boolean).join('\n'),
+        review_responses: reviewResponses,
+        action_items:     customPoints.filter(p => p.text.trim()),
       })
 
-      // Refresh reviews list
-      const refreshed = await getReviews(projectId)
-      setReviews(refreshed as Review[])
-      setSuccess(true)
-      setAgendaData(null)
+      // Clear the draft
+      setAgenda([])
       setResponses({})
-      setAttendedBy(''); setDiscussion(''); setBlockers(''); setActions('')
-      setTimeout(() => setSuccess(false), 4000)
+      setCustomPoints([])
+      setAttendedBy('')
+      setSuccess('Review saved successfully')
+      qc.invalidateQueries({ queryKey: ['reviews', projectId] })
+      qc.invalidateQueries({ queryKey: ['project', projectId] })
     } catch (err: any) {
-      setError(err?.response?.data?.error || 'Failed to save review.')
+      setError(err?.response?.data?.error || 'Failed to save review')
     } finally {
       setSaving(false)
     }
   }
 
-  // Cadence info
-  const nextReviewDue   = project?.next_review_due
-  const daysUntilReview = nextReviewDue ? daysDiff(nextReviewDue) : null
-  const isOverdue       = daysUntilReview !== null && daysUntilReview < 0
-
-  const agenda: Agenda | null = agendaData?.agenda || null
-  const respondedCount = Object.values(responses).filter(r => r.what_pending.trim().length > 0).length
-  const totalItems     = (agenda?.critical?.length || 0) + (agenda?.watch?.length || 0)
-
-  if (loading) return (
-    <div style={{ textAlign: 'center', padding: 60, color: 'var(--text4)' }}>Loading...</div>
-  )
+  const riskColor = (label: string) =>
+    label === 'high_risk' ? 'var(--red)' : label === 'medium_risk' ? 'var(--amber)' : 'var(--green)'
 
   return (
     <div>
-      {/* Success banner */}
-      {success && (
-        <div className="alert-banner" style={{
-          background: 'var(--green-bg)', border: '1px solid #B3D9C7',
-          color: 'var(--green)', marginBottom: 16,
-        }}>
-          ✓ Review saved. ECDs updated, metrics recalculated. Next review due {fmt(nextReviewDue)}.
+      {/* Header */}
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+        <div>
+          <div style={{ fontSize:16, fontWeight:700, color:'var(--text)' }}>Review Meeting</div>
+          <div style={{ fontSize:12, color:'var(--text3)' }}>Generate agenda, capture decisions, save record</div>
         </div>
-      )}
-
-      {/* Cadence indicator */}
-      {nextReviewDue && (
-        <div className={`alert-banner ${isOverdue ? 'red' : 'amber'}`} style={{ marginBottom: 16 }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 600 }}>
-              {isOverdue
-                ? `Review overdue by ${Math.abs(daysUntilReview!)} day${Math.abs(daysUntilReview!) !== 1 ? 's' : ''}`
-                : `Next review due in ${daysUntilReview} day${daysUntilReview !== 1 ? 's' : ''}`
-              }
-            </div>
-            <div style={{ fontSize: 11, marginTop: 2 }}>
-              {project?.last_review_at
-                ? `Last review: ${fmt(project.last_review_at.split('T')[0])}`
-                : 'No reviews conducted yet'
-              } · Due: {fmt(nextReviewDue)}
-            </div>
+        {canEdit && agenda.length > 0 && (
+          <div style={{ display:'flex', gap:10, alignItems:'center' }}>
+            <input className="form-input" placeholder="Attended by (names)"
+              value={attendedBy} onChange={e => setAttendedBy(e.target.value)}
+              style={{ fontSize:12, width:220 }} />
+            <button className="tb-btn primary" onClick={handleSave} disabled={saving}>
+              {saving ? 'Saving...' : 'Save Review'}
+            </button>
           </div>
-        </div>
-      )}
-
-      {/* AI Agenda section */}
-      <div className="card" style={{ marginBottom: 16 }}>
-        <div className="card-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span className="ai-tag">AI</span>
-            <div>
-              <div className="card-title">Review agenda</div>
-              <div className="card-sub">
-                {agenda
-                  ? `Generated · ${agenda.critical?.length || 0} critical · ${agenda.watch?.length || 0} watch · ${agenda.suggested_duration_minutes} min suggested`
-                  : 'AI analyses task data to generate a prioritised agenda'
-                }
-              </div>
-            </div>
-          </div>
-          <button
-            className="ai-btn"
-            onClick={generateAgenda}
-            disabled={generating}
-          >
-            {generating
-              ? <><div className="ai-spinner" />&nbsp;Generating...</>
-              : agenda ? '✦ Regenerate' : '✦ Generate agenda'
-            }
+        )}
+        {canEdit && agenda.length === 0 && (
+          <button className="ai-btn" onClick={handleGenerateAgenda} disabled={generating}>
+            {generating ? <><div className="ai-spinner" />&nbsp;Generating...</> : '* Generate Agenda'}
           </button>
-        </div>
-
-        {!agenda && !generating && (
-          <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text4)', fontSize: 12 }}>
-            Click "Generate agenda" to analyse task data and prepare your review
-          </div>
-        )}
-
-        {agenda?.error && (
-          <div className="alert-banner red" style={{ margin: '0 20px 16px' }}>
-            ⚠ {agenda.error}
-          </div>
-        )}
-
-        {agenda && !agenda.error && (
-          <div style={{ padding: '0 20px 20px' }}>
-
-            {/* Attended by + date */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16, marginTop: 4 }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <label className="form-label">Attended by</label>
-                <input
-                  className="form-input"
-                  value={attendedBy}
-                  onChange={e => setAttendedBy(e.target.value)}
-                  placeholder="e.g. Yuvaraj P., Ravi Kumar, Priya S."
-                />
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <label className="form-label">Review date</label>
-                <input
-                  className="form-input"
-                  value={new Date(reviewDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}
-                  readOnly
-                  style={{ background: 'var(--bg)', color: 'var(--text3)' }}
-                />
-              </div>
-            </div>
-
-            {/* Critical items */}
-            {agenda.critical && agenda.critical.length > 0 && (
-              <div style={{ marginBottom: 16 }}>
-                <div className="section-label" style={{ marginBottom: 10 }}>
-                  Critical · {agenda.critical.reduce((s, i) => s + i.suggested_minutes, 0)} min
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {agenda.critical.map((item: AgendaItem, i: number) => (
-                    <AgendaItemCard
-                      key={`critical_${i}`}
-                      item={item}
-                      index={i}
-                      priority="critical"
-                      response={responses[`critical_${i}`] || {
-                        task_id: '', new_ecd: '', what_done: '', what_pending: '',
-                        issue_blocker: '', action_owner: '', action_due_date: '', impact_if_not_done: '',
-                      }}
-                      onChange={(field, value) => updateResponse(`critical_${i}`, field, value)}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Watch items */}
-            {agenda.watch && agenda.watch.length > 0 && (
-              <div style={{ marginBottom: 16 }}>
-                <div className="section-label" style={{ marginBottom: 10 }}>
-                  Watch · {agenda.watch.reduce((s, i) => s + i.suggested_minutes, 0)} min
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {agenda.watch.map((item: AgendaItem, i: number) => (
-                    <AgendaItemCard
-                      key={`watch_${i}`}
-                      item={item}
-                      index={i}
-                      priority="watch"
-                      response={responses[`watch_${i}`] || {
-                        task_id: '', new_ecd: '', what_done: '', what_pending: '',
-                        issue_blocker: '', action_owner: '', action_due_date: '', impact_if_not_done: '',
-                      }}
-                      onChange={(field, value) => updateResponse(`watch_${i}`, field, value)}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Quick wins */}
-            {agenda.quick_wins && agenda.quick_wins.length > 0 && (
-              <div style={{ marginBottom: 16 }}>
-                <div className="section-label" style={{ marginBottom: 8 }}>Quick wins · 5 min</div>
-                <div style={{
-                  background: 'var(--bg)',
-                  borderRadius: 8,
-                  padding: '10px 14px',
-                  fontSize: 12,
-                  color: 'var(--text)',
-                  lineHeight: 2,
-                }}>
-                  {agenda.quick_wins.map((w: string, i: number) => (
-                    <span key={i}>
-                      <span style={{ color: 'var(--green)', fontWeight: 600 }}>✓</span>{' '}
-                      {w}
-                      {i < agenda.quick_wins.length - 1 ? ' · ' : ''}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Overall narrative */}
-            <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, marginTop: 4 }}>
-              <div className="section-label" style={{ marginBottom: 10 }}>Overall narrative</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div className="form-group">
-                  <label className="form-label">Key discussion points *</label>
-                  <textarea
-                    className="form-input"
-                    rows={2}
-                    value={discussionPoints}
-                    onChange={e => setDiscussion(e.target.value)}
-                    placeholder="What was the main discussion today?"
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Blockers identified</label>
-                  <textarea
-                    className="form-input"
-                    rows={2}
-                    value={blockers}
-                    onChange={e => setBlockers(e.target.value)}
-                    placeholder="Any new blockers raised in the meeting?"
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Actions agreed</label>
-                  <textarea
-                    className="form-input"
-                    rows={2}
-                    value={actionsAgreed}
-                    onChange={e => setActions(e.target.value)}
-                    placeholder="What actions were agreed and who owns them?"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {error && (
-              <div className="alert-banner red" style={{ marginTop: 12 }}>⚠ {error}</div>
-            )}
-
-            {/* Footer */}
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginTop: 16,
-              paddingTop: 14,
-              borderTop: '1px solid var(--border)',
-            }}>
-              <div style={{ fontSize: 11, color: 'var(--text3)' }}>
-                {respondedCount > 0
-                  ? `${respondedCount} of ${totalItems} items responded · Saving will apply ECD updates, post task updates, recalculate metrics`
-                  : 'Saving will recalculate metrics and set next review date'
-                }
-              </div>
-              <button
-                className="tb-btn primary"
-                onClick={handleSave}
-                disabled={saving}
-              >
-                {saving ? 'Saving...' : 'Save review'}
-              </button>
-            </div>
-          </div>
         )}
       </div>
 
-      {/* Review history */}
-      <ReviewHistory reviews={reviews} />
+      {error && <div className="alert-banner red" style={{ marginBottom:12 }}>! {error}</div>}
+      {success && <div className="alert-banner green" style={{ marginBottom:12 }}>{success}</div>}
+
+      {/* Agenda */}
+      {agenda.length > 0 && (
+        <div style={{ display:'flex', flexDirection:'column', gap:12, marginBottom:20 }}>
+          {agenda.map(item => (
+            <div key={item.task_id} className="card">
+              {/* Task header */}
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:12 }}>
+                <div>
+                  <div style={{ fontSize:14, fontWeight:600, color:'var(--text)', marginBottom:2 }}>{item.task_name}</div>
+                  <div style={{ display:'flex', gap:10, fontSize:11, color:'var(--text3)' }}>
+                    <span style={{ color: riskColor(item.risk_label), fontWeight:600 }}>
+                      {item.risk_label?.replace('_',' ').toUpperCase()}
+                    </span>
+                    {item.current_ecd && <span>ECD: {new Date(item.current_ecd).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'2-digit' })}</span>}
+                    {item.delay_days > 0 && <span style={{ color:'var(--red)' }}>+{item.delay_days}d delay</span>}
+                    <span style={{ textTransform:'capitalize' }}>{item.control_type?.replace('_',' ')}</span>
+                  </div>
+                </div>
+                <span style={{ fontSize:11, color:'var(--text4)', background:'var(--bg2)', borderRadius:99, padding:'2px 10px' }}>
+                  RN {item.risk_number}
+                </span>
+              </div>
+
+              {/* AI questions */}
+              <div style={{ marginBottom:10 }}>
+                {item.ai_questions.map((q, i) => (
+                  <div key={i} style={{ fontSize:12, color:'var(--blue)', marginBottom:4, display:'flex', gap:6 }}>
+                    <span style={{ opacity:0.5 }}>Q{i+1}.</span>
+                    <span>{q}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* PM response */}
+              <textarea className="form-input" rows={3}
+                placeholder="Capture discussion, decisions and actions agreed for this task..."
+                value={responses[item.task_id]?.response || ''}
+                onChange={e => updateResponse(item.task_id, e.target.value)}
+                style={{ fontSize:12, marginBottom:8 }} />
+
+              {/* Extra points */}
+              {(responses[item.task_id]?.extra_points || []).map(point => (
+                <div key={point.id} style={{ display:'flex', gap:8, marginBottom:6 }}>
+                  <input className="form-input" placeholder="Additional point..."
+                    value={point.text}
+                    onChange={e => updateExtraPoint(item.task_id, point.id, e.target.value)}
+                    style={{ fontSize:12, flex:1 }} />
+                  <button className="tb-btn" style={{ fontSize:11, color:'var(--red)' }}
+                    onClick={() => removeExtraPoint(item.task_id, point.id)}>Remove</button>
+                </div>
+              ))}
+
+              <button className="tb-btn" style={{ fontSize:11 }}
+                onClick={() => addExtraPoint(item.task_id)}>
+                + Add point
+              </button>
+            </div>
+          ))}
+
+          {/* Custom standalone points */}
+          <div className="card">
+            <div style={{ fontSize:13, fontWeight:600, color:'var(--text)', marginBottom:12 }}>
+              Additional Agenda Items
+            </div>
+            {customPoints.map(point => (
+              <div key={point.id} style={{ display:'flex', gap:8, marginBottom:8 }}>
+                <input className="form-input" placeholder="Add a standalone agenda item..."
+                  value={point.text}
+                  onChange={e => updateCustomPoint(point.id, e.target.value)}
+                  style={{ fontSize:12, flex:1 }} />
+                <button className="tb-btn" style={{ fontSize:11, color:'var(--red)' }}
+                  onClick={() => removeCustomPoint(point.id)}>Remove</button>
+              </div>
+            ))}
+            <button className="tb-btn" style={{ fontSize:11 }} onClick={addCustomPoint}>
+              + Add agenda item
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Review History */}
+      <div className="card">
+        <div className="card-header">
+          <div className="card-title">Review History</div>
+          <span style={{ fontSize:11, color:'var(--text4)' }}>Click any row to see full details</span>
+        </div>
+        {(reviews as any[]).length === 0 && (
+          <div style={{ textAlign:'center', padding:32, fontSize:12, color:'var(--text4)' }}>
+            No reviews conducted yet
+          </div>
+        )}
+        <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+          <thead>
+            <tr style={{ borderBottom:'1px solid var(--border)' }}>
+              {['Date','Attended by','OPV','LFV','Momentum','Escalation'].map(h => (
+                <th key={h} style={{ textAlign:'left', padding:'8px 12px', fontSize:11, color:'var(--text3)', fontWeight:600 }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {(reviews as any[]).map((r: any) => (
+              <ReviewRow key={r.review_id} review={r} />
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
+  )
+}
+
+function ReviewRow({ review }: { review: any }) {
+  const [open, setOpen] = useState(false)
+  const responses: any[] = review.review_responses || []
+  const customPoints: any[] = review.action_items || []
+
+  return (
+    <>
+      <tr style={{ borderBottom:'1px solid var(--border)', cursor:'pointer' }}
+        onClick={() => setOpen(!open)}>
+        <td style={{ padding:'10px 12px', fontWeight:500 }}>
+          {new Date(review.review_date).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })}
+        </td>
+        <td style={{ padding:'10px 12px', color:'var(--text2)' }}>{review.attended_by || '-'}</td>
+        <td style={{ padding:'10px 12px', color: parseFloat(review.opv_snapshot) >= 0.8 ? 'var(--green)' : 'var(--red)', fontWeight:600, fontFamily:'var(--mono)' }}>
+          {parseFloat(review.opv_snapshot).toFixed(2)}
+        </td>
+        <td style={{ padding:'10px 12px', color: parseFloat(review.lfv_snapshot) <= 1.2 ? 'var(--green)' : 'var(--red)', fontWeight:600, fontFamily:'var(--mono)' }}>
+          {parseFloat(review.lfv_snapshot).toFixed(2)}
+        </td>
+        <td style={{ padding:'10px 12px', color: parseFloat(review.momentum_snapshot) >= 0 ? 'var(--green)' : 'var(--red)', fontWeight:600, fontFamily:'var(--mono)' }}>
+          {parseFloat(review.momentum_snapshot) >= 0 ? '+' : ''}{parseFloat(review.momentum_snapshot).toFixed(2)}
+        </td>
+        <td style={{ padding:'10px 12px' }}>
+          {review.escalation_triggered
+            ? <span className="status red">Triggered</span>
+            : <span className="status green">Clear</span>}
+        </td>
+      </tr>
+      {open && (
+        <tr>
+          <td colSpan={6} style={{ background:'var(--bg)', padding:'16px 20px' }}>
+            {responses.length > 0 ? (
+              <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+                {responses.map((r: any, i: number) => (
+                  <div key={i}>
+                    <div style={{ fontSize:12, fontWeight:600, color:'var(--text)', marginBottom:4 }}>{r.task_name}</div>
+                    {r.ai_questions?.map((q: string, qi: number) => (
+                      <div key={qi} style={{ fontSize:11, color:'var(--blue)', marginBottom:2 }}>Q{qi+1}. {q}</div>
+                    ))}
+                    {r.pm_response && (
+                      <div style={{ fontSize:12, color:'var(--text2)', marginTop:4, padding:'6px 10px', background:'white', borderRadius:6 }}>{r.pm_response}</div>
+                    )}
+                    {r.extra_points?.map((p: any, pi: number) => (
+                      <div key={pi} style={{ fontSize:11, color:'var(--text3)', marginTop:4, paddingLeft:10 }}>- {p.text}</div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            ) : review.discussion_points ? (
+              <div style={{ fontSize:12, color:'var(--text2)' }}>{review.discussion_points}</div>
+            ) : (
+              <div style={{ fontSize:12, color:'var(--text4)' }}>No details recorded</div>
+            )}
+            {customPoints.length > 0 && (
+              <div style={{ marginTop:12 }}>
+                <div style={{ fontSize:12, fontWeight:600, color:'var(--text)', marginBottom:6 }}>Additional items</div>
+                {customPoints.map((p: any, i: number) => (
+                  <div key={i} style={{ fontSize:12, color:'var(--text2)', marginBottom:4 }}>- {p.text || p}</div>
+                ))}
+              </div>
+            )}
+          </td>
+        </tr>
+      )}
+    </>
   )
 }
