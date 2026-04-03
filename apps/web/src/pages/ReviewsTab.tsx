@@ -75,7 +75,7 @@ export default function ReviewsTab({
         const aiItem = [
           ...(data?.critical || []),
           ...(data?.watch || [])
-        ].find((item: any) => item.task_id === t.task_id)
+        ].find((item: any) => item.task_id === t.task_id || item.task_name === t.task_name)
 
         return {
           task_id:      t.task_id,
