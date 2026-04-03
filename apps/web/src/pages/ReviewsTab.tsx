@@ -16,6 +16,8 @@ interface TaskAgendaItem {
 interface CustomPoint {
   id: string
   text: string
+  question?: string
+  answer?: string
 }
 
 interface TaskResponse {
@@ -119,7 +121,7 @@ export default function ReviewsTab({
       ...responses,
       [taskId]: {
         ...current,
-        extra_points: [...current.extra_points, { id: Date.now().toString(), question: '', answer: '', text: '' }]
+        extra_points: [...current.extra_points, { id: Date.now().toString(), question: '', answer: '', text: '' } as CustomPoint]
       }
     })
   }
