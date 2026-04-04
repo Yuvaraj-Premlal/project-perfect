@@ -10,7 +10,7 @@ const app = express();
 
 app.use(helmet());
 app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
+  origin: process.env.FRONTEND_URL || ['https://app.projectperfect.in', 'https://ambitious-field-040480000.4.azurestaticapps.net'],
   credentials: true
 }));
 app.use(express.json());
