@@ -50,7 +50,7 @@ export default function AppShell() {
           </div>
           <div>
             <div className="logo-text">Project Perfect</div>
-            <div className="logo-sub">IPM Platform</div>
+            <div className="logo-sub">Intelligent Project Management</div>
           </div>
         </div>
 

@@ -30,8 +30,8 @@ export default function LoginPage() {
         <div style={{ display:'flex', alignItems:'center', gap:12 }}>
           <div className="logo-mark">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M3 8a5 5 0 1 1 10 0A5 5 0 0 1 3 8z" fill="none" stroke="white" strokeWidth="1.5"/>
-              <path d="M8 5v3l2 2" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+              <path d="M6.5 9.5a3.5 3.5 0 0 0 5 0l2-2a3.5 3.5 0 0 0-5-5L7.5 3.5" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+              <path d="M9.5 6.5a3.5 3.5 0 0 0-5 0l-2 2a3.5 3.5 0 0 0 5 5l1-1" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
             </svg>
           </div>
           <div>
@@ -70,9 +70,10 @@ export default function LoginPage() {
           </form>
         </div>
 
-        <div style={{ color:'rgba(255,255,255,0.35)', fontSize:11 }}>
-          projectperfect.in - Manufacturing IPM
-        </div>
+        <a href="https://www.projectperfect.in" target="_blank" rel="noreferrer"
+          style={{ color:'rgba(255,255,255,0.35)', fontSize:11, textDecoration:'none' }}>
+          www.projectperfect.in
+        </a>
       </div>
     </div>
   )
