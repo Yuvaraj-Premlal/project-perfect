@@ -37,19 +37,16 @@ async function recalculateProjectMetrics(projectId, tenantId) {
 
     for (const task of tasks) {
       if (task.completion_status === 'complete') {
-        // Complete tasks have no delay
         await client.query(
           `UPDATE tasks SET delay_days = 0, risk_number = 0 WHERE task_id = $1`,
           [task.task_id]
         );
-        task.delay_days = 0;
+        task.delay_days  = 0;
         task.risk_number = 0;
       } else {
-        const ecd = task.current_ecd
-          ? new Date(task.current_ecd)
-          : new Date(task.planned_end_date);
+        const ecd        = task.current_ecd ? new Date(task.current_ecd) : new Date(task.planned_end_date);
         const plannedEnd = new Date(task.planned_end_date);
-        const delayDays = Math.max(0, Math.round((ecd - plannedEnd) / (1000 * 60 * 60 * 24)));
+        const delayDays  = Math.max(0, Math.round((ecd - plannedEnd) / (1000 * 60 * 60 * 24)));
         const riskNumber = task.cn_value * delayDays;
 
         await client.query(
@@ -70,37 +67,64 @@ async function recalculateProjectMetrics(projectId, tenantId) {
       );
     }
 
-    // ── Calculate OPV ──
-    // OPV = (completed / total) / (elapsed / planned_days)
-    const totalTasks     = tasks.length;
-    const completedTasks = tasks.filter(t => t.completion_status === 'complete').length;
-
+    // ── Date setup ──
     const startDate   = new Date(project.start_date);
     const endDate     = new Date(project.planned_end_date);
     const elapsedDays = Math.max(0, Math.round((today - startDate) / (1000 * 60 * 60 * 24)));
     const plannedDays = Math.round((endDate - startDate) / (1000 * 60 * 60 * 24));
 
+    // ── Edge case: Day 0 ──
+    if (elapsedDays === 0) {
+      console.log(`Project ${projectId}: First day, no calculations yet`);
+      await client.query('COMMIT');
+      return;
+    }
+
+    // ── Weighted task days ──
+    // planned days per task = max(1, planned_end_date - planned_start_date)
+    // totalTaskDays = sum of planned days across ALL tasks
+    // completedTaskDays = sum of planned days of completed tasks only
+    // incompleteTaskDays = sum of planned days of incomplete tasks only
+    let totalTaskDays     = 0;
+    let completedTaskDays = 0;
+    let incompleteTaskDays = 0;
+
+    for (const task of tasks) {
+      const taskStart   = task.planned_start_date ? new Date(task.planned_start_date) : new Date(task.planned_end_date);
+      const taskEnd     = new Date(task.planned_end_date);
+      const taskDays    = Math.max(1, Math.round((taskEnd - taskStart) / (1000 * 60 * 60 * 24)));
+
+      totalTaskDays += taskDays;
+
+      if (task.completion_status === 'complete') {
+        completedTaskDays += taskDays;
+      } else {
+        incompleteTaskDays += taskDays;
+      }
+    }
+
+    // ── Calculate OPV ──
+    // OPV = (completedTaskDays / totalTaskDays) / (elapsedDays / plannedDays)
     let opv = 0;
-    if (totalTasks > 0 && elapsedDays > 0 && plannedDays > 0) {
-      const completionRatio = completedTasks / totalTasks;
+    if (totalTaskDays > 0 && elapsedDays > 0 && plannedDays > 0) {
+      const completionRatio = completedTaskDays / totalTaskDays;
       const timeRatio       = elapsedDays / plannedDays;
       opv = completionRatio / timeRatio;
     }
 
     // ── Calculate LFV ──
-    // If past planned end: LFV = 1 / OPV (or 100 if OPV = 0)
-    // If within duration: LFV = (incomplete / total) / (remaining / planned)
-    const incompleteTasks = totalTasks - completedTasks;
+    // LFV = (incompleteTaskDays / totalTaskDays) / (remainingDays / plannedDays)
+    // If past planned end: LFV = opv > 0 ? 1/opv : 100
     let lfv = 0;
-
-    if (totalTasks > 0) {
-      if (elapsedDays > plannedDays) {
+    if (totalTaskDays > 0 && plannedDays > 0) {
+      if (elapsedDays >= plannedDays) {
+        // Past planned end date — use fallback
         lfv = opv > 0 ? 1 / opv : 100;
       } else {
-        const remainingDays = plannedDays - elapsedDays;
-        if (remainingDays > 0 && plannedDays > 0) {
-          const incompleteRatio = incompleteTasks / totalTasks;
-          const timeRemainingRatio = remainingDays / plannedDays;
+        const remainingDays      = plannedDays - elapsedDays;
+        const incompleteRatio    = incompleteTaskDays / totalTaskDays;
+        const timeRemainingRatio = remainingDays / plannedDays;
+        if (timeRemainingRatio > 0) {
           lfv = incompleteRatio / timeRemainingRatio;
         }
       }
@@ -111,8 +135,6 @@ async function recalculateProjectMetrics(projectId, tenantId) {
     const pr = vr * project.en_value;
 
     // ── Calculate project ECD (algorithmic) ──
-    // If OPV > 0: new duration = (1 / OPV) x planned days
-    // If OPV = 0: new duration = planned days + elapsed days
     let ecdAlgorithmic = null;
     if (plannedDays > 0) {
       const newDuration = opv > 0
@@ -132,28 +154,23 @@ async function recalculateProjectMetrics(projectId, tenantId) {
     }
 
     // ── Calculate TCR — Task Chaos Ratio ──
-    // External tasks (CN=10 + CN=100) / total tasks
+    const totalTasks    = tasks.length;
     const externalTasks = tasks.filter(t => t.cn_value === 10 || t.cn_value === 100).length;
-    const tcr = totalTasks > 0 ? externalTasks / totalTasks : 0;
+    const tcr           = totalTasks > 0 ? externalTasks / totalTasks : 0;
 
     // ── Calculate DCR — Duration Chaos Ratio ──
-    // Sum of planned days for external tasks / total planned project days
     let externalTaskDays = 0;
     for (const task of tasks) {
       if (task.cn_value === 10 || task.cn_value === 100) {
-        if (task.planned_start_date && task.planned_end_date) {
-          const taskStart = new Date(task.planned_start_date);
-          const taskEnd   = new Date(task.planned_end_date);
-          const taskDays  = Math.round((taskEnd - taskStart) / (1000 * 60 * 60 * 24));
-          externalTaskDays += Math.max(0, taskDays);
-        }
+        const taskStart = task.planned_start_date ? new Date(task.planned_start_date) : new Date(task.planned_end_date);
+        const taskEnd   = new Date(task.planned_end_date);
+        const taskDays  = Math.max(1, Math.round((taskEnd - taskStart) / (1000 * 60 * 60 * 24)));
+        externalTaskDays += taskDays;
       }
     }
     const dcr = plannedDays > 0 ? externalTaskDays / plannedDays : 0;
 
     // ── Calculate Momentum ──
-    // OPV at current review minus OPV at previous review
-    // If no review yet, momentum = 0
     const lastReviewResult = await client.query(
       `SELECT opv_snapshot FROM reviews
        WHERE project_id = $1 ORDER BY review_date DESC LIMIT 1`,
@@ -167,15 +184,15 @@ async function recalculateProjectMetrics(projectId, tenantId) {
     // ── Update project with all recalculated metrics ──
     await client.query(`
       UPDATE projects SET
-        opv              = $1,
-        lfv              = $2,
-        vr               = $3,
-        pr               = $4,
-        ecd_algorithmic  = $5,
-        tcr              = $6,
-        dcr              = $7,
-        momentum         = $8
-      WHERE project_id   = $9
+        opv             = $1,
+        lfv             = $2,
+        vr              = $3,
+        pr              = $4,
+        ecd_algorithmic = $5,
+        tcr             = $6,
+        dcr             = $7,
+        momentum        = $8
+      WHERE project_id  = $9
     `, [
       parseFloat(opv.toFixed(4)),
       parseFloat(lfv.toFixed(4)),
@@ -194,7 +211,7 @@ async function recalculateProjectMetrics(projectId, tenantId) {
       [projectId]
     );
     for (const phase of phasesResult.rows) {
-      const phaseTasks = tasks.filter(t => t.phase_id === phase.phase_id);
+      const phaseTasks  = tasks.filter(t => t.phase_id === phase.phase_id);
       const phaseAtRisk = phaseTasks.some(t => {
         const ecd = t.current_ecd || t.planned_end_date;
         return new Date(ecd) > new Date(phase.target_date) &&
@@ -214,7 +231,7 @@ async function recalculateProjectMetrics(projectId, tenantId) {
       [tenantId]
     );
     const prValues = allProjectsResult.rows.map(r => parseFloat(r.pr));
-    const opp = calculateMedian(prValues);
+    const opp      = calculateMedian(prValues);
 
     // ── Update Performance Velocity ──
     const tenantResult = await client.query(
@@ -257,7 +274,7 @@ async function recalculateProjectMetrics(projectId, tenantId) {
 function calculateMedian(values) {
   if (values.length === 0) return 0;
   const sorted = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
+  const mid    = Math.floor(sorted.length / 2);
   return sorted.length % 2 !== 0
     ? sorted[mid]
     : (sorted[mid - 1] + sorted[mid]) / 2;
@@ -269,18 +286,12 @@ function calculateMedian(values) {
 // If new ECD is later than current ECD = slippage.
 // ─────────────────────────────────────────────
 async function detectAndRecordSlippage(client, task, newEcd, changedBy, tenantId) {
-  const currentEcd = task.current_ecd
-    ? new Date(task.current_ecd)
-    : new Date(task.planned_end_date);
+  const currentEcd  = task.current_ecd ? new Date(task.current_ecd) : new Date(task.planned_end_date);
   const proposedEcd = new Date(newEcd);
 
-  // Only record if moving backward (later date)
   if (proposedEcd <= currentEcd) return;
 
-  const delayIncrease = Math.round(
-    (proposedEcd - currentEcd) / (1000 * 60 * 60 * 24)
-  );
-
+  const delayIncrease    = Math.round((proposedEcd - currentEcd) / (1000 * 60 * 60 * 24));
   const newSlippageNumber = task.slippage_count + 1;
 
   await client.query(`
@@ -288,13 +299,10 @@ async function detectAndRecordSlippage(client, task, newEcd, changedBy, tenantId
       (task_id, tenant_id, slippage_number, previous_ecd, new_ecd, delay_increase_days, changed_by)
     VALUES ($1, $2, $3, $4, $5, $6, $7)
   `, [
-    task.task_id,
-    tenantId,
-    newSlippageNumber,
+    task.task_id, tenantId, newSlippageNumber,
     currentEcd.toISOString().split('T')[0],
     proposedEcd.toISOString().split('T')[0],
-    delayIncrease,
-    changedBy
+    delayIncrease, changedBy
   ]);
 
   await client.query(
