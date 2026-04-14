@@ -83,7 +83,7 @@ router.get('/:id', async (req, res) => {
 // POST /api/projects
 router.post("/", [
   body("project_name").notEmpty().withMessage("project_name is required"),
-  body("risk_tier").isIn(["high", "medium", "low"]).withMessage("risk_tier must be high, medium, or low"),
+  body("risk_tier").isIn(["high", "moderate", "low"]).withMessage("risk_tier must be high, moderate, or low"),
   validate
 ], requireRole("pm"), async (req, res) => {
   const {
@@ -105,7 +105,7 @@ router.post("/", [
   const project_start_date = sortedPhases[0].start_date;
   const project_end_date   = sortedPhases[sortedPhases.length - 1].target_date;
 
-  const enMap = { high: 10, medium: 5, low: 2 };
+  const enMap = { high: 10, moderate: 5, low: 2 };
   const en_value = enMap[risk_tier];
   const charterLockTime = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
