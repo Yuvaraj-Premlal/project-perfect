@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { createProject } from '../api/projects'
 
@@ -139,11 +139,20 @@ export default function CreateProjectModal({ open, onClose, onCreated }: Props) 
     setPhases([]); setRiskTier('high'); setError('')
     onClose()
   }
+  // Close on Escape key
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') handleClose()
+    }
+    if (open) document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [open])
+
 
   if (!open) return null
 
   return (
-    <div className="modal-overlay open" onClick={e => e.target === e.currentTarget && handleClose()}>
+    <div className="modal-overlay open">
       <div className="modal" style={{ width: 580, maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
 
         {/* Header */}
