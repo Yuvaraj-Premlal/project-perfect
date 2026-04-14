@@ -966,12 +966,28 @@ function PhaseSection({
             {phase.phase_name}
           </span>
 
-          {/* Date range */}
-          <span
-            className="mono"
-            style={{ fontSize: 11, color: 'var(--text3)', flexShrink: 0 }}
-          >
-            {fmt(phase.start_date)} → {fmt(phase.target_date)}
+          {/* Date range — Planned and Actual */}
+          <span style={{ fontSize: 11, color: 'var(--text3)', flexShrink: 0, display:'flex', gap:12, alignItems:'center' }}>
+            <span>
+              <span style={{ color:'var(--text4)', marginRight:4 }}>Planned:</span>
+              <span className="mono">{fmt(phase.start_date)} → {fmt(phase.target_date)}</span>
+            </span>
+            {(() => {
+              const activeTasks = tasks.filter(t => t.completion_status !== 'complete')
+              const starts = tasks.map(t => t.planned_start_date).filter(Boolean)
+              const ecds   = activeTasks.map(t => t.current_ecd || t.planned_end_date).filter(Boolean)
+              if (starts.length === 0 || ecds.length === 0) return null
+              const actualStart = starts.reduce((a, b) => (a && b) ? (a < b ? a : b) : (a || b))
+              const actualEnd   = ecds.reduce((a, b) => (a && b) ? (a > b ? a : b) : (a || b))
+              return (
+                <span>
+                  <span style={{ color:'var(--text4)', marginRight:4 }}>Actual:</span>
+                  <span className="mono" style={{ color: actualEnd > phase.target_date ? 'var(--red)' : 'var(--green)' }}>
+                    {fmt(actualStart)} → {fmt(actualEnd)}
+                  </span>
+                </span>
+              )
+            })()}
           </span>
 
           {/* Data availability badge */}
