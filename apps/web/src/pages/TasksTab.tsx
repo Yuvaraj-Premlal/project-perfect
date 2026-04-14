@@ -118,6 +118,16 @@ function AddTaskModal({
   onClose: () => void
   onSaved: () => void
 }) {
+
+  // Close on Escape key
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
   const [saving, setSaving] = useState(false)
   const [error, setError]   = useState<string | null>(null)
   const [form, setForm] = useState({
@@ -164,7 +174,7 @@ function AddTaskModal({
   }
 
   return (
-    <div className="modal-overlay open" onClick={e => e.target === e.currentTarget && onClose()}>
+    <div className="modal-overlay open">
       <div className="modal" style={{ width: 560 }}>
         <div className="modal-header">
           <div>
