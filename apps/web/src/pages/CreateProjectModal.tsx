@@ -26,7 +26,7 @@ const RISK_OPTIONS = [
     border: '#EAADA8'
   },
   {
-    value: 'medium',
+    value: 'moderate',
     label: 'Medium',
     desc: 'Proven design in the market, new to the organisation',
     color: 'var(--amber)',
@@ -74,7 +74,7 @@ export default function CreateProjectModal({ open, onClose, onCreated }: Props) 
   const [phases, setPhases] = useState<Phase[]>([])
 
   // Step 3 — Risk
-  const [riskTier, setRiskTier] = useState<'high' | 'medium' | 'low'>('high')
+  const [riskTier, setRiskTier] = useState<'high' | 'moderate' | 'low'>('high')
 
   function addPhase() {
     setPhases(prev => [...prev, {
