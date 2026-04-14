@@ -335,7 +335,7 @@ function AddTaskModal({
               }}
             >
               <strong style={{ color: 'var(--text2)' }}>Note:</strong> Planned dates are locked after
-              creation. Current ECD starts equal to planned end date and can be updated later.
+              creation. Latest ECD starts equal to planned end date and can be updated later.
             </div>
           </div>
 
@@ -568,7 +568,7 @@ function TaskPanel({
             <div className="section-label" style={{ marginBottom: 10 }}>Task status</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
               <div className="form-group">
-                <label className="form-label">{isCompleting ? 'Completion date' : 'Current ECD'}</label>
+                <label className="form-label">{isCompleting ? 'Completion date' : 'Latest ECD'}</label>
                 <input
                   className="form-input" type="date"
                   value={taskForm.current_ecd}
