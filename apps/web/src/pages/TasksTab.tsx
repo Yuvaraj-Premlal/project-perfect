@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { createTask, updateTask, getTaskUpdates, createTaskUpdate, getUsers, getSuppliers } from '../api/projects'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../api/client'
