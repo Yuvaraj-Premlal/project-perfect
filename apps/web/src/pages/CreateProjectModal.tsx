@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { createProject } from '../api/projects'
-import { api } from '../api/client'
 
 interface Phase {
   phase_name: string
@@ -60,12 +59,9 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 export default function CreateProjectModal({ open, onClose, onCreated }: Props) {
   const qc = useQueryClient()
-  const [step, setStep]           = useState(0)
+  const [step, setStep]           = useState(1)
   const [saving, setSaving]       = useState(false)
   const [error, setError]         = useState('')
-  const [templates, setTemplates] = useState<any[]>([])
-  const [loadingTmpl, setLoadingTmpl] = useState(false)
-  const [selectedTemplate, setSelectedTemplate] = useState<any>(null)
 
   // Step 1 — Identity
   const [projectName, setProjectName]       = useState('')
@@ -191,7 +187,6 @@ export default function CreateProjectModal({ open, onClose, onCreated }: Props) 
     setStep(0)
     setProjectName(''); setLaunchDate(''); setProjectCode(''); setCustomerName(''); setProductName('')
     setPhases([]); setRiskTier('high'); setError('')
-    setSelectedTemplate(null)
     onClose()
   }
   // Close on Escape key

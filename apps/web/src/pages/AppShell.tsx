@@ -7,7 +7,6 @@ import ProjectView from './ProjectView'
 import ProjectLearnings from './ProjectLearnings'
 import LearningDetail from './LearningDetail'
 import AdminPortal from './AdminPortal'
-import TemplatesPage from './TemplatesPage'
 import { getCurrentUser } from '../api/auth'
 
 function getOPVColor(opv: number) {
@@ -18,7 +17,7 @@ function getOPVColor(opv: number) {
 
 
 export default function AppShell() {
-  const [view, setView]       = useState<'portfolio' | 'project' | 'learnings' | 'learning-detail' | 'admin' | 'templates'>('portfolio')
+  const [view, setView]       = useState<'portfolio' | 'project' | 'learnings' | 'learning-detail' | 'admin'>('portfolio')
   const [activeLearning, setActiveLearning] = useState<string|null>(null)
   const currentUser = getCurrentUser()
   const [showCreate, setShowCreate] = useState(false)
@@ -65,10 +64,7 @@ export default function AppShell() {
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 2h10a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" stroke="currentColor" strokeWidth="1.3"/><path d="M5 6h6M5 9h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
             Project Learnings
           </button>
-          <button className={`nav-item ${view==='templates' ? 'active' : ''}`} onClick={() => { setView('templates'); setActiveProject(null) }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.5"/><line x1="3" y1="9" x2="21" y2="9" stroke="currentColor" strokeWidth="1.5"/><line x1="9" y1="9" x2="9" y2="21" stroke="currentColor" strokeWidth="1.5"/></svg>
-            <span>Templates</span>
-          </button>
+
           {currentUser?.role === 'super_user' && (
             <button className={`nav-item ${view==='admin' ? 'active' : ''}`} onClick={() => { setView('admin'); setActiveProject(null) }}>
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="5" r="2.5" stroke="currentColor" strokeWidth="1.3"/><path d="M3 13c0-2.8 2.2-5 5-5s5 2.2 5 5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
@@ -116,8 +112,6 @@ export default function AppShell() {
           <div className="breadcrumb">
             {view === 'portfolio' ? (
               <span>Portfolio</span>
-            ) : view === 'templates' ? (
-              <span>Templates</span>
             ) : view === 'admin' ? (
               <span>Admin Portal</span>
             ) : view === 'learnings' ? (
@@ -152,7 +146,6 @@ export default function AppShell() {
           {view === 'learnings'        && <ProjectLearnings onOpenLearning={(id) => { setActiveLearning(id); setView('learning-detail') }} />}
           {view === 'learning-detail'  && <LearningDetail reportId={activeLearning!} onBack={() => setView('learnings')} />}
           {view === 'admin'           && <AdminPortal />}
-          {view === 'templates'        && <TemplatesPage />}
         </div>
       </div>
 
