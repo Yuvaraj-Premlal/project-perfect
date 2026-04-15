@@ -153,6 +153,8 @@ export default function CreateProjectModal({ open, onClose, onCreated }: Props) 
       // If template was selected, create tasks from template
       if (selectedTemplate) {
         const projectPhases = project.phases || []
+        console.log('Template phases:', selectedTemplate.phases)
+        console.log('Project phases:', projectPhases)
         for (let pi = 0; pi < selectedTemplate.phases.length; pi++) {
           const tmplPhase = selectedTemplate.phases[pi]
           const projectPhase = projectPhases[pi]
