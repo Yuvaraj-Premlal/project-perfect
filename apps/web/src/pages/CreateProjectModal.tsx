@@ -59,9 +59,9 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 export default function CreateProjectModal({ open, onClose, onCreated }: Props) {
   const qc = useQueryClient()
-  const [step, setStep]           = useState(1)
-  const [saving, setSaving]       = useState(false)
-  const [error, setError]         = useState('')
+  const [step, setStep]     = useState(1)
+  const [saving, setSaving] = useState(false)
+  const [error, setError]   = useState('')
 
   // Step 1 — Identity
   const [projectName, setProjectName]       = useState('')
@@ -98,31 +98,6 @@ export default function CreateProjectModal({ open, onClose, onCreated }: Props) 
   const totalStart = phases.length > 0 ? phases[0].start_date : null
   const totalEnd   = phases.length > 0 ? phases[phases.length - 1].target_date : null
 
-  async function loadTemplates() {
-    setLoadingTmpl(true)
-    try {
-      const res = await api.get('/api/templates')
-      setTemplates(res.data)
-    } finally {
-      setLoadingTmpl(false)
-    }
-  }
-
-  async function applyTemplate(tmpl: any) {
-    const res = await api.get(`/api/templates/${tmpl.template_id}`)
-    const full = res.data
-    setSelectedTemplate(full)
-    // Pre-populate phases from template (no dates yet)
-    setPhases(full.phases.map((p: any, i: number) => ({
-      phase_name: p.phase_name,
-      start_date: '',
-      target_date: '',
-      data_availability: 'yes',
-      phase_order: i + 1
-    })))
-    setStep(1)
-  }
-
   function canProceedStep1() {
     return projectName.trim() !== '' && launchDate !== ''
   }
@@ -146,31 +121,6 @@ export default function CreateProjectModal({ open, onClose, onCreated }: Props) 
         phases:             phases.map((p, i) => ({ ...p, phase_order: i + 1 })),
       })
       qc.invalidateQueries({ queryKey: ['projects'] })
-      // If template was selected, create tasks from template
-      if (selectedTemplate) {
-        const projectPhases = project.phases || []
-        console.log('Template phases:', selectedTemplate.phases)
-        console.log('Project phases:', projectPhases)
-        for (let pi = 0; pi < selectedTemplate.phases.length; pi++) {
-          const tmplPhase = selectedTemplate.phases[pi]
-          const projectPhase = projectPhases[pi]
-          if (!projectPhase) continue
-          for (const tmplTask of tmplPhase.tasks) {
-            try {
-              await api.post(`/api/projects/${project.project_id}/tasks`, {
-                task_name:           tmplTask.task_name,
-                acceptance_criteria: tmplTask.acceptance_criteria || '',
-                control_type:        tmplTask.control_type || 'internal',
-                phase_id:            projectPhase.phase_id,
-                planned_start_date:  null,
-                planned_end_date:    projectPhase.target_date,
-              })
-            } catch (e) {
-              console.warn('Failed to create task from template:', tmplTask.task_name)
-            }
-          }
-        }
-      }
       onCreated(project.project_id)
       handleClose()
     } catch (err: any) {
@@ -184,7 +134,7 @@ export default function CreateProjectModal({ open, onClose, onCreated }: Props) 
   }
 
   function handleClose() {
-    setStep(0)
+    setStep(1)
     setProjectName(''); setLaunchDate(''); setProjectCode(''); setCustomerName(''); setProductName('')
     setPhases([]); setRiskTier('high'); setError('')
     onClose()
@@ -218,7 +168,7 @@ export default function CreateProjectModal({ open, onClose, onCreated }: Props) 
               ))}
             </div>
             <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 5 }}>
-              {step === 0 ? 'New Project' : `Step ${step} of 3 — ${step === 1 ? 'Project Identity' : step === 2 ? 'Phases & Timeline' : 'Risk Environment'}`}
+              Step {step} of 3 — {step === 1 ? 'Project Identity' : step === 2 ? 'Phases & Timeline' : 'Risk Environment'}
             </div>
           </div>
           <button className="modal-close" onClick={handleClose}>×</button>
@@ -228,59 +178,6 @@ export default function CreateProjectModal({ open, onClose, onCreated }: Props) 
         <div className="modal-body" style={{ flex: 1, overflowY: 'auto' }}>
 
           {/* ── STEP 1 — Identity ── */}
-          {step === 0 && (
-            <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-              <div style={{ fontSize:13, color:'var(--text3)', marginBottom:4 }}>How would you like to start?</div>
-              {/* Start from scratch */}
-              <div className="card" style={{ cursor:'pointer', border:'2px solid var(--border)', padding:20 }}
-                onClick={() => setStep(1)}>
-                <div style={{ display:'flex', gap:14, alignItems:'center' }}>
-                  <div style={{ width:40, height:40, background:'var(--bg)', borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><line x1="12" y1="5" x2="12" y2="19" stroke="var(--text2)" strokeWidth="1.5" strokeLinecap="round"/><line x1="5" y1="12" x2="19" y2="12" stroke="var(--text2)" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                  </div>
-                  <div>
-                    <div style={{ fontSize:14, fontWeight:600, color:'var(--text)', marginBottom:3 }}>Start from scratch</div>
-                    <div style={{ fontSize:12, color:'var(--text3)' }}>Define your own phases and tasks</div>
-                  </div>
-                </div>
-              </div>
-              {/* Use a template */}
-              <div className="card" style={{ cursor:'pointer', border:'2px solid var(--border)', padding:20 }}
-                onClick={() => { loadTemplates(); setStep(-1) }}>
-                <div style={{ display:'flex', gap:14, alignItems:'center' }}>
-                  <div style={{ width:40, height:40, background:'var(--bg)', borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" stroke="var(--text2)" strokeWidth="1.5"/><line x1="3" y1="9" x2="21" y2="9" stroke="var(--text2)" strokeWidth="1.5"/><line x1="9" y1="9" x2="9" y2="21" stroke="var(--text2)" strokeWidth="1.5"/></svg>
-                  </div>
-                  <div>
-                    <div style={{ fontSize:14, fontWeight:600, color:'var(--text)', marginBottom:3 }}>Use a template</div>
-                    <div style={{ fontSize:12, color:'var(--text3)' }}>Start with pre-defined phases and tasks</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {step === -1 && (
-            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-              <div style={{ fontSize:13, color:'var(--text3)', marginBottom:4 }}>Select a template</div>
-              {loadingTmpl ? (
-                <div style={{ textAlign:'center', padding:32, color:'var(--text4)' }}>Loading templates...</div>
-              ) : templates.length === 0 ? (
-                <div style={{ textAlign:'center', padding:32, color:'var(--text4)' }}>No templates available. Ask your Portfolio Manager to create one.</div>
-              ) : templates.map((t: any) => (
-                <div key={t.template_id} className="card" style={{ cursor:'pointer', border:'1px solid var(--border)', padding:16 }}
-                  onClick={() => applyTemplate(t)}>
-                  <div style={{ fontSize:14, fontWeight:600, color:'var(--text)', marginBottom:4 }}>{t.name}</div>
-                  {t.description && <div style={{ fontSize:12, color:'var(--text3)', marginBottom:8 }}>{t.description}</div>}
-                  <div style={{ display:'flex', gap:10, fontSize:11, color:'var(--text4)' }}>
-                    <span>{t.phase_count} phase{t.phase_count !== 1 ? 's' : ''}</span>
-                    <span>{t.task_count} task{t.task_count !== 1 ? 's' : ''}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
           {step === 1 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <SectionLabel>Project Identity</SectionLabel>
@@ -473,17 +370,13 @@ export default function CreateProjectModal({ open, onClose, onCreated }: Props) 
         {/* Footer */}
         <div className="modal-footer">
           <button className="tb-btn" onClick={handleClose}>Cancel</button>
-          {step === -1 && (
-            <button className="tb-btn" onClick={() => setStep(0)}>← Back</button>
-          )}
           {step > 1 && (
             <button className="tb-btn" onClick={() => setStep(s => s - 1)}>← Back</button>
           )}
           {step < 3 && (
             <button className="tb-btn primary"
               onClick={() => setStep(s => s + 1)}
-              disabled={step === 1 ? !canProceedStep1() : !canProceedStep2()}
-              style={{ display: step <= 0 ? 'none' : undefined }}>
+              disabled={step === 1 ? !canProceedStep1() : !canProceedStep2()}>
               Next →
             </button>
           )}
