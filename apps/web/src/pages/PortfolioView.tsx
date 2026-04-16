@@ -22,7 +22,7 @@ function monoColor(val: number, thresholdGood: number, thresholdBad: number, hig
 
 function fmt(date: string | null) {
   if (!date) return '—'
-  return new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
+  return new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
 type SortKey = 'project' | 'opv' | 'lfv' | 'planned_duration' | 'ecd' | 'expected_delay' | 'delay_pct' | 'status'
@@ -125,6 +125,7 @@ export default function PortfolioView({ projects, onOpenProject }: { projects: a
             {sorted.length === 0 && (
               <tr><td colSpan={8} style={{ textAlign:'center', padding:32, color:'var(--text4)' }}>No active projects</td></tr>
             )}
+            <div style={{ minWidth:700 }}>
             {sorted.map((p: any) => {
               const opv = parseFloat(p.opv)
               const lfv = parseFloat(p.lfv)
@@ -152,7 +153,7 @@ export default function PortfolioView({ projects, onOpenProject }: { projects: a
                   </td>
                   <td>
                     <span className="mono" style={{ fontSize:11, color: expectedDelayDays > 0 ? 'var(--red)' : 'var(--green)' }}>
-                      {ecd ? ecd.toLocaleDateString('en-GB', { day:'2-digit', month:'short' }) : '—'}
+                      {ecd ? ecd.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }) : '—'}
                     </span>
                   </td>
                   <td>
@@ -177,7 +178,8 @@ export default function PortfolioView({ projects, onOpenProject }: { projects: a
               <div className="card-sub">Blue = planned duration · Orange = delay extension · Vertical line = today</div>
             </div>
           </div>
-          <div className="gantt-months">
+          <div style={{ overflowX:"auto", overflowY:"hidden", WebkitOverflowScrolling:"touch", paddingBottom:8 }}>
+          <div className="gantt-months" style={{ minWidth:700 }}>
             {(() => {
               const allStarts = sorted.map((x:any) => new Date(x.start_date).getTime())
               const allECDs   = sorted.map((x:any) => x.ecd_algorithmic ? new Date(x.ecd_algorithmic).getTime() : new Date(x.planned_end_date).getTime())
@@ -193,6 +195,7 @@ export default function PortfolioView({ projects, onOpenProject }: { projects: a
             })()}
           </div>
           <div>
+            <div style={{ minWidth:700 }}>
             {sorted.map((p: any) => {
               const start      = new Date(p.start_date)
               const end        = new Date(p.planned_end_date)
@@ -226,6 +229,8 @@ export default function PortfolioView({ projects, onOpenProject }: { projects: a
                 </div>
               )
             })}
+            </div>
+          </div>
           </div>
         </div>
       )}
