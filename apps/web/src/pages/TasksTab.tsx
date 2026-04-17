@@ -63,7 +63,7 @@ interface TaskUpdate {
 // ─── Helpers ──────────────────────────────────────────────────────
 function fmt(date: string | null) {
   if (!date) return '—'
-  return new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
+  return new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
 function getRiskStyle(label: string): { cls: string; text: string } {
