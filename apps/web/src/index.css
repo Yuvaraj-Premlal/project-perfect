@@ -161,10 +161,10 @@ textarea.form-input { resize: vertical; min-height: 72px; }
 
 /* Gantt */
 .gantt-months { display: flex; margin-left: 176px; margin-bottom: 6px; }
-.gantt-month { font-size: 10px; color: var(--text4); flex: 1; text-align: center; font-weight: 500; }
+.gantt-month { font-size: 11px; color: var(--text4); flex: 0 0 60px; text-align: center; font-weight: 500; }
 .gantt-row { display: flex; align-items: center; gap: 0; margin-bottom: 6px; min-height: 30px; }
 .gantt-label { width: 176px; flex-shrink: 0; font-size: 11px; color: var(--text2); padding-right: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.gantt-track { flex: 1; height: 26px; position: relative; background: var(--bg2); border-radius: 5px; overflow: hidden; }
+.gantt-track { flex: 1; min-width: 0; height: 26px; position: relative; background: var(--bg2); border-radius: 5px; overflow: hidden; }
 .gantt-bar { position: absolute; height: 18px; top: 4px; border-radius: 4px; display: flex; align-items: center; padding: 0 8px; font-size: 10px; font-weight: 600; white-space: nowrap; }
 .gantt-bar.planned { background: var(--blue4); color: var(--navy); border: 1px solid #B0CBE6; }
 .gantt-bar.delay   { background: var(--red-bg); color: var(--red); border: 1px solid #EAADA8; }
