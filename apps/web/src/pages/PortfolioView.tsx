@@ -181,9 +181,8 @@ export default function PortfolioView({ projects, onOpenProject }: { projects: a
           <div className="gantt-months" style={{ minWidth:800 }}>
             {(() => {
               const allStarts = sorted.map((x:any) => new Date(x.start_date).getTime())
-              const allECDs   = sorted.map((x:any) => x.ecd_algorithmic ? new Date(x.ecd_algorithmic).getTime() : new Date(x.planned_end_date).getTime())
               const rStart    = new Date(Math.min(...allStarts)); rStart.setMonth(0,1)
-              const rEnd      = new Date(Math.max(...allECDs));   rEnd.setMonth(11,31)
+              const rEnd      = new Date(rStart); rEnd.setMonth(rEnd.getMonth() + 24)
               const months    = []
               const cur       = new Date(rStart)
               while (cur <= rEnd) {
@@ -199,21 +198,25 @@ export default function PortfolioView({ projects, onOpenProject }: { projects: a
               const end        = new Date(p.planned_end_date)
               const ecd        = p.ecd_algorithmic ? new Date(p.ecd_algorithmic) : end
               const hasDelay   = ecd > end
-              // Use dynamic range based on earliest start and latest ECD across all projects
+
+              // Cap timeline at 24 months from earliest project start
               const allStarts  = sorted.map((x:any) => new Date(x.start_date).getTime())
-              const allECDs    = sorted.map((x:any) => x.ecd_algorithmic ? new Date(x.ecd_algorithmic).getTime() : new Date(x.planned_end_date).getTime())
               const rangeStart = new Date(Math.min(...allStarts))
-              const rangeEnd   = new Date(Math.max(...allECDs))
               rangeStart.setMonth(0, 1)
-              rangeEnd.setMonth(11, 31)
-              const yearStart  = rangeStart
-              const yearEnd    = rangeEnd
-              const total      = yearEnd.getTime() - yearStart.getTime()
-              const left       = ((start.getTime() - yearStart.getTime()) / total * 100).toFixed(1)
-              const width      = ((end.getTime() - start.getTime()) / total * 100).toFixed(1)
-              const delayW     = hasDelay ? ((ecd.getTime() - end.getTime()) / total * 100).toFixed(1) : '0'
+              const rangeEnd   = new Date(rangeStart)
+              rangeEnd.setMonth(rangeEnd.getMonth() + 24)
+
+              // Check if ECD exceeds the 24-month cap
+              const isTruncated = hasDelay && ecd > rangeEnd
+              const displayECD  = isTruncated ? rangeEnd : ecd
+
+              const total      = rangeEnd.getTime() - rangeStart.getTime()
+              const left       = Math.max(0, (start.getTime() - rangeStart.getTime()) / total * 100)
+              const width      = Math.min(100 - left, (end.getTime() - start.getTime()) / total * 100)
+              const delayW     = hasDelay ? Math.min(100 - left - width, (displayECD.getTime() - end.getTime()) / total * 100) : 0
               const delayDays  = hasDelay ? Math.round((ecd.getTime() - end.getTime()) / 86400000) : 0
-              const today      = ((new Date().getTime() - yearStart.getTime()) / total * 100).toFixed(1)
+              const today      = Math.min(100, Math.max(0, (new Date().getTime() - rangeStart.getTime()) / total * 100))
+
               return (
                 <div key={p.project_id} className="gantt-row">
                   <div className="gantt-label" style={{ fontWeight:500 }}>{p.project_name}</div>
@@ -221,7 +224,10 @@ export default function PortfolioView({ projects, onOpenProject }: { projects: a
                     <div className="gantt-today" style={{ left:`${today}%` }} />
                     <div className="gantt-bar planned" style={{ left:`${left}%`, width:`${width}%` }}>Planned</div>
                     {hasDelay && (
-                      <div className="gantt-bar delay" style={{ left:`${parseFloat(left)+parseFloat(width)}%`, width:`${delayW}%` }}>+{delayDays}d</div>
+                      <div className="gantt-bar delay" style={{ left:`${left+width}%`, width:`${delayW}%`, display:'flex', alignItems:'center', justifyContent:'space-between', paddingRight: isTruncated ? 4 : undefined }}>
+                        <span>+{delayDays}d</span>
+                        {isTruncated && <span style={{ fontSize:13, fontWeight:700, letterSpacing:1 }}>»</span>}
+                      </div>
                     )}
                   </div>
                 </div>
