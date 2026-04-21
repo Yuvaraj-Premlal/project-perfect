@@ -204,15 +204,6 @@ function SummaryTab({ project, tasks, apqpElements }: { project:any, tasks:any[]
   const apqpColor     = apqpHealth === 'green' ? 'var(--green)' : apqpHealth === 'amber' ? 'var(--amber)' : 'var(--red)'
   const apqpBg        = apqpHealth === 'green' ? 'var(--green-bg)' : apqpHealth === 'amber' ? 'var(--amber-bg)' : 'var(--red-bg)'
 
-  // APQP health for summary card
-  const apqpTotal     = apqpElements.length
-  const apqpCompleted = apqpElements.filter((e:any) => e.status === 'complete').length
-  const apqpOverdue   = apqpElements.filter((e:any) => e.status !== 'complete' && e.planned_end_date && new Date(e.planned_end_date) < today).length
-  const apqpHealth    = apqpOverdue >= 3 ? 'red' : apqpOverdue >= 1 ? 'amber' : 'green'
-  const apqpLabel     = apqpHealth === 'green' ? 'On Track' : apqpHealth === 'amber' ? 'At Risk' : 'Overdue'
-  const apqpColor     = apqpHealth === 'green' ? 'var(--green)' : apqpHealth === 'amber' ? 'var(--amber)' : 'var(--red)'
-  const apqpBg        = apqpHealth === 'green' ? 'var(--green-bg)' : apqpHealth === 'amber' ? 'var(--amber-bg)' : 'var(--red-bg)'
-
   // For project completion bar
   function barPct(d:Date|null, start:Date|null, end:Date|null){
     if(!d||!start||!end)return 0
