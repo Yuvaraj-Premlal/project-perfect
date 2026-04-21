@@ -679,7 +679,7 @@ const SECTION_LABELS: Record<string,string> = {
   pm_closing_remarks:      "PM Closing Remarks",
 }
 
-function ClosureTab({ project, tasks, canEdit=true }: { project:any, tasks:any[], canEdit?:boolean }) {
+function ClosureTab({ project, tasks, canEdit=true, apqpElements=[] }: { project:any, tasks:any[], canEdit?:boolean, apqpElements?:any[] }) {
   const qc = useQueryClient()
   const [pmNotes, setPmNotes] = useState("")
   const [date, setDate] = useState(new Date().toISOString().split("T")[0])
@@ -756,6 +756,8 @@ function ClosureTab({ project, tasks, canEdit=true }: { project:any, tasks:any[]
     )
   }
 
+  const incompleteApqp = apqpElements.filter((e:any) => e.status !== 'complete')
+
   if (incompleteTasks.length > 0) {
     return (
       <div className="card">
@@ -774,6 +776,28 @@ function ClosureTab({ project, tasks, canEdit=true }: { project:any, tasks:any[]
                 <span style={{ fontSize:11, color:"var(--text4)" }}>{t.phase_name || "Unassigned"}</span>
                 <span className={`status ${t.control_type === "internal" ? "blue" : t.control_type === "supplier" ? "amber" : "red"}`} style={{ textTransform:"capitalize" }}>{(t.control_type || "").replace("_"," ")}</span>
               </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (incompleteApqp.length > 0) {
+    return (
+      <div className="card">
+        <div className="card-header">
+          <div>
+            <div className="card-title">Cannot Close Project</div>
+            <div className="card-sub">APQP must be 100% complete before closing</div>
+          </div>
+          <span className="status red">{incompleteApqp.length} APQP incomplete</span>
+        </div>
+        <div style={{ marginTop:8 }}>
+          {incompleteApqp.map((e:any) => (
+            <div key={e.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 0", borderBottom:"1px solid var(--border)" }}>
+              <div style={{ color:"var(--text)", fontWeight:500 }}>{e.element_name}</div>
+              <span className="status amber" style={{ fontSize:11, textTransform:'capitalize' }}>{e.status.replace('_',' ')}</span>
             </div>
           ))}
         </div>
@@ -901,7 +925,7 @@ export default function ProjectView({ projectId }: { projectId:string }) {
         canEdit={canEdit}
       />)}
       {activeTab==='Reports'       && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <ReportsTab projectId={projectId} canEdit={canEdit} />)}
-      {activeTab==='Closure'       && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <ClosureTab project={project} tasks={tasks as any[]} canEdit={canEdit} />)}
+      {activeTab==='Closure'       && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <ClosureTab project={project} tasks={tasks as any[]} canEdit={canEdit} apqpElements={apqpElements as any[]} />)}
       {activeTab==='Charter'       && <CharterTab project={project} phases={project.phases || []} />}
       {activeTab==='APQP'          && <APQPTab projectId={projectId} canEdit={canEdit} />}
     </div>
