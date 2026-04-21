@@ -5,8 +5,9 @@ import { canEditProject } from '../api/auth'
 import TasksTab from './TasksTab'
 import ReviewsTab from './ReviewsTab'
 import CharterTab from './CharterTab'
+import APQPTab from './APQPTab'
 
-const TABS = ['Summary','Tasks','Status Kanban','Weekly Kanban','Function Kanban','Reviews','Reports','Closure','Charter'] as const
+const TABS = ['Summary','Tasks','Status Kanban','Weekly Kanban','Function Kanban','Reviews','Reports','Closure','Charter','APQP'] as const
 type Tab = typeof TABS[number]
 
 
@@ -900,6 +901,7 @@ export default function ProjectView({ projectId }: { projectId:string }) {
       {activeTab==='Reports'       && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <ReportsTab projectId={projectId} canEdit={canEdit} />)}
       {activeTab==='Closure'       && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <ClosureTab project={project} tasks={tasks as any[]} canEdit={canEdit} />)}
       {activeTab==='Charter'       && <CharterTab project={project} phases={project.phases || []} />}
+      {activeTab==='APQP'          && <APQPTab projectId={projectId} canEdit={canEdit} />}
     </div>
   )
 }

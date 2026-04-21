@@ -230,6 +230,20 @@ router.post('/:projectId/close', async (req, res) => {
     [projectId, req.tenantId]);
   const completedTasks = tasksResult.rows.filter(t => t.completion_status === 'complete').length;
 
+  // APQP closure gate — all elements must be complete
+  const apqpResult = await dbQuery(req.tenantId,
+    `SELECT COUNT(*) AS total,
+            SUM(CASE WHEN status = 'complete' THEN 1 ELSE 0 END) AS completed
+     FROM project_apqp_elements WHERE project_id = $1 AND tenant_id = $2`,
+    [projectId, req.tenantId]);
+  const apqpTotal = parseInt(apqpResult.rows[0].total);
+  const apqpCompleted = parseInt(apqpResult.rows[0].completed);
+  if (apqpTotal > 0 && apqpCompleted < apqpTotal) {
+    return res.status(400).json({
+      error: `APQP incomplete — ${apqpCompleted} of ${apqpTotal} elements complete. All APQP elements must be complete before closing.`
+    });
+  }
+
   const slippageResult = await dbQuery(req.tenantId,
     `SELECT COUNT(*) FROM task_slippage_history tsh
      JOIN tasks t ON t.task_id = tsh.task_id
