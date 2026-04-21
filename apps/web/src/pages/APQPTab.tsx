@@ -15,14 +15,13 @@ function getHealth(elements: any[]) {
   const overdue = elements.filter(e =>
     e.status !== 'complete' && e.planned_end_date && new Date(e.planned_end_date) < today
   ).length
-  const onTime = elements.filter(e =>
-    e.status === 'complete' && e.completed_date && e.planned_end_date &&
-    new Date(e.completed_date) <= new Date(e.planned_end_date)
-  ).length
-  const totalCompleted = completed
+  const onTime = elements.filter(e => {
+    if (e.status !== 'complete' || !e.completed_date || !e.planned_end_date) return false
+    return new Date(e.completed_date) <= new Date(e.planned_end_date)
+  }).length
   const completionRate = Math.round(completed / total * 100)
-  const onTimeRate = totalCompleted > 0 ? Math.round(onTime / totalCompleted * 100) : 100
-  let health = 'green'
+  const onTimeRate = completed > 0 ? Math.round(onTime / completed * 100) : null
+  let health: 'green' | 'amber' | 'red' = 'green'
   if (overdue >= 3 || completionRate < 50) health = 'red'
   else if (overdue >= 1 || completionRate < 75) health = 'amber'
   return { total, completed, overdue, completionRate, onTimeRate, health }
@@ -35,6 +34,12 @@ function dayDiff(a: string, b: string) {
 function fmt(d: string | null) {
   if (!d) return '—'
   return new Date(d).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })
+}
+
+const HEALTH_LABELS: Record<string, { label: string, color: string, bg: string }> = {
+  green: { label: 'On Track',  color: 'var(--green)',  bg: 'var(--green-bg)' },
+  amber: { label: 'At Risk',   color: 'var(--amber)',  bg: 'var(--amber-bg)' },
+  red:   { label: 'Overdue',   color: 'var(--red)',    bg: 'var(--red-bg)'   },
 }
 
 export default function APQPTab({ projectId, canEdit }: { projectId: string, canEdit: boolean }) {
@@ -59,7 +64,6 @@ export default function APQPTab({ projectId, canEdit }: { projectId: string, can
 
   return (
     <div style={{ display:'flex', gap:0, height:'100%' }}>
-      {/* Main panel */}
       <div style={{ flex:1, overflowY:'auto' }}>
 
         {/* KPI bar */}
@@ -74,8 +78,8 @@ export default function APQPTab({ projectId, canEdit }: { projectId: string, can
             </div>
             <div className="kpi">
               <div className="kpi-label">On-Time Rate</div>
-              <div className={`kpi-val ${health.onTimeRate === 100 ? 'green' : health.onTimeRate >= 75 ? 'amber' : 'red'}`}>
-                {health.onTimeRate}%
+              <div className={`kpi-val ${health.onTimeRate === null ? '' : health.onTimeRate === 100 ? 'green' : health.onTimeRate >= 75 ? 'amber' : 'red'}`}>
+                {health.onTimeRate === null ? '—' : `${health.onTimeRate}%`}
               </div>
               <div className="kpi-sub">of completed elements</div>
             </div>
@@ -88,8 +92,17 @@ export default function APQPTab({ projectId, canEdit }: { projectId: string, can
             </div>
             <div className="kpi">
               <div className="kpi-label">APQP Health</div>
-              <div className={`kpi-val ${health.health}`} style={{ textTransform:'capitalize' }}>{health.health}</div>
-              <div className="kpi-sub">overall status</div>
+              <div style={{ marginTop:4 }}>
+                <span style={{
+                  display:'inline-flex', alignItems:'center', gap:6,
+                  background: HEALTH_LABELS[health.health].bg,
+                  color: HEALTH_LABELS[health.health].color,
+                  borderRadius:99, padding:'4px 12px', fontSize:13, fontWeight:600
+                }}>
+                  <span style={{ width:7, height:7, borderRadius:'50%', background: HEALTH_LABELS[health.health].color, display:'inline-block' }} />
+                  {HEALTH_LABELS[health.health].label}
+                </span>
+              </div>
             </div>
           </div>
         )}
@@ -105,7 +118,7 @@ export default function APQPTab({ projectId, canEdit }: { projectId: string, can
               </tr>
             </thead>
             <tbody>
-              {elements.map((el: any, _idx: number) => {
+              {elements.map((el: any) => {
                 const isOverdue = el.status !== 'complete' && el.planned_end_date && new Date(el.planned_end_date) < today
                 const daysLeft = el.status !== 'complete' && el.planned_end_date && new Date(el.planned_end_date) >= today
                   ? dayDiff(today.toISOString().split('T')[0], el.planned_end_date)
@@ -170,14 +183,13 @@ export default function APQPTab({ projectId, canEdit }: { projectId: string, can
 function APQPSidePanel({ element, projectId, canEdit, onClose, onSaved }:
   { element: any, projectId: string, canEdit: boolean, onClose: () => void, onSaved: () => void }) {
 
-  const [startDate, setStartDate]     = useState(element.start_date || '')
-  const [status, setStatus]           = useState(element.status)
-  const [docRef, setDocRef]           = useState(element.doc_reference || '')
-  const [updateText, setUpdateText]   = useState('')
-  const [saving, setSaving]           = useState(false)
-  const [error, setError]             = useState('')
-
-  const today = new Date(); today.setHours(0,0,0,0)
+  const startAlreadySet = !!element.start_date
+  const [startDate, setStartDate]   = useState(element.start_date || '')
+  const [status, setStatus]         = useState(element.status)
+  const [docRef, setDocRef]         = useState(element.doc_reference || '')
+  const [updateText, setUpdateText] = useState('')
+  const [saving, setSaving]         = useState(false)
+  const [error, setError]           = useState('')
 
   // Calculate preview end date
   const previewEnd = startDate
@@ -196,16 +208,15 @@ function APQPSidePanel({ element, projectId, canEdit, onClose, onSaved }:
     setSaving(true); setError('')
     try {
       await api.patch(`/api/apqp/projects/${projectId}/elements/${element.id}`, {
-        start_date: startDate || undefined,
+        start_date:   !startAlreadySet && startDate ? startDate : undefined,
         status,
         doc_reference: docRef || undefined,
-        update_text: updateText || undefined,
+        update_text:   updateText || undefined,
       })
       onSaved()
     } catch (err: any) {
       setError(err?.response?.data?.error || 'Failed to save')
-    } finally {
-      setSaving(false) }
+    } finally { setSaving(false) }
   }
 
   return (
@@ -222,7 +233,12 @@ function APQPSidePanel({ element, projectId, canEdit, onClose, onSaved }:
         </span>
         {element.planned_end_date && (
           <span style={{ fontSize:11, background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:99, padding:'2px 10px', color:'var(--text2)' }}>
-            Due: {new Date(element.planned_end_date).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })}
+            Due: {fmt(element.planned_end_date)}
+          </span>
+        )}
+        {element.start_date && (
+          <span style={{ fontSize:11, background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:99, padding:'2px 10px', color:'var(--text2)' }}>
+            Started: {fmt(element.start_date)}
           </span>
         )}
       </div>
@@ -230,17 +246,19 @@ function APQPSidePanel({ element, projectId, canEdit, onClose, onSaved }:
       {canEdit && (
         <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
 
-          {/* Start date */}
-          <div className="form-group">
-            <label className="form-label">Start date</label>
-            <input type="date" className="form-input" value={startDate}
-              onChange={e => setStartDate(e.target.value)} />
-            {previewEnd && (
-              <div style={{ fontSize:11, color:'var(--text3)', marginTop:4 }}>
-                Planned end: <strong>{previewEnd}</strong>
-              </div>
-            )}
-          </div>
+          {/* Start date — only if not yet set */}
+          {!startAlreadySet && (
+            <div className="form-group">
+              <label className="form-label">Start date</label>
+              <input type="date" className="form-input" value={startDate}
+                onChange={e => setStartDate(e.target.value)} />
+              {previewEnd && (
+                <div style={{ fontSize:11, color:'var(--text3)', marginTop:4 }}>
+                  Planned end: <strong>{previewEnd}</strong>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Status */}
           <div className="form-group">
@@ -252,21 +270,19 @@ function APQPSidePanel({ element, projectId, canEdit, onClose, onSaved }:
             </select>
           </div>
 
-          {/* Doc reference — shown when completing */}
+          {/* Doc reference — required on completion */}
           {status === 'complete' && (
             <div className="form-group">
               <label className="form-label">Document reference *</label>
               <input className="form-input" value={docRef}
                 onChange={e => setDocRef(e.target.value)}
                 placeholder="e.g. feasibility_v2.pdf or SharePoint link" />
-              <div style={{ fontSize:11, color:'var(--text3)', marginTop:4 }}>
-                Required for completion — link or document name
-              </div>
+              <div style={{ fontSize:11, color:'var(--text3)', marginTop:4 }}>Required — link or document name</div>
             </div>
           )}
 
-          {/* Existing doc ref if already set */}
-          {status !== 'complete' && element.doc_reference && (
+          {/* Show existing doc ref if already complete */}
+          {element.status === 'complete' && element.doc_reference && (
             <div style={{ fontSize:12, color:'var(--text2)', background:'var(--bg2)', borderRadius:6, padding:'8px 12px' }}>
               <span style={{ color:'var(--text4)' }}>Doc: </span>{element.doc_reference}
             </div>
@@ -301,9 +317,10 @@ function APQPSidePanel({ element, projectId, canEdit, onClose, onSaved }:
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
             {element.updates.map((u: any) => (
               <div key={u.id} style={{ fontSize:12, color:'var(--text2)', background:'var(--bg2)', borderRadius:6, padding:'8px 12px', borderLeft:'3px solid var(--blue)' }}>
-                <div style={{ marginBottom:3 }}>{u.update_text}</div>
-                <div style={{ fontSize:10, color:'var(--text4)' }}>
-                  {new Date(u.created_at).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })}
+                <div style={{ marginBottom:4 }}>{u.update_text}</div>
+                <div style={{ fontSize:10, color:'var(--text4)', display:'flex', justifyContent:'space-between' }}>
+                  <span>{u.created_by_name || 'Unknown'}</span>
+                  <span>{new Date(u.created_at).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })}</span>
                 </div>
               </div>
             ))}
