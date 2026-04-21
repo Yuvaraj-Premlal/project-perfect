@@ -847,6 +847,8 @@ export default function ProjectView({ projectId }: { projectId:string }) {
 
   const { data:project, isLoading, refetch:refetchProject } = useQuery({ queryKey:['project',projectId], queryFn:()=>getProject(projectId) })
   const { data:tasks=[], refetch:refetchTasks } = useQuery({ queryKey:['tasks',projectId], queryFn:()=>getTasks(projectId) })
+  const { data: apqpElements = [] } = useQuery({ queryKey: ['apqp-elements', projectId], queryFn: async () => { const { api } = await import('../api/client'); const r = await api.get(`/api/apqp/projects/${projectId}/elements`); return r.data } })
+  const hasApqp = (apqpElements as any[]).length > 0
   if (isLoading || !project) return <div style={{ textAlign:'center', padding:60, color:'var(--text4)' }}>Loading project...</div>
 
   // Compute flagged tasks - overdue ECD or stale update (4+ days)
@@ -866,7 +868,7 @@ export default function ProjectView({ projectId }: { projectId:string }) {
     <div>
       <KPIRow project={project} tasks={tasks as any[]} />
       <div className="tab-nav">
-        {TABS.map(tab => (
+        {TABS.filter(tab => tab !== 'APQP' || hasApqp).map(tab => (
           <button
             key={tab}
             className={`tab ${activeTab===tab?'active':''}`}

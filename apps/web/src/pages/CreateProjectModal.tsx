@@ -107,7 +107,10 @@ export default function CreateProjectModal({ open, onClose, onCreated }: Props) 
   const totalEnd   = phases.length > 0 ? phases[phases.length - 1].target_date : null
 
   function canProceedStep1() {
-    return projectName.trim() !== '' && launchDate !== ''
+    if (!projectName.trim() || !launchDate) return false
+    if (includeApqp && (apqpTemplates as any[]).length === 0) return false
+    if (includeApqp && !apqpTemplateId) return false
+    return true
   }
 
   function canProceedStep2() {
@@ -246,8 +249,9 @@ export default function CreateProjectModal({ open, onClose, onCreated }: Props) 
                   <div className="form-group" style={{ margin:'12px 0 0' }}>
                     <label className="form-label">APQP Template</label>
                     {(apqpTemplates as any[]).length === 0 ? (
-                      <div style={{ fontSize:12, color:'var(--amber)', padding:'8px 12px', background:'var(--amber-bg)', borderRadius:6 }}>
-                        No APQP templates found. Ask your Portfolio Manager to create one.
+                      <div style={{ fontSize:12, color:'var(--amber)', padding:'8px 12px', background:'var(--amber-bg)', borderRadius:6, display:'flex', alignItems:'center', gap:8 }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" stroke="currentColor" strokeWidth="1.5"/><line x1="12" y1="9" x2="12" y2="13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><circle cx="12" cy="17" r="0.5" fill="currentColor"/></svg>
+                        No APQP templates available. Ask your Portfolio Manager to create one before proceeding.
                       </div>
                     ) : (
                       <select className="form-input" value={apqpTemplateId} onChange={e => setApqpTemplateId(e.target.value)}>
