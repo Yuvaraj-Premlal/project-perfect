@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQueryClient, useQuery } from '@tanstack/react-query'
+import { api } from '../api/client'
 import { createProject } from '../api/projects'
 
 interface Phase {
@@ -72,6 +73,13 @@ export default function CreateProjectModal({ open, onClose, onCreated }: Props) 
 
   // Step 2 — Phases
   const [phases, setPhases] = useState<Phase[]>([])
+  // APQP
+  const [includeApqp, setIncludeApqp]       = useState(false)
+  const [apqpTemplateId, setApqpTemplateId] = useState('')
+  const { data: apqpTemplates = [] } = useQuery({
+    queryKey: ['apqp-templates'],
+    queryFn: async () => { const r = await api.get('/api/apqp/templates'); return r.data }
+  })
 
   // Step 3 — Risk
   const [riskTier, setRiskTier] = useState<'high' | 'moderate' | 'low'>('high')
@@ -120,6 +128,11 @@ export default function CreateProjectModal({ open, onClose, onCreated }: Props) 
         risk_tier:          riskTier,
         phases:             phases.map((p, i) => ({ ...p, phase_order: i + 1 })),
       })
+      if (includeApqp && apqpTemplateId) {
+        try {
+          await api.post(`/api/apqp/projects/${project.project_id}/elements/instantiate`, { template_id: apqpTemplateId })
+        } catch (e) { console.warn('APQP instantiation failed:', e) }
+      }
       qc.invalidateQueries({ queryKey: ['projects'] })
       onCreated(project.project_id)
       handleClose()
@@ -137,6 +150,7 @@ export default function CreateProjectModal({ open, onClose, onCreated }: Props) 
     setStep(1)
     setProjectName(''); setLaunchDate(''); setProjectCode(''); setCustomerName(''); setProductName('')
     setPhases([]); setRiskTier('high'); setError('')
+    setIncludeApqp(false); setApqpTemplateId('')
     onClose()
   }
   // Close on Escape key
@@ -216,6 +230,35 @@ export default function CreateProjectModal({ open, onClose, onCreated }: Props) 
                 <input className="form-input" value={productName}
                   onChange={e => setProductName(e.target.value)}
                   placeholder="Product name or number" />
+              </div>
+            <div style={{ borderTop:'1px solid var(--border)', paddingTop:14 }}>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                  <div>
+                    <div style={{ fontSize:13, fontWeight:500, color:'var(--text)' }}>Include APQP tracking?</div>
+                    <div style={{ fontSize:11, color:'var(--text4)', marginTop:2 }}>Attach APQP element tracker to this project</div>
+                  </div>
+                  <div onClick={() => setIncludeApqp(p => !p)}
+                    style={{ width:40, height:22, borderRadius:11, background: includeApqp ? 'var(--blue)' : 'var(--border)', cursor:'pointer', position:'relative', transition:'background .2s', flexShrink:0 }}>
+                    <div style={{ width:16, height:16, borderRadius:'50%', background:'#fff', position:'absolute', top:3, left: includeApqp ? 21 : 3, transition:'left .2s' }} />
+                  </div>
+                </div>
+                {includeApqp && (
+                  <div className="form-group" style={{ margin:'12px 0 0' }}>
+                    <label className="form-label">APQP Template</label>
+                    {(apqpTemplates as any[]).length === 0 ? (
+                      <div style={{ fontSize:12, color:'var(--amber)', padding:'8px 12px', background:'var(--amber-bg)', borderRadius:6 }}>
+                        No APQP templates found. Ask your Portfolio Manager to create one.
+                      </div>
+                    ) : (
+                      <select className="form-input" value={apqpTemplateId} onChange={e => setApqpTemplateId(e.target.value)}>
+                        <option value="">Select template</option>
+                        {(apqpTemplates as any[]).map((t: any) => (
+                          <option key={t.template_id} value={t.template_id}>{t.name} ({t.element_count} elements)</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )}
