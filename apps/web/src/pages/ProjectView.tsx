@@ -6,6 +6,7 @@ import TasksTab from './TasksTab'
 import ReviewsTab from './ReviewsTab'
 import CharterTab from './CharterTab'
 import APQPTab from './APQPTab'
+import { isApqpEnabled } from '../api/auth'
 
 const TABS = ['Summary','Tasks','APQP','Status Kanban','Weekly Kanban','Function Kanban','Reviews','Reports','Closure','Charter'] as const
 type Tab = typeof TABS[number]
@@ -233,7 +234,7 @@ function SummaryTab({ project, tasks, apqpElements }: { project:any, tasks:any[]
           </div>
 
           {/* APQP Health card — only if APQP active */}
-          {apqpTotal > 0 && (
+          {isApqpEnabled() && apqpTotal > 0 && (
             <div className="card">
               <div className="card-header">
                 <div><div className="card-title">APQP Status</div><div className="card-sub">{apqpCompleted} of {apqpTotal} elements complete</div></div>
@@ -899,7 +900,7 @@ export default function ProjectView({ projectId }: { projectId:string }) {
   const { data:project, isLoading, refetch:refetchProject } = useQuery({ queryKey:['project',projectId], queryFn:()=>getProject(projectId) })
   const { data:tasks=[], refetch:refetchTasks } = useQuery({ queryKey:['tasks',projectId], queryFn:()=>getTasks(projectId) })
   const { data: apqpElements = [] } = useQuery({ queryKey: ['apqp-elements', projectId], queryFn: async () => { const { api } = await import('../api/client'); const r = await api.get(`/api/apqp/projects/${projectId}/elements`); return r.data } })
-  const hasApqp = (apqpElements as any[]).length > 0
+  const hasApqp = isApqpEnabled() && (apqpElements as any[]).length > 0
   if (isLoading || !project) return <div style={{ textAlign:'center', padding:60, color:'var(--text4)' }}>Loading project...</div>
 
   // Compute flagged tasks - overdue ECD or stale update (4+ days)

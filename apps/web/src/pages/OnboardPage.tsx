@@ -10,13 +10,14 @@ export default function OnboardPage() {
   const [loading, setLoading]     = useState(false)
   const [error, setError]         = useState('')
   const [result, setResult]       = useState<any>(null)
+  const [apqpEnabled, setApqpEnabled] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true); setError(''); setResult(null)
     try {
       const res = await api.post('/onboard',
-        { org_name: orgName, admin_name: adminName,
+        { org_name: orgName, admin_name: adminName, apqp_enabled: apqpEnabled,
           admin_email: adminEmail, admin_password: adminPass },
         { headers: { 'x-platform-secret': secret } }
       )
@@ -97,6 +98,16 @@ export default function OnboardPage() {
                 <input className="form-input" type="password" value={adminPass}
                   onChange={e => setAdminPass(e.target.value)} required
                   placeholder="Min 8 characters" />
+              </div>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 0', borderTop:'1px solid #E2E8F0' }}>
+                <div>
+                  <div style={{ fontSize:13, fontWeight:500, color:'#0F172A' }}>Include APQP Tracking?</div>
+                  <div style={{ fontSize:11, color:'#94A3B8', marginTop:2 }}>Enable APQP quality process tracking for this organisation</div>
+                </div>
+                <div onClick={() => setApqpEnabled(p => !p)}
+                  style={{ width:40, height:22, borderRadius:11, background: apqpEnabled ? '#0F62FE' : '#E2E8F0', cursor:'pointer', position:'relative', transition:'background .2s', flexShrink:0 }}>
+                  <div style={{ width:16, height:16, borderRadius:'50%', background:'#fff', position:'absolute', top:3, left: apqpEnabled ? 21 : 3, transition:'left .2s' }} />
+                </div>
               </div>
               {error && (
                 <div style={{ color:'#C0392B', fontSize:12, background:'#FEF2F2',

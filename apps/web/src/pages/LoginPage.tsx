@@ -16,6 +16,7 @@ export default function LoginPage() {
     try {
       const res = await api.post('/auth/login', { email, password })
       localStorage.setItem('pp_token', res.data.token)
+      localStorage.setItem('pp_apqp', res.data.user?.apqp_enabled ? 'true' : 'false')
       navigate('/')
     } catch (err: any) {
       setError(err?.response?.data?.error || 'Invalid email or password')

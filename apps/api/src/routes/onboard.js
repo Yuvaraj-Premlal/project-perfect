@@ -14,7 +14,7 @@ function platformAuth(req, res, next) {
 
 // POST /onboard — create a new tenant + Super User
 router.post('/', platformAuth, async (req, res) => {
-  const { org_name, admin_name, admin_email, admin_password } = req.body;
+  const { org_name, admin_name, admin_email, admin_password, apqp_enabled } = req.body;
 
   if (!org_name || !admin_name || !admin_email || !admin_password)
     return res.status(400).json({ error: 'org_name, admin_name, admin_email, admin_password are required' });
@@ -39,8 +39,8 @@ router.post('/', platformAuth, async (req, res) => {
     const subdomain = org_name.trim().toLowerCase()
       .replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
     const tenantResult = await client.query(
-      `INSERT INTO tenants (company_name, subdomain) VALUES ($1, $2) RETURNING tenant_id, company_name`,
-      [org_name.trim(), subdomain + '-' + Date.now()]
+      `INSERT INTO tenants (company_name, subdomain, apqp_enabled) VALUES ($1, $2, $3) RETURNING tenant_id, company_name, apqp_enabled`,
+      [org_name.trim(), subdomain + '-' + Date.now(), apqp_enabled === true || apqp_enabled === 'true']
     );
     const tenant = tenantResult.rows[0];
 

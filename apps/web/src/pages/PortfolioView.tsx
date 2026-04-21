@@ -1,5 +1,6 @@
 // @ts-ignore
 import { useState } from 'react'
+import { isApqpEnabled } from '../api/auth'
 
 function getStatusCls(opv: number, lfv: number): { cls: string, text: string } {
   if (opv < 0.8 || lfv > 1.2) return { cls: 'red',   text: 'Out of control' }
@@ -119,7 +120,7 @@ export default function PortfolioView({ projects, onOpenProject }: { projects: a
               <SortTh label="Expected Delay"   col="expected_delay" />
               <SortTh label="Delay %"          col="delay_pct" />
               <SortTh label="Status"           col="status" />
-              <th style={{ padding:"10px 14px", fontSize:11, fontWeight:600, color:"var(--text3)", textAlign:"left", textTransform:"uppercase", letterSpacing:"0.06em" }}>APQP Health</th>
+              {isApqpEnabled() && <th style={{ padding:"10px 14px", fontSize:11, fontWeight:600, color:"var(--text3)", textAlign:"left", textTransform:"uppercase", letterSpacing:"0.06em" }}>APQP Health</th>}
             </tr>
           </thead>
           <tbody>
@@ -163,7 +164,7 @@ export default function PortfolioView({ projects, onOpenProject }: { projects: a
                   </td>
                   <td><span className={`status ${cls}`}>{delayPct.toFixed(0)}%</span></td>
                   <td><span className={`status ${cls}`}>{text}</span></td>
-                  <td style={{ padding:'10px 14px' }}>
+                  {isApqpEnabled() && <td style={{ padding:'10px 14px' }}>
                     {p.apqp_health ? (
                       <span style={{
                         display:'inline-flex', alignItems:'center', gap:5,
@@ -175,7 +176,7 @@ export default function PortfolioView({ projects, onOpenProject }: { projects: a
                         {p.apqp_health === 'green' ? 'On Track' : p.apqp_health === 'amber' ? 'At Risk' : 'Overdue'}
                       </span>
                     ) : <span style={{ color:'var(--text4)', paddingLeft:14 }}>—</span>}
-                  </td>
+                  </td>}
                 </tr>
               )
             })}

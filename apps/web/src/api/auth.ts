@@ -1,3 +1,7 @@
+export function isApqpEnabled(): boolean {
+  return localStorage.getItem("pp_apqp") === "true"
+}
+
 export function getCurrentUser() {
   try {
     const token = localStorage.getItem('pp_token')

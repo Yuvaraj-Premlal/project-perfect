@@ -16,8 +16,10 @@ router.post('/login', async (req, res) => {
     // Look up user by email across all tenants
     const result = await client.query(
       `SELECT u.user_id, u.email, u.full_name, u.role,
-              u.password_hash, u.is_active, u.tenant_id
+              u.password_hash, u.is_active, u.tenant_id,
+              t.apqp_enabled
        FROM users u
+       JOIN tenants t ON t.tenant_id = u.tenant_id
        WHERE u.email = $1`,
       [email.toLowerCase().trim()]
     );
@@ -57,7 +59,8 @@ router.post('/login', async (req, res) => {
         email:     user.email,
         full_name: user.full_name,
         role:      user.role,
-        tenant_id: user.tenant_id,
+        tenant_id:    user.tenant_id,
+        apqp_enabled: user.apqp_enabled,
       }
     });
   } finally {
