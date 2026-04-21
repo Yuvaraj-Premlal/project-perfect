@@ -22,8 +22,9 @@ function getHealth(elements: any[]) {
   const completionRate = Math.round(completed / total * 100)
   const onTimeRate = completed > 0 ? Math.round(onTime / completed * 100) : null
   let health: 'green' | 'amber' | 'red' = 'green'
-  if (overdue >= 3 || completionRate < 50) health = 'red'
-  else if (overdue >= 1 || completionRate < 75) health = 'amber'
+  if (overdue >= 3) health = 'red'
+  else if (overdue >= 1) health = 'amber'
+  else health = 'green'
   return { total, completed, overdue, completionRate, onTimeRate, health }
 }
 
