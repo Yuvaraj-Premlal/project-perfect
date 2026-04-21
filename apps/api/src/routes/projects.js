@@ -14,6 +14,14 @@ router.get('/', async (req, res) => {
       SELECT DISTINCT
         p.project_id, p.project_name, p.project_code, p.product_name,
         p.customer_name, p.risk_tier, p.status,
+        (SELECT CASE
+           WHEN COUNT(*) = 0 THEN NULL
+           WHEN SUM(CASE WHEN status != 'complete' AND planned_end_date < CURRENT_DATE THEN 1 ELSE 0 END) >= 3 THEN 'red'
+           WHEN SUM(CASE WHEN status != 'complete' AND planned_end_date < CURRENT_DATE THEN 1 ELSE 0 END) >= 1 THEN 'amber'
+           ELSE 'green'
+         END
+         FROM project_apqp_elements ae WHERE ae.project_id = p.project_id
+        ) AS apqp_health,
         p.start_date, p.planned_end_date, p.launch_date_target,
         p.opv, p.lfv, p.momentum, p.en_value,
         p.next_review_due, p.last_review_at, p.ecd_algorithmic,
@@ -32,6 +40,14 @@ router.get('/', async (req, res) => {
       SELECT
         p.project_id, p.project_name, p.project_code, p.product_name,
         p.customer_name, p.risk_tier, p.status,
+        (SELECT CASE
+           WHEN COUNT(*) = 0 THEN NULL
+           WHEN SUM(CASE WHEN status != 'complete' AND planned_end_date < CURRENT_DATE THEN 1 ELSE 0 END) >= 3 THEN 'red'
+           WHEN SUM(CASE WHEN status != 'complete' AND planned_end_date < CURRENT_DATE THEN 1 ELSE 0 END) >= 1 THEN 'amber'
+           ELSE 'green'
+         END
+         FROM project_apqp_elements ae WHERE ae.project_id = p.project_id
+        ) AS apqp_health,
         p.start_date, p.planned_end_date, p.launch_date_target,
         p.opv, p.lfv, p.momentum, p.en_value,
         p.next_review_due, p.last_review_at, p.ecd_algorithmic,

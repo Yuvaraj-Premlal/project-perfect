@@ -199,7 +199,7 @@ function SummaryTab({ project, tasks, apqpElements }: { project:any, tasks:any[]
   const apqpTotal     = apqpElements.length
   const apqpCompleted = apqpElements.filter((e:any) => e.status === 'complete').length
   const apqpOverdue   = apqpElements.filter((e:any) => e.status !== 'complete' && e.planned_end_date && new Date(e.planned_end_date) < today).length
-  const apqpHealth    = apqpOverdue >= 3 ? 'red' : apqpOverdue >= 1 ? 'amber' : 'green'
+  const apqpHealth    = apqpTotal === 0 ? 'green' : apqpOverdue >= 3 ? 'red' : apqpOverdue >= 1 ? 'amber' : apqpCompleted === apqpTotal ? 'green' : 'green'
   const apqpLabel     = apqpHealth === 'green' ? 'On Track' : apqpHealth === 'amber' ? 'At Risk' : 'Overdue'
   const apqpColor     = apqpHealth === 'green' ? 'var(--green)' : apqpHealth === 'amber' ? 'var(--amber)' : 'var(--red)'
   const apqpBg        = apqpHealth === 'green' ? 'var(--green-bg)' : apqpHealth === 'amber' ? 'var(--amber-bg)' : 'var(--red-bg)'
@@ -231,24 +231,6 @@ function SummaryTab({ project, tasks, apqpElements }: { project:any, tasks:any[]
               <div style={{ background:'var(--bg2)', borderRadius:99, height:6 }}><div style={{ width:`${progPct}%`, height:6, borderRadius:99, background:'var(--blue2)', transition:'width 0.4s' }} /></div>
             </div>
           </div>
-
-          {/* APQP Health card — only if APQP active */}
-          {apqpTotal > 0 && (
-            <div className="card">
-              <div className="card-header">
-                <div><div className="card-title">APQP Status</div><div className="card-sub">{apqpCompleted} of {apqpTotal} elements complete</div></div>
-                <span style={{ display:'inline-flex', alignItems:'center', gap:6, background:apqpBg, color:apqpColor, borderRadius:99, padding:'4px 12px', fontSize:12, fontWeight:600 }}>
-                  <span style={{ width:7, height:7, borderRadius:'50%', background:apqpColor, display:'inline-block' }} />
-                  {apqpLabel}
-                </span>
-              </div>
-              {apqpOverdue > 0 && (
-                <div style={{ marginTop:10, fontSize:12, color:'var(--red)', background:'var(--red-bg)', borderRadius:6, padding:'8px 12px' }}>
-                  {apqpOverdue} element{apqpOverdue > 1 ? 's' : ''} past due date
-                </div>
-              )}
-            </div>
-          )}
 
           {/* APQP Health card — only if APQP active */}
           {apqpTotal > 0 && (

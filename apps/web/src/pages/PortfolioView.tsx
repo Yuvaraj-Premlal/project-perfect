@@ -119,7 +119,7 @@ export default function PortfolioView({ projects, onOpenProject }: { projects: a
               <SortTh label="Expected Delay"   col="expected_delay" />
               <SortTh label="Delay %"          col="delay_pct" />
               <SortTh label="Status"           col="status" />
-              <th style={{ padding:"10px 14px", fontSize:11, fontWeight:600, color:"var(--text3)", textAlign:"left", textTransform:"uppercase", letterSpacing:"0.06em" }}>APQP</th>
+              <th style={{ padding:"10px 14px", fontSize:11, fontWeight:600, color:"var(--text3)", textAlign:"left", textTransform:"uppercase", letterSpacing:"0.06em" }}>APQP Health</th>
             </tr>
           </thead>
           <tbody>
