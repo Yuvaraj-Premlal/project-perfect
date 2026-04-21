@@ -119,6 +119,7 @@ export default function PortfolioView({ projects, onOpenProject }: { projects: a
               <SortTh label="Expected Delay"   col="expected_delay" />
               <SortTh label="Delay %"          col="delay_pct" />
               <SortTh label="Status"           col="status" />
+              <th style={{ padding:"10px 14px", fontSize:11, fontWeight:600, color:"var(--text3)", textAlign:"left", textTransform:"uppercase", letterSpacing:"0.06em" }}>APQP</th>
             </tr>
           </thead>
           <tbody>
@@ -162,6 +163,19 @@ export default function PortfolioView({ projects, onOpenProject }: { projects: a
                   </td>
                   <td><span className={`status ${cls}`}>{delayPct.toFixed(0)}%</span></td>
                   <td><span className={`status ${cls}`}>{text}</span></td>
+                  <td style={{ padding:'10px 14px' }}>
+                    {p.apqp_health ? (
+                      <span style={{
+                        display:'inline-flex', alignItems:'center', gap:5,
+                        background: p.apqp_health === 'green' ? 'var(--green-bg)' : p.apqp_health === 'amber' ? 'var(--amber-bg)' : 'var(--red-bg)',
+                        color: p.apqp_health === 'green' ? 'var(--green)' : p.apqp_health === 'amber' ? 'var(--amber)' : 'var(--red)',
+                        borderRadius:99, padding:'3px 10px', fontSize:11, fontWeight:600
+                      }}>
+                        <span style={{ width:6, height:6, borderRadius:'50%', background:'currentColor', display:'inline-block' }} />
+                        {p.apqp_health === 'green' ? 'On Track' : p.apqp_health === 'amber' ? 'At Risk' : 'Overdue'}
+                      </span>
+                    ) : <span style={{ color:'var(--text4)', paddingLeft:14 }}>—</span>}
+                  </td>
                 </tr>
               )
             })}

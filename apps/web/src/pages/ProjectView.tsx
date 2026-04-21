@@ -7,7 +7,7 @@ import ReviewsTab from './ReviewsTab'
 import CharterTab from './CharterTab'
 import APQPTab from './APQPTab'
 
-const TABS = ['Summary','Tasks','Status Kanban','Weekly Kanban','Function Kanban','Reviews','Reports','Closure','Charter','APQP'] as const
+const TABS = ['Summary','Tasks','APQP','Status Kanban','Weekly Kanban','Function Kanban','Reviews','Reports','Closure','Charter'] as const
 type Tab = typeof TABS[number]
 
 
@@ -163,7 +163,7 @@ function SlippageChart({ tasks, project }: { tasks:any[], project:any }) {
   )
 }
 
-function SummaryTab({ project, tasks }: { project:any, tasks:any[] }) {
+function SummaryTab({ project, tasks, apqpElements }: { project:any, tasks:any[], apqpElements:any[] }) {
   const [brief, setBrief]     = useState<string|null>(null)
   const [briefLoading, setBL] = useState(false)
   const opv            = parseFloat(project.opv)
@@ -195,6 +195,24 @@ function SummaryTab({ project, tasks }: { project:any, tasks:any[] }) {
       setBrief('! ' + msg)
     } finally { setBL(false) }
   }
+  // APQP health for summary card
+  const apqpTotal     = apqpElements.length
+  const apqpCompleted = apqpElements.filter((e:any) => e.status === 'complete').length
+  const apqpOverdue   = apqpElements.filter((e:any) => e.status !== 'complete' && e.planned_end_date && new Date(e.planned_end_date) < today).length
+  const apqpHealth    = apqpOverdue >= 3 ? 'red' : apqpOverdue >= 1 ? 'amber' : 'green'
+  const apqpLabel     = apqpHealth === 'green' ? 'On Track' : apqpHealth === 'amber' ? 'At Risk' : 'Overdue'
+  const apqpColor     = apqpHealth === 'green' ? 'var(--green)' : apqpHealth === 'amber' ? 'var(--amber)' : 'var(--red)'
+  const apqpBg        = apqpHealth === 'green' ? 'var(--green-bg)' : apqpHealth === 'amber' ? 'var(--amber-bg)' : 'var(--red-bg)'
+
+  // APQP health for summary card
+  const apqpTotal     = apqpElements.length
+  const apqpCompleted = apqpElements.filter((e:any) => e.status === 'complete').length
+  const apqpOverdue   = apqpElements.filter((e:any) => e.status !== 'complete' && e.planned_end_date && new Date(e.planned_end_date) < today).length
+  const apqpHealth    = apqpOverdue >= 3 ? 'red' : apqpOverdue >= 1 ? 'amber' : 'green'
+  const apqpLabel     = apqpHealth === 'green' ? 'On Track' : apqpHealth === 'amber' ? 'At Risk' : 'Overdue'
+  const apqpColor     = apqpHealth === 'green' ? 'var(--green)' : apqpHealth === 'amber' ? 'var(--amber)' : 'var(--red)'
+  const apqpBg        = apqpHealth === 'green' ? 'var(--green-bg)' : apqpHealth === 'amber' ? 'var(--amber-bg)' : 'var(--red-bg)'
+
   // For project completion bar
   function barPct(d:Date|null, start:Date|null, end:Date|null){
     if(!d||!start||!end)return 0
@@ -222,6 +240,42 @@ function SummaryTab({ project, tasks }: { project:any, tasks:any[] }) {
               <div style={{ background:'var(--bg2)', borderRadius:99, height:6 }}><div style={{ width:`${progPct}%`, height:6, borderRadius:99, background:'var(--blue2)', transition:'width 0.4s' }} /></div>
             </div>
           </div>
+
+          {/* APQP Health card — only if APQP active */}
+          {apqpTotal > 0 && (
+            <div className="card">
+              <div className="card-header">
+                <div><div className="card-title">APQP Status</div><div className="card-sub">{apqpCompleted} of {apqpTotal} elements complete</div></div>
+                <span style={{ display:'inline-flex', alignItems:'center', gap:6, background:apqpBg, color:apqpColor, borderRadius:99, padding:'4px 12px', fontSize:12, fontWeight:600 }}>
+                  <span style={{ width:7, height:7, borderRadius:'50%', background:apqpColor, display:'inline-block' }} />
+                  {apqpLabel}
+                </span>
+              </div>
+              {apqpOverdue > 0 && (
+                <div style={{ marginTop:10, fontSize:12, color:'var(--red)', background:'var(--red-bg)', borderRadius:6, padding:'8px 12px' }}>
+                  {apqpOverdue} element{apqpOverdue > 1 ? 's' : ''} past due date
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* APQP Health card — only if APQP active */}
+          {apqpTotal > 0 && (
+            <div className="card">
+              <div className="card-header">
+                <div><div className="card-title">APQP Status</div><div className="card-sub">{apqpCompleted} of {apqpTotal} elements complete</div></div>
+                <span style={{ display:'inline-flex', alignItems:'center', gap:6, background:apqpBg, color:apqpColor, borderRadius:99, padding:'4px 12px', fontSize:12, fontWeight:600 }}>
+                  <span style={{ width:7, height:7, borderRadius:'50%', background:apqpColor, display:'inline-block' }} />
+                  {apqpLabel}
+                </span>
+              </div>
+              {apqpOverdue > 0 && (
+                <div style={{ marginTop:10, fontSize:12, color:'var(--red)', background:'var(--red-bg)', borderRadius:6, padding:'8px 12px' }}>
+                  {apqpOverdue} element{apqpOverdue > 1 ? 's' : ''} past due date
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Slippage chart */}
           <div className="card">
@@ -906,7 +960,7 @@ export default function ProjectView({ projectId }: { projectId:string }) {
           </button>
         ))}
       </div>
-      {activeTab==='Summary'       && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <SummaryTab project={project} tasks={tasks as any[]} />)}
+      {activeTab==='Summary'       && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <SummaryTab project={project} tasks={tasks as any[]} apqpElements={apqpElements as any[]} />)}
       {activeTab==='Tasks'         && <TasksTab projectId={projectId} project={project} tasks={tasks as any[]} refetch={()=>{ refetchTasks(); refetchProject(); }} canEdit={canEdit}  />}
       {activeTab==='Status Kanban' && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <StatusKanban tasks={tasks as any[]} />)}
       {activeTab==='Weekly Kanban' && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <WeeklyKanban tasks={tasks as any[]} />)}
