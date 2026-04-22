@@ -214,24 +214,9 @@ Respond ONLY with a valid JSON object in this exact format:
   ]
 }`;
 
-  // Call Claude API
-  const fetch = require('node-fetch');
-  const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': process.env.ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01'
-    },
-    body: JSON.stringify({
-      model: 'claude-opus-4-20250514',
-      max_tokens: 4000,
-      messages: [{ role: 'user', content: prompt }]
-    })
-  });
-
-  const aiData = await aiRes.json();
-  const rawText = aiData.content?.[0]?.text || '{}';
+  // Call Azure OpenAI
+  const systemPrompt = 'You are an analytics engine for a manufacturing project management platform. Always respond with valid JSON only - no markdown, no preamble.';
+  const rawText = await callAI(systemPrompt, prompt, 4000) || '{}';
   let parsed;
   try {
     const clean = rawText.replace(/```json|```/g, '').trim();
