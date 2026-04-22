@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const { callAI } = require('../services/ai');
 const { dbQuery } = require('../middleware/db-context');
 const { requireRole } = require('../middleware/tenant');
 const { pool } = require('../db');
