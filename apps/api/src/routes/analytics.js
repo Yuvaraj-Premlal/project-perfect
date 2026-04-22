@@ -89,8 +89,8 @@ router.post('/insights/generate', requireRole('portfolio_manager', 'super_user')
   // 2. Task slippage summary per project
   const slippage = await dbQuery(tenantId, `
     SELECT t.project_id, t.task_name, t.control_type, u.full_name AS owner_name,
-           COUNT(tsh.id) AS slip_count,
-           MAX(tsh.new_ecd::date - tsh.old_ecd::date) AS max_slip_days
+           COUNT(tsh.slippage_id) AS slip_count,
+           MAX(tsh.delay_increase_days) AS max_slip_days
     FROM tasks t
     JOIN task_slippage_history tsh ON tsh.task_id = t.task_id
     LEFT JOIN users u ON u.user_id = t.owner_user_id
@@ -102,12 +102,11 @@ router.post('/insights/generate', requireRole('portfolio_manager', 'super_user')
 
   // 3. Recent task updates — last 30 days
   const updates = await dbQuery(tenantId, `
-    SELECT tu.update_text, tu.created_at, t.task_name, t.project_id,
-           u.full_name AS author,
-           LENGTH(tu.update_text) AS text_length
+    SELECT tu.what_done, tu.what_pending, tu.issue_blocker, tu.created_by_name,
+           tu.created_at, t.task_name, t.project_id,
+           COALESCE(LENGTH(tu.what_done),0) + COALESCE(LENGTH(tu.what_pending),0) AS text_length
     FROM task_updates tu
     JOIN tasks t ON t.task_id = tu.task_id
-    LEFT JOIN users u ON u.user_id = tu.created_by
     WHERE tu.tenant_id = $1 AND tu.created_at > NOW() - INTERVAL '30 days'
     ORDER BY tu.created_at DESC
     LIMIT 100
@@ -163,8 +162,8 @@ router.post('/insights/generate', requireRole('portfolio_manager', 'super_user')
   `, [tenantId]);
 
   // Flag low quality updates
-  const lowQualityUpdates = updates.rows.filter(u => u.text_length < 10);
-  const goodUpdates = updates.rows.filter(u => u.text_length >= 10);
+  const lowQualityUpdates = updates.rows.filter(u => u.text_length < 15);
+  const goodUpdates = updates.rows.filter(u => u.text_length >= 15);
 
   // Build AI prompt
   const prompt = `You are an analytics engine for a manufacturing project management platform called Project Perfect. 
