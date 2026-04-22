@@ -66,6 +66,7 @@ app.use('/api/projects',                              require('./routes/projects
 app.use('/api/suppliers',                             require('./routes/suppliers'));
 app.use('/api/templates',                             require('./routes/templates'));
 app.use('/api/apqp',                                  require('./routes/apqp'));
+app.use('/api/analytics',                             require('./routes/analytics'));
 app.use('/api/users',                                 require('./routes/users'));
 
 // Global error handler
