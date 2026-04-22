@@ -88,13 +88,14 @@ router.post('/insights/generate', requireRole('portfolio_manager', 'super_user')
 
   // 2. Task slippage summary per project
   const slippage = await dbQuery(tenantId, `
-    SELECT t.project_id, t.task_name, t.control_type, t.owner_name,
+    SELECT t.project_id, t.task_name, t.control_type, u.full_name AS owner_name,
            COUNT(tsh.id) AS slip_count,
            MAX(tsh.new_ecd::date - tsh.old_ecd::date) AS max_slip_days
     FROM tasks t
     JOIN task_slippage_history tsh ON tsh.task_id = t.task_id
+    LEFT JOIN users u ON u.user_id = t.owner_user_id
     WHERE t.tenant_id = $1
-    GROUP BY t.project_id, t.task_id, t.task_name, t.control_type, t.owner_name
+    GROUP BY t.project_id, t.task_id, t.task_name, t.control_type, u.full_name
     ORDER BY slip_count DESC
     LIMIT 30
   `, [tenantId]);
