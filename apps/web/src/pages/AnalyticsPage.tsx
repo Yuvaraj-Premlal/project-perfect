@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
-import { getCurrentUser } from '../api/auth'
+
 
 async function fetchSnapshot() {
   const r = await api.get('/api/analytics/snapshot')
@@ -48,7 +48,7 @@ function fmt(d: string) {
   return new Date(d).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })
 }
 
-function LoadBadge({ active, overdue, projects }: { active: number, overdue: number, projects: number }) {
+function LoadBadge({ overdue, projects }: { active: number, overdue: number, projects: number }) {
   if (projects >= 3 || overdue >= 5) return <span className="status red">Overloaded</span>
   if (projects >= 2 || overdue >= 2) return <span className="status amber">At Risk</span>
   return <span className="status green">Healthy</span>
@@ -56,12 +56,12 @@ function LoadBadge({ active, overdue, projects }: { active: number, overdue: num
 
 export default function AnalyticsPage() {
   const qc = useQueryClient()
-  const user = getCurrentUser()
+
   const [generating, setGenerating]     = useState(false)
   const [genError, setGenError]         = useState('')
   const [currentInsight, setCurrentInsight] = useState<any>(null)
   const [showHistory, setShowHistory]   = useState(false)
-  const [loadingHistorical, setLoadingHistorical] = useState(false)
+  const [, setLoadingHistorical] = useState(false)
 
   const { data: snapshot, isLoading: snapLoading } = useQuery({ queryKey: ['analytics-snapshot'], queryFn: fetchSnapshot })
   const { data: resources, isLoading: resLoading } = useQuery({ queryKey: ['analytics-resources'], queryFn: fetchResources })
