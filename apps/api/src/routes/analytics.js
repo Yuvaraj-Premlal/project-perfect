@@ -81,7 +81,7 @@ router.post('/insights/generate', requireRole('portfolio_manager', 'super_user')
   const projects = await dbQuery(tenantId, `
     SELECT project_id, project_name, customer_name, status, opv, lfv,
            planned_end_date, ecd_algorithmic, risk_tier,
-           ROUND((EXTRACT(EPOCH FROM (COALESCE(ecd_algorithmic, planned_end_date) - planned_end_date))/86400)::numeric,0) AS delay_days
+           ROUND(((COALESCE(ecd_algorithmic::date, planned_end_date::date) - planned_end_date::date))::numeric,0) AS delay_days
     FROM projects WHERE tenant_id = $1 AND status IN ('active','closed')
     ORDER BY status, opv ASC
   `, [tenantId]);
@@ -128,7 +128,7 @@ router.post('/insights/generate', requireRole('portfolio_manager', 'super_user')
     SELECT ae.project_id, p.project_name, ae.element_name,
            ae.status, ae.planned_end_date, ae.completed_date,
            CASE WHEN ae.status != 'complete' AND ae.planned_end_date < CURRENT_DATE
-                THEN EXTRACT(DAY FROM CURRENT_DATE - ae.planned_end_date)
+                THEN EXTRACT(DAY FROM (CURRENT_DATE - ae.planned_end_date::date))
                 ELSE 0 END AS overdue_days
     FROM project_apqp_elements ae
     JOIN projects p ON p.project_id = ae.project_id
@@ -156,7 +156,7 @@ router.post('/insights/generate', requireRole('portfolio_manager', 'super_user')
   const closed = await dbQuery(tenantId, `
     SELECT project_name, customer_name, planned_end_date, actual_end_date,
            closure_notes,
-           EXTRACT(DAY FROM actual_end_date - planned_end_date) AS delay_days
+           EXTRACT(DAY FROM (actual_end_date::date - planned_end_date::date)) AS delay_days
     FROM projects WHERE tenant_id = $1 AND status = 'closed'
     ORDER BY closed_at DESC LIMIT 10
   `, [tenantId]);
