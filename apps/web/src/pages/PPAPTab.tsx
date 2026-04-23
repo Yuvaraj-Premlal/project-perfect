@@ -6,11 +6,6 @@ async function fetchElements(projectId: string) {
   const r = await api.get(`/api/ppap/projects/${projectId}/elements`)
   return r.data
 }
-async function fetchUsers() {
-  const r = await api.get('/api/ppap/users')
-  return r.data
-}
-
 function fmt(d: string | null) {
   if (!d) return '—'
   return new Date(d).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })
@@ -146,7 +141,6 @@ export default function PPAPTab({ projectId, canEdit }: { projectId: string, can
                     <td style={{ padding:'10px 12px', fontSize:12, color:'var(--text4)', borderLeft }}>{el.sequence_order}</td>
                     <td style={{ padding:'10px 12px', fontSize:13, fontWeight:500, color:'var(--text)' }}>{el.element_name}</td>
                     <td style={{ padding:'10px 12px', fontSize:12, color:'var(--text2)' }}>{el.planned_days}d</td>
-                    <td style={{ padding:'10px 12px', fontSize:12, color:'var(--text2)' }}>{el.responsible_name || <span style={{ color:'var(--text4)' }}>—</span>}</td>
                     <td style={{ padding:'10px 12px', fontSize:11, color:'var(--text2)', fontFamily:'var(--mono)' }}>{fmt(el.start_date)}</td>
                     <td style={{ padding:'10px 12px', fontSize:11, fontFamily:'var(--mono)', color: isOverdue ? 'var(--red)' : 'var(--text2)' }}>{fmt(el.planned_end_date)}</td>
                     <td style={{ padding:'10px 12px', fontSize:11, fontFamily:'var(--mono)', color: el.first_submitted_date ? 'var(--green)' : 'var(--text4)' }}>{fmt(el.first_submitted_date)}</td>
@@ -187,13 +181,11 @@ export default function PPAPTab({ projectId, canEdit }: { projectId: string, can
 function PPAPSidePanel({ element, projectId, canEdit, onClose, onSaved }:
   { element: any, projectId: string, canEdit: boolean, onClose: () => void, onSaved: () => void }) {
 
-  const { data: users = [] } = useQuery<any[]>({ queryKey: ['admin-users'], queryFn: fetchUsers })
   const startAlreadySet = !!element.start_date
   const [startDate, setStartDate]         = useState(element.start_date || '')
   const [status, setStatus]               = useState(element.status === 'rejected' ? 'in_progress' : element.status)
   const [docRef, setDocRef]               = useState(element.doc_reference || '')
   const [updateText, setUpdateText]       = useState('')
-  const [responsibleId, setResponsibleId] = useState(element.responsible_user_id || '')
   const [saving, setSaving]               = useState(false)
   const [error, setError]                 = useState('')
 
@@ -212,7 +204,6 @@ function PPAPSidePanel({ element, projectId, canEdit, onClose, onSaved }:
         status,
         doc_reference: docRef || undefined,
         update_text: updateText || undefined,
-        responsible_user_id: responsibleId || undefined,
       })
       onSaved()
     } catch (err: any) {
@@ -264,17 +255,6 @@ function PPAPSidePanel({ element, projectId, canEdit, onClose, onSaved }:
               </div>
             </div>
           )}
-
-          {/* Responsible */}
-          <div className="form-group">
-            <label className="form-label">Responsible</label>
-            <select className="form-input" value={responsibleId} onChange={e => setResponsibleId(e.target.value)}>
-              <option value="">Select user</option>
-              {(users as any[]).map((u: any) => (
-                <option key={u.user_id} value={u.user_id}>{u.full_name} — {u.role?.replace(/_/g,' ')}</option>
-              ))}
-            </select>
-          </div>
 
           {/* Status */}
           <div className="form-group">
