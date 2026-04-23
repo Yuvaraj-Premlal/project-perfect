@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useQueryClient, useQuery } from '@tanstack/react-query'
 import { api } from '../api/client'
+import { isApqpEnabled } from '../api/auth'
 import { createProject } from '../api/projects'
 
 interface Phase {
@@ -277,7 +278,7 @@ export default function CreateProjectModal({ open, onClose, onCreated }: Props) 
                 )}
               </div>
 
-              <div style={{ borderTop:'1px solid var(--border)', paddingTop:14, marginTop:4 }}>
+              {isApqpEnabled() && <div style={{ borderTop:'1px solid var(--border)', paddingTop:14, marginTop:4 }}>
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom: includePpap ? 12 : 0 }}>
                   <div>
                     <div style={{ fontSize:13, fontWeight:500, color:'var(--text)' }}>Include PPAP tracking?</div>
@@ -305,7 +306,7 @@ export default function CreateProjectModal({ open, onClose, onCreated }: Props) 
                     )}
                   </div>
                 )}
-              </div>
+              </div>}
             </div>
           )}
 

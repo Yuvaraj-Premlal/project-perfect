@@ -76,7 +76,7 @@ export default function AppShell() {
               <span>Analytics Engine</span>
             </button>
           )}
-          {(currentUser?.role === 'portfolio_manager' || currentUser?.role === 'super_user') && (
+          {apqpEnabled && (currentUser?.role === 'portfolio_manager' || currentUser?.role === 'super_user') && (
             <button className={`nav-item ${view==='ppap-templates' ? 'active' : ''}`} onClick={() => { setView('ppap-templates'); setActiveProject(null) }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" strokeWidth="1.5"/><polyline points="14 2 14 8 20 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
               <span>PPAP Templates</span>
