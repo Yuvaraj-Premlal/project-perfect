@@ -32,10 +32,23 @@ router.get('/snapshot', requireRole('portfolio_manager', 'super_user'), async (r
     WHERE ae.tenant_id = $1 AND p.status = 'active'
   `, [req.tenantId]);
 
+  const ppap = await dbQuery(req.tenantId, `
+    SELECT
+      COUNT(*) FILTER (WHERE pe.status != 'approved' AND pe.planned_end_date < CURRENT_DATE) AS overdue_ppap,
+      COUNT(*) FILTER (WHERE pe.status = 'rejected') AS rejected_ppap,
+      SUM(pe.submission_count) AS total_submissions_ppap
+    FROM project_ppap_elements pe
+    JOIN projects p ON p.project_id = pe.project_id
+    WHERE pe.tenant_id = $1 AND p.status = 'active'
+  `, [req.tenantId]);
+
   res.json({
     ...result.rows[0],
-    overdue_tasks: parseInt(tasks.rows[0].overdue_tasks) || 0,
-    overdue_apqp:  parseInt(apqp.rows[0].overdue_apqp) || 0,
+    overdue_tasks:          parseInt(tasks.rows[0].overdue_tasks) || 0,
+    overdue_apqp:           parseInt(apqp.rows[0].overdue_apqp) || 0,
+    overdue_ppap:           parseInt(ppap.rows[0].overdue_ppap) || 0,
+    rejected_ppap:          parseInt(ppap.rows[0].rejected_ppap) || 0,
+    total_submissions_ppap: parseInt(ppap.rows[0].total_submissions_ppap) || 0,
   });
 });
 
@@ -137,6 +150,18 @@ router.post('/insights/generate', requireRole('portfolio_manager', 'super_user')
     ORDER BY overdue_days DESC
   `, [tenantId]);
 
+  // 5b. PPAP status
+  const ppapData = await dbQuery(tenantId, `
+    SELECT pe.project_id, p.project_name, pe.element_name,
+           pe.status, pe.planned_end_date, pe.approved_date,
+           pe.first_submitted_date, pe.submission_count,
+           (CURRENT_DATE - pe.planned_end_date::date) AS overdue_days
+    FROM project_ppap_elements pe
+    JOIN projects p ON p.project_id = pe.project_id
+    WHERE pe.tenant_id = $1
+    ORDER BY pe.submission_count DESC, overdue_days DESC
+  `, [tenantId]);
+
   // 6. Resource load
   const resources = await dbQuery(tenantId, `
     SELECT u.full_name, u.role,
@@ -175,6 +200,8 @@ IMPORTANT RULES:
 - Flag any patterns where issues raised in reviews are not followed up in task updates
 - Flag data quality issues where task updates are too short or generic (under 10 characters)
 - If APQP data exists, include APQP-specific insights
+- If PPAP data exists, flag any rejected elements, high submission counts (3+), or overdue elements
+- High submission count on a PPAP element indicates quality issues — name the specific element and project
 - Include resource overload insights if any user has tasks in 3+ projects
 - Be honest if data is insufficient for meaningful insights in any area
 - Tone: direct, professional, actionable
@@ -195,6 +222,9 @@ ${JSON.stringify(reviews.rows, null, 2)}
 APQP STATUS:
 ${JSON.stringify(apqp.rows, null, 2)}
 
+PPAP STATUS:
+${JSON.stringify(ppapData.rows, null, 2)}
+
 RESOURCE LOAD:
 ${JSON.stringify(resources.rows, null, 2)}
 
@@ -207,7 +237,7 @@ Respond ONLY with a valid JSON object in this exact format:
   "insights": [
     {
       "type": "alert|warning|info|positive",
-      "tag": "Supplier Risk|Resource|APQP|Review Pattern|Trend|Data Quality",
+      "tag": "Supplier Risk|Resource|APQP|PPAP|Review Pattern|Trend|Data Quality",
       "text": "Specific insight text naming projects/people",
       "ref": "→ Specific reference to projects/people/elements"
     }

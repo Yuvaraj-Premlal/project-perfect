@@ -35,6 +35,7 @@ const TAG_STYLES: Record<string, { bg: string, color: string }> = {
   'Review Pattern':   { bg:'#FCE7F3', color:'#9D174D' },
   'Trend':            { bg:'#F0FDF4', color:'#166534' },
   'Data Quality':     { bg:'#F1F5F9', color:'#475569' },
+  'PPAP':             { bg:'#F0FDF4', color:'#166534' },
 }
 
 const TYPE_STYLES: Record<string, { border: string, bg: string, iconColor: string }> = {
@@ -110,13 +111,15 @@ export default function AnalyticsPage() {
         {snapLoading ? (
           <div style={{ color:'var(--text3)', fontSize:13 }}>Loading...</div>
         ) : snapshot && (
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:12 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:12 }}>
             {[
               { label:'Active Projects',  value: snapshot.active_projects,  sub:'total active',          color:'var(--text)' },
               { label:'Portfolio OPV',    value: parseFloat(snapshot.avg_opv||0).toFixed(2), sub:'avg across active', color: parseFloat(snapshot.avg_opv||0) >= 0.8 ? 'var(--green)' : parseFloat(snapshot.avg_opv||0) >= 0.7 ? 'var(--amber)' : 'var(--red)' },
               { label:'On Track',         value: snapshot.on_track,          sub:'OPV ≥ 0.8',            color:'var(--green)' },
               { label:'Overdue Tasks',    value: snapshot.overdue_tasks,     sub:'across portfolio',      color: snapshot.overdue_tasks > 0 ? 'var(--red)' : 'var(--green)' },
               { label:'APQP Overdue',     value: snapshot.overdue_apqp,      sub:'elements past due',     color: snapshot.overdue_apqp > 0 ? 'var(--amber)' : 'var(--green)' },
+              { label:'PPAP Overdue',     value: snapshot.overdue_ppap || 0,  sub:'elements not approved', color: (snapshot.overdue_ppap || 0) > 0 ? 'var(--red)' : 'var(--green)' },
+              { label:'PPAP Rejected',    value: snapshot.rejected_ppap || 0, sub:'elements rejected',     color: (snapshot.rejected_ppap || 0) > 0 ? 'var(--red)' : 'var(--green)' },
             ].map(k => (
               <div key={k.label} className="kpi">
                 <div className="kpi-label">{k.label}</div>
