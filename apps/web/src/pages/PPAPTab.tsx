@@ -7,7 +7,7 @@ async function fetchElements(projectId: string) {
   return r.data
 }
 async function fetchUsers() {
-  const r = await api.get('/api/admin/users')
+  const r = await api.get('/api/ppap/users')
   return r.data
 }
 
