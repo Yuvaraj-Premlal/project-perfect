@@ -3,6 +3,16 @@ const { dbQuery } = require('../middleware/db-context');
 const { requireRole } = require('../middleware/tenant');
 const { pool } = require('../db');
 
+// ─── USERS LIST ───────────────────────────────────────────────────
+router.get('/users', async (req, res) => {
+  const result = await dbQuery(req.tenantId,
+    \`SELECT user_id, full_name, role FROM users
+     WHERE tenant_id = \$1 AND is_active = true
+     ORDER BY full_name ASC\`,
+    [req.tenantId]);
+  res.json(result.rows);
+});
+
 // ─── TEMPLATES ────────────────────────────────────────────────────
 router.get('/templates', async (req, res) => {
   const result = await dbQuery(req.tenantId, `
