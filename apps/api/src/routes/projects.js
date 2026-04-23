@@ -22,6 +22,14 @@ router.get('/', async (req, res) => {
          END
          FROM project_apqp_elements ae WHERE ae.project_id = p.project_id
         ) AS apqp_health,
+        (SELECT CASE
+           WHEN COUNT(*) = 0 THEN NULL
+           WHEN SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) >= 1 THEN 'red'
+           WHEN SUM(CASE WHEN status != 'approved' AND planned_end_date < CURRENT_DATE THEN 1 ELSE 0 END) >= 1 THEN 'amber'
+           ELSE 'green'
+         END
+         FROM project_ppap_elements pe WHERE pe.project_id = p.project_id
+        ) AS ppap_health,
         p.start_date, p.planned_end_date, p.launch_date_target,
         p.opv, p.lfv, p.momentum, p.en_value,
         p.next_review_due, p.last_review_at, p.ecd_algorithmic,
@@ -48,6 +56,14 @@ router.get('/', async (req, res) => {
          END
          FROM project_apqp_elements ae WHERE ae.project_id = p.project_id
         ) AS apqp_health,
+        (SELECT CASE
+           WHEN COUNT(*) = 0 THEN NULL
+           WHEN SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) >= 1 THEN 'red'
+           WHEN SUM(CASE WHEN status != 'approved' AND planned_end_date < CURRENT_DATE THEN 1 ELSE 0 END) >= 1 THEN 'amber'
+           ELSE 'green'
+         END
+         FROM project_ppap_elements pe WHERE pe.project_id = p.project_id
+        ) AS ppap_health,
         p.start_date, p.planned_end_date, p.launch_date_target,
         p.opv, p.lfv, p.momentum, p.en_value,
         p.next_review_due, p.last_review_at, p.ecd_algorithmic,
@@ -257,6 +273,20 @@ router.post('/:projectId/close', async (req, res) => {
   if (apqpTotal > 0 && apqpCompleted < apqpTotal) {
     return res.status(400).json({
       error: `APQP incomplete — ${apqpCompleted} of ${apqpTotal} elements complete. All APQP elements must be complete before closing.`
+    });
+  }
+
+  // PPAP closure gate — all elements must be approved
+  const ppapResult = await dbQuery(req.tenantId,
+    `SELECT COUNT(*) AS total,
+            SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) AS approved
+     FROM project_ppap_elements WHERE project_id = $1 AND tenant_id = $2`,
+    [projectId, req.tenantId]);
+  const ppapTotal = parseInt(ppapResult.rows[0].total);
+  const ppapApproved = parseInt(ppapResult.rows[0].approved);
+  if (ppapTotal > 0 && ppapApproved < ppapTotal) {
+    return res.status(400).json({
+      error: `PPAP incomplete — ${ppapApproved} of ${ppapTotal} elements approved. All PPAP elements must be approved before closing.`
     });
   }
 

@@ -8,6 +8,7 @@ import ProjectLearnings from './ProjectLearnings'
 import LearningDetail from './LearningDetail'
 import AdminPortal from './AdminPortal'
 import APQPTemplatesPage from './APQPTemplatesPage'
+import PPAPTemplatesPage from './PPAPTemplatesPage'
 import AnalyticsPage from './AnalyticsPage'
 import { isApqpEnabled } from '../api/auth'
 import { getCurrentUser } from '../api/auth'
@@ -21,7 +22,7 @@ function getOPVColor(opv: number) {
 
 export default function AppShell() {
   const apqpEnabled = isApqpEnabled()
-  const [view, setView]       = useState<'portfolio' | 'project' | 'learnings' | 'learning-detail' | 'admin' | 'apqp-templates' | 'analytics'>('portfolio')
+  const [view, setView]       = useState<'portfolio' | 'project' | 'learnings' | 'learning-detail' | 'admin' | 'apqp-templates' | 'analytics' | 'ppap-templates'>('portfolio')
   const [activeLearning, setActiveLearning] = useState<string|null>(null)
   const currentUser = getCurrentUser()
   const [showCreate, setShowCreate] = useState(false)
@@ -73,6 +74,12 @@ export default function AppShell() {
             <button className={`nav-item ${view==='analytics' ? 'active' : ''}`} onClick={() => { setView('analytics'); setActiveProject(null) }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 3v18h18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M7 16l4-6 4 4 4-7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
               <span>Analytics Engine</span>
+            </button>
+          )}
+          {(currentUser?.role === 'portfolio_manager' || currentUser?.role === 'super_user') && (
+            <button className={`nav-item ${view==='ppap-templates' ? 'active' : ''}`} onClick={() => { setView('ppap-templates'); setActiveProject(null) }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" strokeWidth="1.5"/><polyline points="14 2 14 8 20 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+              <span>PPAP Templates</span>
             </button>
           )}
           {apqpEnabled && (currentUser?.role === 'portfolio_manager' || currentUser?.role === 'super_user') && (
@@ -130,6 +137,8 @@ export default function AppShell() {
               <span>Portfolio</span>
             ) : view === 'analytics' ? (
               <span>Analytics Engine</span>
+            ) : view === 'ppap-templates' ? (
+              <span>PPAP Templates</span>
             ) : view === 'apqp-templates' ? (
               <span>APQP Templates</span>
             ) : view === 'admin' ? (
@@ -167,6 +176,7 @@ export default function AppShell() {
           {view === 'learning-detail'  && <LearningDetail reportId={activeLearning!} onBack={() => setView('learnings')} />}
           {view === 'admin'           && <AdminPortal />}
           {view === 'apqp-templates'   && <APQPTemplatesPage />}
+          {view === 'ppap-templates'   && <PPAPTemplatesPage />}
           {view === 'analytics'          && <AnalyticsPage />}
         </div>
       </div>

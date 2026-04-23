@@ -76,6 +76,12 @@ export default function CreateProjectModal({ open, onClose, onCreated }: Props) 
   // APQP
   const [includeApqp, setIncludeApqp]       = useState(false)
   const [apqpTemplateId, setApqpTemplateId] = useState('')
+  const [includePpap, setIncludePpap]       = useState(false)
+  const [ppapTemplateId, setPpapTemplateId] = useState('')
+  const { data: ppapTemplates = [] } = useQuery({
+    queryKey: ['ppap-templates'],
+    queryFn: async () => { const r = await api.get('/api/ppap/templates'); return r.data }
+  })
   const { data: apqpTemplates = [] } = useQuery({
     queryKey: ['apqp-templates'],
     queryFn: async () => { const r = await api.get('/api/apqp/templates'); return r.data }
@@ -136,6 +142,11 @@ export default function CreateProjectModal({ open, onClose, onCreated }: Props) 
           await api.post(`/api/apqp/projects/${project.project_id}/elements/instantiate`, { template_id: apqpTemplateId })
         } catch (e) { console.warn('APQP instantiation failed:', e) }
       }
+      if (includePpap && ppapTemplateId) {
+        try {
+          await api.post(`/api/ppap/projects/${project.project_id}/elements/instantiate`, { template_id: ppapTemplateId })
+        } catch (e) { console.warn('PPAP instantiation failed:', e) }
+      }
       qc.invalidateQueries({ queryKey: ['projects'] })
       onCreated(project.project_id)
       handleClose()
@@ -154,6 +165,7 @@ export default function CreateProjectModal({ open, onClose, onCreated }: Props) 
     setProjectName(''); setLaunchDate(''); setProjectCode(''); setCustomerName(''); setProductName('')
     setPhases([]); setRiskTier('high'); setError('')
     setIncludeApqp(false); setApqpTemplateId('')
+    setIncludePpap(false); setPpapTemplateId('')
     onClose()
   }
   // Close on Escape key
@@ -257,6 +269,36 @@ export default function CreateProjectModal({ open, onClose, onCreated }: Props) 
                       <select className="form-input" value={apqpTemplateId} onChange={e => setApqpTemplateId(e.target.value)}>
                         <option value="">Select template</option>
                         {(apqpTemplates as any[]).map((t: any) => (
+                          <option key={t.template_id} value={t.template_id}>{t.name} ({t.element_count} elements)</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ borderTop:'1px solid var(--border)', paddingTop:14, marginTop:4 }}>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom: includePpap ? 12 : 0 }}>
+                  <div>
+                    <div style={{ fontSize:13, fontWeight:500, color:'var(--text)' }}>Include PPAP tracking?</div>
+                    <div style={{ fontSize:11, color:'var(--text4)', marginTop:2 }}>Attach PPAP document tracker to this project</div>
+                  </div>
+                  <div onClick={() => setIncludePpap(p => !p)}
+                    style={{ width:40, height:22, borderRadius:11, background: includePpap ? 'var(--blue)' : 'var(--border)', cursor:'pointer', position:'relative', transition:'background .2s', flexShrink:0 }}>
+                    <div style={{ width:16, height:16, borderRadius:'50%', background:'#fff', position:'absolute', top:3, left: includePpap ? 21 : 3, transition:'left .2s' }} />
+                  </div>
+                </div>
+                {includePpap && (
+                  <div className="form-group" style={{ margin:0 }}>
+                    <label className="form-label">PPAP Template</label>
+                    {(ppapTemplates as any[]).length === 0 ? (
+                      <div style={{ fontSize:12, color:'var(--amber)', padding:'8px 12px', background:'var(--amber-bg)', borderRadius:6 }}>
+                        No PPAP templates available. Ask your Portfolio Manager to create one first.
+                      </div>
+                    ) : (
+                      <select className="form-input" value={ppapTemplateId} onChange={e => setPpapTemplateId(e.target.value)}>
+                        <option value="">Select template</option>
+                        {(ppapTemplates as any[]).map((t: any) => (
                           <option key={t.template_id} value={t.template_id}>{t.name} ({t.element_count} elements)</option>
                         ))}
                       </select>

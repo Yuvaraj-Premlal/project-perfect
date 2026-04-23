@@ -6,9 +6,10 @@ import TasksTab from './TasksTab'
 import ReviewsTab from './ReviewsTab'
 import CharterTab from './CharterTab'
 import APQPTab from './APQPTab'
+import PPAPTab from './PPAPTab'
 import { isApqpEnabled } from '../api/auth'
 
-const TABS = ['Summary','Tasks','APQP','Status Kanban','Weekly Kanban','Function Kanban','Reviews','Reports','Closure','Charter'] as const
+const TABS = ['Summary','Tasks','APQP','PPAP','Status Kanban','Weekly Kanban','Function Kanban','Reviews','Reports','Closure','Charter'] as const
 type Tab = typeof TABS[number]
 
 
@@ -164,7 +165,7 @@ function SlippageChart({ tasks, project }: { tasks:any[], project:any }) {
   )
 }
 
-function SummaryTab({ project, tasks, apqpElements }: { project:any, tasks:any[], apqpElements:any[] }) {
+function SummaryTab({ project, tasks, apqpElements, ppapElements }: { project:any, tasks:any[], apqpElements:any[], ppapElements:any[] }) {
   const [brief, setBrief]     = useState<string|null>(null)
   const [briefLoading, setBL] = useState(false)
   const opv            = parseFloat(project.opv)
@@ -234,6 +235,26 @@ function SummaryTab({ project, tasks, apqpElements }: { project:any, tasks:any[]
           </div>
 
           {/* APQP Health card — only if APQP active */}
+          {ppapElements.length > 0 && (() => {
+            const ppapApproved = ppapElements.filter((e:any)=>e.status==='approved').length
+            const ppapRejected = ppapElements.filter((e:any)=>e.status==='rejected').length
+            const ppapOverdue  = ppapElements.filter((e:any)=>e.status!=='approved'&&e.planned_end_date&&new Date(e.planned_end_date)<today).length
+            const ppapHealth   = ppapRejected > 0 ? 'red' : ppapOverdue > 0 ? 'amber' : 'green'
+            const ppapColor    = ppapHealth === 'green' ? 'var(--green)' : ppapHealth === 'amber' ? 'var(--amber)' : 'var(--red)'
+            const ppapBg       = ppapHealth === 'green' ? 'var(--green-bg)' : ppapHealth === 'amber' ? 'var(--amber-bg)' : 'var(--red-bg)'
+            const ppapLabel    = ppapHealth === 'green' ? 'On Track' : ppapHealth === 'amber' ? 'At Risk' : 'Rejected'
+            return (
+              <div className="card">
+                <div className="card-header">
+                  <div><div className="card-title">PPAP Status</div><div className="card-sub">{ppapApproved} of {ppapElements.length} elements approved</div></div>
+                  <span style={{ display:'inline-flex', alignItems:'center', gap:6, background:ppapBg, color:ppapColor, borderRadius:99, padding:'4px 12px', fontSize:12, fontWeight:600 }}>
+                    <span style={{ width:7, height:7, borderRadius:'50%', background:ppapColor, display:'inline-block' }} />
+                    {ppapLabel}
+                  </span>
+                </div>
+              </div>
+            )
+          })()}
           {isApqpEnabled() && apqpTotal > 0 && (
             <div className="card">
               <div className="card-header">
@@ -707,7 +728,7 @@ const SECTION_LABELS: Record<string,string> = {
   pm_closing_remarks:      "PM Closing Remarks",
 }
 
-function ClosureTab({ project, tasks, canEdit=true, apqpElements=[] }: { project:any, tasks:any[], canEdit?:boolean, apqpElements?:any[] }) {
+function ClosureTab({ project, tasks, canEdit=true, apqpElements=[], ppapElements=[] }: { project:any, tasks:any[], canEdit?:boolean, apqpElements?:any[], ppapElements?:any[] }) {
   const qc = useQueryClient()
   const [pmNotes, setPmNotes] = useState("")
   const [date, setDate] = useState(new Date().toISOString().split("T")[0])
@@ -785,6 +806,7 @@ function ClosureTab({ project, tasks, canEdit=true, apqpElements=[] }: { project
   }
 
   const incompleteApqp = apqpElements.filter((e:any) => e.status !== 'complete')
+  const incompletePpap = (ppapElements as any[]).filter((e:any) => e.status !== 'approved')
 
   if (incompleteTasks.length > 0) {
     return (
@@ -826,6 +848,28 @@ function ClosureTab({ project, tasks, canEdit=true, apqpElements=[] }: { project
             <div key={e.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 0", borderBottom:"1px solid var(--border)" }}>
               <div style={{ color:"var(--text)", fontWeight:500 }}>{e.element_name}</div>
               <span className="status amber" style={{ fontSize:11, textTransform:'capitalize' }}>{e.status.replace('_',' ')}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (incompletePpap.length > 0) {
+    return (
+      <div className="card">
+        <div className="card-header">
+          <div>
+            <div className="card-title">Cannot Close Project</div>
+            <div className="card-sub">All PPAP elements must be Approved before closing</div>
+          </div>
+          <span className="status red">{incompletePpap.length} PPAP not approved</span>
+        </div>
+        <div style={{ marginTop:8 }}>
+          {incompletePpap.map((e:any) => (
+            <div key={e.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 0", borderBottom:"1px solid var(--border)" }}>
+              <div style={{ color:"var(--text)", fontWeight:500 }}>{e.element_name}</div>
+              <span className={`status ${e.status === 'rejected' ? 'red' : e.status === 'submitted' ? 'amber' : 'blue'}`} style={{ fontSize:11, textTransform:'capitalize' }}>{e.status.replace(/_/g,' ')}</span>
             </div>
           ))}
         </div>
@@ -901,6 +945,8 @@ export default function ProjectView({ projectId }: { projectId:string }) {
   const { data:tasks=[], refetch:refetchTasks } = useQuery({ queryKey:['tasks',projectId], queryFn:()=>getTasks(projectId) })
   const { data: apqpElements = [] } = useQuery({ queryKey: ['apqp-elements', projectId], queryFn: async () => { const { api } = await import('../api/client'); const r = await api.get(`/api/apqp/projects/${projectId}/elements`); return r.data } })
   const hasApqp = isApqpEnabled() && (apqpElements as any[]).length > 0
+  const { data: ppapElements = [] } = useQuery({ queryKey: ['ppap-elements', projectId], queryFn: async () => { const { api } = await import('../api/client'); const r = await api.get(`/api/ppap/projects/${projectId}/elements`); return r.data } })
+  const hasPpap = (ppapElements as any[]).length > 0
   if (isLoading || !project) return <div style={{ textAlign:'center', padding:60, color:'var(--text4)' }}>Loading project...</div>
 
   // Compute flagged tasks - overdue ECD or stale update (4+ days)
@@ -920,7 +966,7 @@ export default function ProjectView({ projectId }: { projectId:string }) {
     <div>
       <KPIRow project={project} tasks={tasks as any[]} />
       <div className="tab-nav">
-        {TABS.filter(tab => tab !== 'APQP' || hasApqp).map(tab => (
+        {TABS.filter(tab => (tab !== 'APQP' || hasApqp) && (tab !== 'PPAP' || hasPpap)).map(tab => (
           <button
             key={tab}
             className={`tab ${activeTab===tab?'active':''}`}
@@ -934,7 +980,7 @@ export default function ProjectView({ projectId }: { projectId:string }) {
           </button>
         ))}
       </div>
-      {activeTab==='Summary'       && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <SummaryTab project={project} tasks={tasks as any[]} apqpElements={apqpElements as any[]} />)}
+      {activeTab==='Summary'       && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <SummaryTab project={project} tasks={tasks as any[]} apqpElements={apqpElements as any[]} ppapElements={ppapElements as any[]} />)}
       {activeTab==='Tasks'         && <TasksTab projectId={projectId} project={project} tasks={tasks as any[]} refetch={()=>{ refetchTasks(); refetchProject(); }} canEdit={canEdit}  />}
       {activeTab==='Status Kanban' && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <StatusKanban tasks={tasks as any[]} />)}
       {activeTab==='Weekly Kanban' && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <WeeklyKanban tasks={tasks as any[]} />)}
@@ -953,9 +999,10 @@ export default function ProjectView({ projectId }: { projectId:string }) {
         canEdit={canEdit}
       />)}
       {activeTab==='Reports'       && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <ReportsTab projectId={projectId} canEdit={canEdit} />)}
-      {activeTab==='Closure'       && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <ClosureTab project={project} tasks={tasks as any[]} canEdit={canEdit} apqpElements={apqpElements as any[]} />)}
+      {activeTab==='Closure'       && (isLocked ? <LockScreen flaggedTasks={flaggedTasks} /> : <ClosureTab project={project} tasks={tasks as any[]} canEdit={canEdit} apqpElements={apqpElements as any[]} ppapElements={ppapElements as any[]} />)}
       {activeTab==='Charter'       && <CharterTab project={project} phases={project.phases || []} />}
       {activeTab==='APQP'          && <APQPTab projectId={projectId} canEdit={canEdit} />}
+      {activeTab==='PPAP'          && <PPAPTab projectId={projectId} canEdit={canEdit} />}
     </div>
   )
 }
