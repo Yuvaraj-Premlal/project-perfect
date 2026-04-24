@@ -440,25 +440,78 @@ Return JSON with this exact structure:
 // ─────────────────────────────────────────────
 // Review summary — numbered bullet points
 // ─────────────────────────────────────────────
-async function generateReviewSummary({ projectName, opv, lfv, momentum, tasks, lastReviewDate }) {
-  const today = new Date().toISOString().split('T')[0]
-  const highRisk = tasks.filter(t => t.risk_label === 'high_risk' || t.risk_label === 'moderate')
-    .map(t => `${t.task_name} [${t.control_type.replace('_',' ')}, ${t.delay_days} days delayed]`)
-    .join('\n')
-  const stale = tasks.filter(t => t.completion_status !== 'complete' && (!t.last_update_at || (new Date().getTime() - new Date(t.last_update_at).getTime()) > 4*24*60*60*1000))
-    .map(t => t.task_name).join(', ')
-  const system = `You are a project management assistant preparing a review summary for a programme manager.
-Generate exactly 5-7 numbered bullet points. Each bullet is one clear, actionable sentence.
-Focus ONLY on: high risk items, tasks needing updates, and specific next actions.
-Do NOT mention OPV, LFV, VR or any metric numbers. Be direct and specific.
-Format: numbered list only, no headings, no preamble.`
+async function generateReviewSummary({ projectName, tasks, lastReviewDate }) {
+  const today = new Date()
+
+  const ownerLabel = (t) => {
+    if (t.control_type === 'internal') return t.owner_name || t.owner_email || 'Unassigned'
+    return t.supplier_name || t.owner_name || 'Unknown supplier'
+  }
+
+  const fmt = (d) =>
+    d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'N/A'
+
+  const atRiskTasks = tasks
+    .filter(t => t.completion_status !== 'complete' && (t.risk_number || 0) > 0)
+    .sort((a, b) => (b.risk_number || 0) - (a.risk_number || 0))
+    .slice(0, 8)
+
+  const staleTasks = tasks.filter(t => {
+    if (t.completion_status === 'complete') return false
+    if (!t.last_update_at) return true
+    const daysSince = Math.floor((today - new Date(t.last_update_at)) / 86400000)
+    return daysSince >= 4
+  })
+
+  if (atRiskTasks.length === 0 && staleTasks.length === 0) {
+    return 'All tasks are complete and up to date. No actions required at this time.'
+  }
+
+  const atRiskLines = atRiskTasks.length > 0
+    ? atRiskTasks.map(t =>
+        `- ${t.task_name} | Owner: ${ownerLabel(t)} | ${t.control_type} | ` +
+        `${t.delay_days || 0}d delayed | ECD: ${fmt(t.current_ecd)} | ` +
+        `Planned end: ${fmt(t.planned_end_date)} | RN: ${t.risk_number || 0}`
+      ).join('\n')
+    : 'None'
+
+  const staleLines = staleTasks.length > 0
+    ? staleTasks.map(t => {
+        const daysSince = t.last_update_at
+          ? Math.floor((today - new Date(t.last_update_at)) / 86400000)
+          : null
+        return `- ${t.task_name} | Owner: ${ownerLabel(t)} | ` +
+          `Last update: ${daysSince !== null ? daysSince + 'd ago' : 'never updated'} | ` +
+          `ECD: ${fmt(t.current_ecd)}`
+      }).join('\n')
+    : 'None'
+
+  const system = `You are a project management assistant preparing a Review Summary for a programme manager who is about to conduct a project review meeting.
+
+Generate exactly 5-7 numbered bullet points. Each bullet must be ONE clear, actionable sentence that tells the PM exactly who to speak to and what about.
+
+Rules:
+- Always name the task owner or supplier responsible for the action
+- Reference the task planned end date or ECD where it adds urgency
+- For supplier or sub-supplier tasks, name the company not just the task
+- For stale tasks, state how many days since the last update
+- Do NOT mention OPV, LFV, VR or any metric numbers
+- Do NOT use generic phrases like monitor, keep an eye on, follow up as needed
+- Each action must be specific enough that the PM could read it out in the meeting
+
+Format: numbered list only, no headings, no preamble, no sign-off.`
+
   const user = `Project: ${projectName}
 Last review: ${lastReviewDate || 'None'}
+
 High risk / moderate tasks:
-${highRisk || 'None'}
-Tasks with no update in 4+ days: ${stale || 'None'}
-Momentum: ${momentum >= 0 ? 'improving' : 'declining'}
+${atRiskLines}
+
+Tasks with no update in 4+ days:
+${staleLines}
+
 Generate the review summary bullets.`
+
   return await callAI(system, user, 400)
 }
 
