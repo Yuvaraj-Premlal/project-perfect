@@ -623,16 +623,13 @@ function LockScreen({ flaggedTasks }: { flaggedTasks: any[] }) {
 }
 
 function parseReportSections(content: string) {
-  const sections = ['Executive Summary','Schedule Status','Schedule Slippages','Supplier Performance','Escalation Watch','Recommended Actions']
   const result: {heading:string, body:string}[] = []
-  sections.forEach((s, i) => {
-    const marker = `## ${s}`
-    const nextMarker = i < sections.length-1 ? `## ${sections[i+1]}` : null
-    const start = content.indexOf(marker)
-    if (start === -1) return
-    const bodyStart = start + marker.length
-    const end = nextMarker ? content.indexOf(nextMarker) : content.length
-    result.push({ heading: s, body: content.slice(bodyStart, end).trim() })
+  const parts = content.split(/(?=## )/)
+  parts.forEach(part => {
+    const lines = part.trim().split('\n')
+    const heading = lines[0].replace('## ', '').trim()
+    const body = lines.slice(1).join('\n').trim()
+    if (heading) result.push({ heading, body })
   })
   if (result.length === 0) result.push({ heading: '', body: content })
   return result
@@ -661,7 +658,7 @@ function printReport(report: any) {
     <div class="metric"><div class="val">${(parseFloat(report.lfv_snapshot||0)*100).toFixed(1)}%</div><div class="lbl">LFV</div></div>
     <div class="metric"><div class="val">${report.high_risk_count||0}</div><div class="lbl">High risk tasks</div></div>
   </div>
-  ${sections.map(s => (s.heading ? '<h2>'+s.heading+'</h2>' : '') + '<p>' + s.body.split('\n').join('</p><p>') + '</p>').join('')}
+  ${sections.map(s => (s.heading ? '<h2>'+s.heading+'</h2>' : '') + '<ul>' + s.body.split('\n').filter(l => l.trim()).map(l => '<li>' + (l.trim().startsWith('-') ? l.trim().slice(1).trim() : l.trim()) + '</li>').join('') + '</ul>').join('')}
   </body></html>`)
   win.document.close()
   win.focus()
@@ -712,7 +709,14 @@ function ReportsTab({ projectId, canEdit=true }: { projectId:string, canEdit?:bo
               {sections.map((s:any,i:number)=>(
                 <div key={i} style={{ marginBottom:14 }}>
                   {s.heading && <div style={{ fontSize:12, fontWeight:600, color:'var(--text)', marginBottom:6, paddingBottom:4, borderBottom:'1px solid var(--border)' }}>{s.heading}</div>}
-                  <div style={{ fontSize:12, color:'var(--text2)', lineHeight:1.8 }}>{s.body}</div>
+                  <div style={{ fontSize:12, color:'var(--text2)', lineHeight:1.8 }}>
+                    {s.body.split('\n').filter((l:string) => l.trim()).map((line:string, li:number) => (
+                      <div key={li} style={{ display:'flex', gap:8, marginBottom:4 }}>
+                        {line.trim().startsWith('-') && <span style={{ color:'var(--blue)', flexShrink:0, marginTop:1 }}>•</span>}
+                        <span>{line.trim().startsWith('-') ? line.trim().slice(1).trim() : line.trim()}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>

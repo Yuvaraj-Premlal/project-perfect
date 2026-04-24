@@ -215,7 +215,7 @@ async function generateWeeklyNarrative({ projectName, customerName, opv, lfv, mo
   const highRiskList = (tasks||[]).filter(t => t.risk_label === 'high_risk')
     .sort((a,b) => (b.risk_number||0)-(a.risk_number||0))
     .slice(0,5)
-    .map(t => `- ${t.task_name} [${t.control_type.replace('_',' ')}, ${t.delay_days}d delay, RN:${t.risk_number||0}]`)
+    .map(t => `- ${t.task_name} | ${t.control_type==='internal' ? (t.owner_name||t.owner_email||'Unassigned') : (t.supplier_name||t.owner_name||'Unknown supplier')} [${t.control_type.replace('_',' ')}, ${t.delay_days}d delayed]`)
     .join('\n')
   const supplierTasks = (tasks||[]).filter(t => t.control_type==='supplier'||t.control_type==='sub_supplier')
   const supplierDelayed = supplierTasks.filter(t => (t.delay_days||0)>0).length
@@ -252,7 +252,7 @@ The report must be structured with these exact section headings:
 ## Supplier Performance
 ## Escalation Watch${qualitySections}
 ## Recommended Actions
-Each section must have 2-4 bullet points starting with '- '. Be factual, specific, and professional. Third person. Bullet points only, no prose paragraphs.${apqpSummary || ppapSummary ? ' If Quality Process Status section is present, include APQP and PPAP status with specific element names.' : ''}`
+Each section must have 2-4 bullet points starting with '- '. Be factual, specific, and professional. Third person. Bullet points only, no prose paragraphs. For Supplier Performance: if there are zero external tasks, state that clearly — do not invent commentary about supplier stability.${apqpSummary || ppapSummary ? ' If Quality Process Status section is present, include APQP and PPAP status with specific element names.' : ''}`
   const user = `Generate weekly executive report for week ending ${weekEnding}:
 Project: ${projectName} | Customer: ${customerName||'Customer'}
 OPV: ${(opv*100).toFixed(1)}% (target >80%) | LFV: ${(lfv*100).toFixed(1)}% (target <120%)
