@@ -211,7 +211,7 @@ Generate the project quick glance bullets.`;
 // ─────────────────────────────────────────────
 // Weekly report narrative
 // ─────────────────────────────────────────────
-async function generateWeeklyNarrative({ projectName, customerName, opv, lfv, momentum, highRiskTasks, totalTasks, escalationActive, weekEnding, tasks }) {
+async function generateWeeklyNarrative({ projectName, customerName, opv, lfv, momentum, highRiskTasks, totalTasks, escalationActive, weekEnding, tasks, apqpElements, ppapElements }) {
   const highRiskList = (tasks||[]).filter(t => t.risk_label === 'high_risk')
     .sort((a,b) => (b.risk_number||0)-(a.risk_number||0))
     .slice(0,5)
@@ -223,15 +223,36 @@ async function generateWeeklyNarrative({ projectName, customerName, opv, lfv, mo
   const internalDelayed = internalTasks.filter(t => (t.delay_days||0)>0).length
   const slippedTasks = (tasks||[]).filter(t => (t.slippage_count||0)>0)
     .map(t => `${t.task_name} (+${t.delay_days}d)`).join(', ')
+  // Build APQP summary if data exists
+  const apqpSummary = (apqpElements||[]).length > 0
+    ? `APQP Status (${(apqpElements||[]).filter(e => e.status === 'complete').length}/${(apqpElements||[]).length} complete):\n` +
+      (apqpElements||[]).filter(e => e.status !== 'complete')
+        .map(e => `- ${e.element_name} [${e.status}${e.overdue_days > 0 ? ', ' + e.overdue_days + 'd overdue' : ''}]`)
+        .join('\n') || '- All elements on track'
+    : null
+
+  // Build PPAP summary if data exists
+  const ppapSummary = (ppapElements||[]).length > 0
+    ? `PPAP Status (${(ppapElements||[]).filter(e => e.status === 'approved').length}/${(ppapElements||[]).length} approved):\n` +
+      (ppapElements||[]).filter(e => e.status !== 'approved')
+        .map(e => `- ${e.element_name} [${e.status}, ${e.submission_count||0} submission(s)${e.overdue_days > 0 ? ', ' + e.overdue_days + 'd overdue' : ''}]`)
+        .join('\n') || '- All elements approved'
+    : null
+
+  // Build section headings dynamically
+  const qualitySections = (apqpSummary || ppapSummary)
+    ? `\n## Quality Process Status`
+    : ''
+
   const system = `You are a project management assistant writing a comprehensive weekly executive report for senior leadership in a manufacturing company.
 The report must be structured with these exact section headings:
 ## Executive Summary
 ## Schedule Status
 ## Schedule Slippages
 ## Supplier Performance
-## Escalation Watch
+## Escalation Watch${qualitySections}
 ## Recommended Actions
-Each section should be 2-4 sentences. Be factual, specific, and professional. Third person. Flowing prose per section, no bullet points within sections.`
+Each section must have 2-4 bullet points starting with '- '. Be factual, specific, and professional. Third person. Bullet points only, no prose paragraphs.${apqpSummary || ppapSummary ? ' If Quality Process Status section is present, include APQP and PPAP status with specific element names.' : ''}`
   const user = `Generate weekly executive report for week ending ${weekEnding}:
 Project: ${projectName} | Customer: ${customerName||'Customer'}
 OPV: ${(opv*100).toFixed(1)}% (target >80%) | LFV: ${(lfv*100).toFixed(1)}% (target <120%)
@@ -241,7 +262,7 @@ Top high risk tasks:
 ${highRiskList||'None'}
 Slipped tasks: ${slippedTasks||'None'}
 Supplier performance: ${supplierDelayed}/${supplierTasks.length} external tasks delayed
-Internal performance: ${internalDelayed}/${internalTasks.length} internal tasks delayed`
+Internal performance: ${internalDelayed}/${internalTasks.length} internal tasks delayed${apqpSummary ? '\n\n' + apqpSummary : ''}${ppapSummary ? '\n\n' + ppapSummary : ''}`
   return await callAI(system, user, 800)
 }
 
