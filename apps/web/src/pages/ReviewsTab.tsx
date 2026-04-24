@@ -52,7 +52,10 @@ export default function ReviewsTab({
 }) {
   const qc = useQueryClient()
   const [generating, setGenerating] = useState(false)
-  const [agendaUsedToday, setAgendaUsedToday] = useState(0)
+  const agendaKey = `agenda_used_${projectId}_${new Date().toISOString().split('T')[0]}`
+  const [agendaUsedToday, setAgendaUsedToday] = useState<number>(() => {
+    return parseInt(localStorage.getItem(agendaKey) || '0', 10)
+  })
   const [saving, setSaving]         = useState(false)
   const [error, setError]           = useState('')
   const [success, setSuccess]       = useState('')
@@ -94,7 +97,9 @@ export default function ReviewsTab({
         }
       })
       setAgenda(agendaItems)
-      setAgendaUsedToday(prev => prev + 1)
+      const newCount = agendaUsedToday + 1
+      setAgendaUsedToday(newCount)
+      localStorage.setItem(agendaKey, String(newCount))
       // Initialise empty responses for each task
       const initResponses: Record<string, TaskResponse> = {}
       agendaItems.forEach(item => {
@@ -106,6 +111,7 @@ export default function ReviewsTab({
     } catch (err: any) {
       if (err?.response?.status === 429) {
         setAgendaUsedToday(2)
+        localStorage.setItem(agendaKey, '2')
         setError(err?.response?.data?.error || 'Daily limit reached - 2 agenda generations per day')
       } else {
         setError(err?.response?.data?.error || 'Failed to generate agenda')
