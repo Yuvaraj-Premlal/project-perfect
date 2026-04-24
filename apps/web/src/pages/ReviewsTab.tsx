@@ -409,7 +409,12 @@ function ReviewRow({ review }: { review: any }) {
                     ))}
                     {r.pm_response && (
                       <div style={{ fontSize:12, color:'var(--text2)', marginTop:6, padding:'8px 12px', background:'white', borderRadius:6, lineHeight:1.7 }}>
-                        {r.pm_response}
+                        {r.pm_response.split('\n').filter((l:string) => l.trim()).map((line:string, li:number) => (
+                          <div key={li} style={{ display:'flex', gap:8 }}>
+                            <span style={{ color:'var(--blue)', fontWeight:600, flexShrink:0 }}>{li+1}.</span>
+                            <span>{line.trim()}</span>
+                          </div>
+                        ))}
                       </div>
                     )}
                     {r.extra_points?.filter((p:any) => p.question || p.text).map((p: any, pi: number) => (
