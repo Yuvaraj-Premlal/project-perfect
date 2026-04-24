@@ -174,6 +174,11 @@ async function generatePreReviewBrief(project, tasks) {
       }).join('\n')
     : 'None';
 
+  // Guard — no actionable data, skip AI call entirely
+  if (atRiskTasks.length === 0 && staleTasks.length === 0) {
+    return 'All tasks are complete and up to date. No actions required at this time.';
+  }
+
   const systemPrompt = `You are a project management assistant preparing a Project Quick Glance for a programme manager who has 60 seconds before entering a review meeting.
 
 Generate exactly 5-7 numbered bullet points. Each bullet must be ONE clear, actionable sentence that tells the PM exactly who to speak to and what about.
