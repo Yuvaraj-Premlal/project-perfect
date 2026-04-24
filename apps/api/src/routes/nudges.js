@@ -120,14 +120,7 @@ router.get('/pre-review-brief', async (req, res) => {
     const tasks = tasksResult.rows;
     const highRiskCount = tasks.filter(t => t.risk_label === 'high_risk').length;
 
-    const brief = await generatePreReviewBrief({
-      projectName:    project.project_name,
-      opv:            parseFloat(project.opv),
-      lfv:            parseFloat(project.lfv),
-      momentum:       parseFloat(project.momentum),
-      highRiskTasks:  highRiskCount,
-      tasks
-    });
+    const brief = await generatePreReviewBrief(project, tasks);
 
     res.json({
       project_id:   projectId,
