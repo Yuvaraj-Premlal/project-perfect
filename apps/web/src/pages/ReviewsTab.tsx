@@ -409,18 +409,13 @@ function ReviewRow({ review }: { review: any }) {
                     ))}
                     {r.pm_response && (
                       <div style={{ fontSize:12, color:'var(--text2)', marginTop:6, padding:'8px 12px', background:'white', borderRadius:6, lineHeight:1.7 }}>
-                        {r.pm_response.split('\n').filter((l:string) => l.trim()).map((line:string, li:number) => (
-                          <div key={li} style={{ display:'flex', gap:8 }}>
-                            <span style={{ color:'var(--blue)', fontWeight:600, flexShrink:0 }}>{li+1}.</span>
-                            <span>{line.trim()}</span>
-                          </div>
-                        ))}
+                        {r.pm_response}
                       </div>
                     )}
                     {r.extra_points?.filter((p:any) => p.question || p.text).map((p: any, pi: number) => (
                       <div key={pi} style={{ marginTop:8, borderLeft:'2px solid var(--border)', paddingLeft:10 }}>
                         {(p.question || p.text) && <div style={{ fontSize:11, color:'var(--blue)', marginBottom:3 }}>Q{(r.ai_questions?.length || 0) + pi + 1}. {p.question || p.text}</div>}
-                        {p.answer && <div style={{ fontSize:12, color:'var(--text2)', padding:'4px 8px', background:'white', borderRadius:4, display:'flex', gap:8 }}><span style={{ color:'var(--blue)', fontWeight:600, flexShrink:0 }}>{(r.ai_questions?.length || 0) + pi + 1}.</span><span>{p.answer}</span></div>}
+                        {p.answer && <div style={{ fontSize:12, color:'var(--text2)', padding:'4px 8px', background:'white', borderRadius:4 }}>{p.answer}</div>}
                       </div>
                     ))}
                   </div>
