@@ -419,8 +419,8 @@ function ReviewRow({ review }: { review: any }) {
                     )}
                     {r.extra_points?.filter((p:any) => p.question || p.text).map((p: any, pi: number) => (
                       <div key={pi} style={{ marginTop:8, borderLeft:'2px solid var(--border)', paddingLeft:10 }}>
-                        {(p.question || p.text) && <div style={{ fontSize:11, color:'var(--blue)', marginBottom:3 }}>Q. {p.question || p.text}</div>}
-                        {p.answer && <div style={{ fontSize:12, color:'var(--text2)', padding:'4px 8px', background:'white', borderRadius:4 }}>{p.answer}</div>}
+                        {(p.question || p.text) && <div style={{ fontSize:11, color:'var(--blue)', marginBottom:3 }}>Q{(r.ai_questions?.length || 0) + pi + 1}. {p.question || p.text}</div>}
+                        {p.answer && <div style={{ fontSize:12, color:'var(--text2)', padding:'4px 8px', background:'white', borderRadius:4, display:'flex', gap:8 }}><span style={{ color:'var(--blue)', fontWeight:600, flexShrink:0 }}>{(r.ai_questions?.length || 0) + pi + 1}.</span><span>{p.answer}</span></div>}
                       </div>
                     ))}
                   </div>
