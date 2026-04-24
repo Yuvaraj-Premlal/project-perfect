@@ -109,8 +109,14 @@ router.get('/pre-review-brief', async (req, res) => {
     const project = projectResult.rows[0];
 
     const tasksResult = await client.query(`
-      SELECT t.*, latest_u.what_pending AS last_update_pending, latest_u.created_at AS last_update_at
+      SELECT t.*,
+             u.full_name        AS owner_name,
+             s.supplier_name    AS supplier_name,
+             latest_u.what_pending AS last_update_pending,
+             latest_u.created_at   AS last_update_at
       FROM tasks t
+      LEFT JOIN users u ON u.user_id = t.owner_user_id
+      LEFT JOIN suppliers s ON s.supplier_id = t.supplier_id
       LEFT JOIN LATERAL (
         SELECT what_pending, created_at FROM task_updates
         WHERE task_id = t.task_id ORDER BY created_at DESC LIMIT 1
