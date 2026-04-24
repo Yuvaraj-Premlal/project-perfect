@@ -166,8 +166,10 @@ function SlippageChart({ tasks, project }: { tasks:any[], project:any }) {
 }
 
 function SummaryTab({ project, tasks, apqpElements, ppapElements }: { project:any, tasks:any[], apqpElements:any[], ppapElements:any[] }) {
-  const [brief, setBrief]     = useState<string|null>(null)
-  const [briefLoading, setBL] = useState(false)
+  const briefKey = `brief_${project?.project_id}`
+  const [brief, setBrief]            = useState<string|null>(() => localStorage.getItem(briefKey))
+  const [briefTimestamp, setBriefTs] = useState<string|null>(() => localStorage.getItem(briefKey + '_ts'))
+  const [briefLoading, setBL]        = useState(false)
   const opv            = parseFloat(project.opv)
   const lfv            = parseFloat(project.lfv)
   const statusCls      = opv<0.8?'red':opv<0.9?'amber':opv>=1.0&&lfv<=1.0?'green':'blue'
@@ -191,7 +193,11 @@ function SummaryTab({ project, tasks, apqpElements, ppapElements }: { project:an
     setBL(true)
     try {
       const d = await getPreReviewBrief(project.project_id)
+      const ts = new Date().toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })
       setBrief(d.brief)
+      setBriefTs(ts)
+      localStorage.setItem(briefKey, d.brief)
+      localStorage.setItem(briefKey + '_ts', ts)
     } catch(err:any) {
       const msg = err?.response?.data?.error || err?.message || 'Failed to generate. Please try again.'
       setBrief('! ' + msg)
@@ -288,7 +294,7 @@ function SummaryTab({ project, tasks, apqpElements, ppapElements }: { project:an
               <div><div className="card-title" style={{ display:'flex', alignItems:'center', gap:8 }}><span className="ai-tag">AI</span> Project Quick Glance</div><div className="card-sub">Quick snapshot of project status</div></div>
               <button className="ai-btn" onClick={genBrief} disabled={briefLoading}>{briefLoading ? <><div className="ai-spinner" />&nbsp;Generating...</> : '* Generate'}</button>
             </div>
-            {brief ? <div className="ai-panel"><div className="ai-panel-header">* AI Brief</div><div className="ai-panel-body">{brief}</div></div> : <div style={{ fontSize:11, color:'var(--text4)', textAlign:'center', padding:'18px 0' }}>Click Generate for a quick project glance</div>}
+            {brief ? <div className="ai-panel"><div className="ai-panel-header" style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}><span>* AI Brief</span>{briefTimestamp && <span style={{ fontSize:10, color:'var(--text4)', fontWeight:400 }}>Generated {briefTimestamp}</span>}</div><div className="ai-panel-body">{brief}</div></div> : <div style={{ fontSize:11, color:'var(--text4)', textAlign:'center', padding:'18px 0' }}>Click Generate for a quick project glance</div>}
           </div>
 
           {/* Completion range */}
