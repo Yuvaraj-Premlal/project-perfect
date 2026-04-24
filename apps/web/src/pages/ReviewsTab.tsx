@@ -435,8 +435,9 @@ function ReviewRow({ review }: { review: any }) {
               <div style={{ marginTop:16, paddingTop:12, borderTop:'1px solid var(--border)' }}>
                 <div style={{ fontSize:12, fontWeight:600, color:'var(--text)', marginBottom:8 }}>Additional Agenda Items</div>
                 {customPoints.map((p: any, i: number) => (
-                  <div key={i} style={{ fontSize:12, color:'var(--text2)', marginBottom:6, padding:'6px 12px', background:'white', borderRadius:6 }}>
-                    - {p.text || p}
+                  <div key={i} style={{ fontSize:12, color:'var(--text2)', marginBottom:6, padding:'6px 12px', background:'white', borderRadius:6, display:'flex', gap:8 }}>
+                    <span style={{ color:'var(--blue)', fontWeight:600, flexShrink:0 }}>{i+1}.</span>
+                    <span>{p.text || p}</span>
                   </div>
                 ))}
               </div>
