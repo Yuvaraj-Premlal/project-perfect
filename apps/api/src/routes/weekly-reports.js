@@ -59,6 +59,32 @@ router.post('/', async (req, res) => {
   );
   const escalationActive = parseInt(escalationResult.rows[0].count) > 0;
 
+  // APQP status
+  const apqpResult = await dbQuery(req.tenantId,
+    `SELECT element_name, status, planned_end_date,
+            CASE WHEN status != 'complete' AND planned_end_date < CURRENT_DATE
+                 THEN EXTRACT(DAY FROM CURRENT_DATE - planned_end_date)::int
+                 ELSE 0 END AS overdue_days
+     FROM project_apqp_elements
+     WHERE project_id = $1 AND tenant_id = $2
+     ORDER BY overdue_days DESC`,
+    [projectId, req.tenantId]
+  );
+  const apqpElements = apqpResult.rows;
+
+  // PPAP status
+  const ppapResult = await dbQuery(req.tenantId,
+    `SELECT element_name, status, submission_count, planned_end_date,
+            CASE WHEN status != 'approved' AND planned_end_date < CURRENT_DATE
+                 THEN EXTRACT(DAY FROM CURRENT_DATE - planned_end_date)::int
+                 ELSE 0 END AS overdue_days
+     FROM project_ppap_elements
+     WHERE project_id = $1 AND tenant_id = $2
+     ORDER BY overdue_days DESC`,
+    [projectId, req.tenantId]
+  );
+  const ppapElements = ppapResult.rows;
+
   const weekEnding = new Date();
   weekEnding.setDate(weekEnding.getDate() + (7 - weekEnding.getDay()) % 7);
   const weekEndingStr = weekEnding.toISOString().split('T')[0];
@@ -84,7 +110,9 @@ router.post('/', async (req, res) => {
     totalTasks:      tasks.length,
     escalationActive,
     weekEnding:      weekEndingStr,
-    tasks
+    tasks,
+    apqpElements,
+    ppapElements
   });
 
   const reportResult = await dbQuery(req.tenantId,

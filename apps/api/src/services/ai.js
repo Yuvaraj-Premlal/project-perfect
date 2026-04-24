@@ -252,7 +252,11 @@ The report must be structured with these exact section headings:
 ## Supplier Performance
 ## Escalation Watch${qualitySections}
 ## Recommended Actions
-Each section must have 2-4 bullet points starting with '- '. Be factual, specific, and professional. Third person. Bullet points only, no prose paragraphs. For Supplier Performance: if there are zero external tasks, state that clearly — do not invent commentary about supplier stability.${apqpSummary || ppapSummary ? ' If Quality Process Status section is present, include APQP and PPAP status with specific element names.' : ''}`
+Each section must have 2-4 bullet points. Each bullet MUST be on its own separate line starting with '- '.
+CRITICAL: Never put multiple bullets on the same line. Each '- ' starts a new line.
+Be factual, specific, and professional. Third person.
+For Supplier Performance: if there are zero external tasks, write exactly one bullet: '- No external supplier tasks on this project.'
+Do not add a Supplier Performance section commentary beyond that single line.${apqpSummary || ppapSummary ? ' If Quality Process Status section is present, include APQP and PPAP status with specific element names.' : ''}`
   const user = `Generate weekly executive report for week ending ${weekEnding}:
 Project: ${projectName} | Customer: ${customerName||'Customer'}
 OPV: ${(opv*100).toFixed(1)}% (target >80%) | LFV: ${(lfv*100).toFixed(1)}% (target <120%)
