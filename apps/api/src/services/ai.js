@@ -132,26 +132,76 @@ This project ${urgency}. Write 3-4 sentences.`;
 // ─────────────────────────────────────────────
 // Pre-review brief
 // ─────────────────────────────────────────────
-async function generatePreReviewBrief({ projectName, opv, lfv, momentum, highRiskTasks, tasks }) {
-  const highRisk = tasks
-    .filter(t => t.risk_label === 'high_risk' || t.risk_label === 'moderate')
-    .map(t => `${t.task_name} [${t.control_type.replace('_',' ')}, ${t.delay_days} days delayed, RN:${t.risk_number||0}]`)
-    .join('\n')
-  const stale = tasks.filter(t => t.completion_status !== 'complete' && (!t.last_update_at || (new Date().getTime() - new Date(t.last_update_at).getTime()) > 4*24*60*60*1000))
-    .map(t => t.task_name).join(', ')
-  const system = `You are a project management assistant preparing a project quick glance for a programme manager.
-Generate exactly 5-7 numbered bullet points. Each bullet is one clear, actionable sentence.
-Focus ONLY on: high risk items, tasks needing updates, and specific next actions.
-Do NOT mention OPV, LFV, VR or any metric numbers. Be direct and specific.
-Format: numbered list only, no headings, no preamble.`
-  const user = `Project: ${projectName}
+async function generatePreReviewBrief(project, tasks) {
+  const today = new Date();
+
+  const atRiskTasks = tasks
+    .filter(t => t.completion_status !== 'complete' && (t.risk_number || 0) > 0)
+    .sort((a, b) => (b.risk_number || 0) - (a.risk_number || 0))
+    .slice(0, 8);
+
+  const staleTasks = tasks.filter(t => {
+    if (t.completion_status === 'complete') return false;
+    if (!t.last_update_at) return true;
+    const daysSince = Math.floor((today - new Date(t.last_update_at)) / 86400000);
+    return daysSince >= 4;
+  });
+
+  const ownerLabel = (t) => {
+    if (t.control_type === 'internal') return t.owner_name || t.owner_email || 'Unassigned';
+    return t.supplier_name || t.owner_name || 'Unknown supplier';
+  };
+
+  const fmt = (d) =>
+    d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'N/A';
+
+  const atRiskLines = atRiskTasks.length > 0
+    ? atRiskTasks.map(t =>
+        `- ${t.name} | Owner: ${ownerLabel(t)} | ${t.control_type} | ` +
+        `${t.delay_days || 0}d delayed | ECD: ${fmt(t.current_ecd)} | ` +
+        `Planned end: ${fmt(t.planned_end_date)} | RN: ${t.risk_number || 0}`
+      ).join('\n')
+    : 'None';
+
+  const staleLines = staleTasks.length > 0
+    ? staleTasks.map(t => {
+        const daysSince = t.last_update_at
+          ? Math.floor((today - new Date(t.last_update_at)) / 86400000)
+          : null;
+        return `- ${t.name} | Owner: ${ownerLabel(t)} | ` +
+          `Last update: ${daysSince !== null ? daysSince + 'd ago' : 'never updated'} | ` +
+          `ECD: ${fmt(t.current_ecd)}`;
+      }).join('\n')
+    : 'None';
+
+  const systemPrompt = `You are a project management assistant preparing a Project Quick Glance for a programme manager who has 60 seconds before entering a review meeting.
+
+Generate exactly 5-7 numbered bullet points. Each bullet must be ONE clear, actionable sentence that tells the PM exactly who to speak to and what about.
+
+Rules:
+- Always name the task owner or supplier responsible for the action
+- Reference the task planned end date or ECD where it adds urgency
+- For supplier or sub-supplier tasks, name the company not just the task
+- For stale tasks, state how many days since the last update
+- Do NOT mention OPV, LFV, VR or any metric numbers
+- Do NOT use generic phrases like monitor, keep an eye on, follow up as needed
+- Each action must be specific enough that the PM could read it out in the meeting
+
+Format: numbered list only, no headings, no preamble, no sign-off.`;
+
+  const userPrompt = `Project: ${project.name}
+
 High risk / moderate tasks:
-${highRisk || 'None'}
-Tasks with no update in 4+ days: ${stale || 'None'}
-Momentum: ${momentum >= 0 ? 'improving' : 'declining'}
-Generate the project quick glance bullets.`
-  return await callAI(system, user, 400)
+${atRiskLines}
+
+Tasks with no update in 4+ days:
+${staleLines}
+
+Generate the project quick glance bullets.`;
+
+  return callAI(systemPrompt, userPrompt, 400);
 }
+
 
 // ─────────────────────────────────────────────
 // Weekly report narrative
