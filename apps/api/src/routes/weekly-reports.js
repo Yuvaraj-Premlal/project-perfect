@@ -86,7 +86,8 @@ router.post('/', async (req, res) => {
     );
     ppapElements = ppapResult.rows;
   } catch(e) {
-    console.warn('APQP/PPAP query failed, skipping:', e.message);
+    console.error('APQP/PPAP query failed:', e.message, e.stack);
+    return res.status(500).json({ error: 'APQP query failed: ' + e.message });
   }
 
   const weekEnding = new Date();
