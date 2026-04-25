@@ -59,11 +59,13 @@ router.post('/', async (req, res) => {
   );
   const escalationActive = parseInt(escalationResult.rows[0].count) > 0;
 
-  // APQP/PPAP status — fail gracefully if no elements exist
+  // APQP/PPAP status — use pool.connect() directly (no RLS on these tables)
   let apqpElements = []
   let ppapElements = []
+  const client3 = await pool.connect()
   try {
-    const apqpResult = await dbQuery(req.tenantId,
+    await client3.query(`SET app.tenant_id = '${req.tenantId}'`)
+    const apqpResult = await client3.query(
       `SELECT element_name, status, planned_end_date,
               CASE WHEN status != 'complete' AND planned_end_date < CURRENT_DATE
                    THEN EXTRACT(DAY FROM CURRENT_DATE - planned_end_date)::int
@@ -72,9 +74,9 @@ router.post('/', async (req, res) => {
        WHERE project_id = $1 AND tenant_id = $2
        ORDER BY overdue_days DESC`,
       [projectId, req.tenantId]
-    );
-    apqpElements = apqpResult.rows;
-    const ppapResult = await dbQuery(req.tenantId,
+    )
+    apqpElements = apqpResult.rows
+    const ppapResult = await client3.query(
       `SELECT element_name, status, submission_count, planned_end_date,
               CASE WHEN status != 'approved' AND planned_end_date < CURRENT_DATE
                    THEN EXTRACT(DAY FROM CURRENT_DATE - planned_end_date)::int
@@ -83,10 +85,14 @@ router.post('/', async (req, res) => {
        WHERE project_id = $1 AND tenant_id = $2
        ORDER BY overdue_days DESC`,
       [projectId, req.tenantId]
-    );
-    ppapElements = ppapResult.rows;
+    )
+    ppapElements = ppapResult.rows
+    console.log(`Weekly report: ${apqpElements.length} APQP, ${ppapElements.length} PPAP elements found`)
   } catch(e) {
-    console.warn('APQP/PPAP query failed, skipping:', e.message);
+    console.warn('APQP/PPAP query failed, skipping:', e.message)
+  } finally {
+    client3.release()
+  }
   }
 
   const weekEnding = new Date();
