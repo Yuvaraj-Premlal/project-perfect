@@ -59,10 +59,34 @@ router.post('/', async (req, res) => {
   );
   const escalationActive = parseInt(escalationResult.rows[0].count) > 0;
 
-  // APQP/PPAP status — skipped for now, query approach needs review
+  // APQP/PPAP status — fail gracefully if no elements exist
   let apqpElements = []
   let ppapElements = []
-  }
+  try {
+    const apqpResult = await dbQuery(req.tenantId,
+      `SELECT element_name, status, planned_end_date,
+              CASE WHEN status != 'complete' AND planned_end_date < CURRENT_DATE
+                   THEN EXTRACT(DAY FROM CURRENT_DATE - planned_end_date)::int
+                   ELSE 0 END AS overdue_days
+       FROM project_apqp_elements
+       WHERE project_id = $1 AND tenant_id = $2
+       ORDER BY overdue_days DESC`,
+      [projectId, req.tenantId]
+    );
+    apqpElements = apqpResult.rows;
+    const ppapResult = await dbQuery(req.tenantId,
+      `SELECT element_name, status, submission_count, planned_end_date,
+              CASE WHEN status != 'approved' AND planned_end_date < CURRENT_DATE
+                   THEN EXTRACT(DAY FROM CURRENT_DATE - planned_end_date)::int
+                   ELSE 0 END AS overdue_days
+       FROM project_ppap_elements
+       WHERE project_id = $1 AND tenant_id = $2
+       ORDER BY overdue_days DESC`,
+      [projectId, req.tenantId]
+    );
+    ppapElements = ppapResult.rows;
+  } catch(e) {
+    console.warn('APQP/PPAP query failed, skipping:', e.message);
   }
 
   const weekEnding = new Date();
