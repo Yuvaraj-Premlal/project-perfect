@@ -1,4 +1,5 @@
-const jwt  = require('jsonwebtoken')
+const jwt    = require('jsonwebtoken')
+const crypto = require('crypto')
 const db   = require('../community-db')
 
 // Middleware to authenticate community members
@@ -14,7 +15,6 @@ async function communityAuth(req, res, next) {
     const decoded = jwt.verify(token, process.env.COMMUNITY_JWT_SECRET || process.env.JWT_SECRET)
 
     // Verify session exists and is not expired
-    const crypto = require('crypto')
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex')
 
     const session = await db.query(
