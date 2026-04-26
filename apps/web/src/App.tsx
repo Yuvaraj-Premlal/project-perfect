@@ -7,6 +7,12 @@ import CommunityFeed from './pages/community/Feed'
 import CommunityLogin from './pages/community/Login'
 import CommunityApply from './pages/community/Apply'
 import CommunitySetupPassword from './pages/community/SetupPassword'
+import CrisisBoard from './pages/community/CrisisBoard'
+import PlaybookPage from './pages/community/Playbook'
+import EventsPage from './pages/community/Events'
+import WeeklyQuestion from './pages/community/WeeklyQuestion'
+import ProfilePage from './pages/community/Profile'
+import AdminDashboard from './pages/community/AdminDashboard'
 
 function RequireAuth({ children }: { children: React.ReactElement }) {
   const token = localStorage.getItem('pp_token')
@@ -36,6 +42,12 @@ export default function App() {
       {/* Community protected routes */}
       <Route path="/community" element={<RequireCommunityAuth><CommunityFeed /></RequireCommunityAuth>} />
       <Route path="/community/feed" element={<RequireCommunityAuth><CommunityFeed /></RequireCommunityAuth>} />
+      <Route path="/community/crisis" element={<RequireCommunityAuth><CrisisBoard /></RequireCommunityAuth>} />
+      <Route path="/community/playbook" element={<RequireCommunityAuth><PlaybookPage /></RequireCommunityAuth>} />
+      <Route path="/community/events" element={<RequireCommunityAuth><EventsPage /></RequireCommunityAuth>} />
+      <Route path="/community/weekly-question" element={<RequireCommunityAuth><WeeklyQuestion /></RequireCommunityAuth>} />
+      <Route path="/community/profile" element={<RequireCommunityAuth><ProfilePage /></RequireCommunityAuth>} />
+      <Route path="/community/admin" element={<RequireCommunityAuth><AdminDashboard /></RequireCommunityAuth>} />
     </Routes>
   )
 }
