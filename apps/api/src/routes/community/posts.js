@@ -1,9 +1,10 @@
 const express = require('express')
 const router  = express.Router()
 const db      = require('../../community-db')
+const { communityAuth } = require('../../middleware/communityAuth')
 
 // GET /api/community/posts — get feed posts (auth required)
-router.get('/', async (req, res) => {
+router.get('/', communityAuth, async (req, res) => {
   try {
     const { type, limit = 20, offset = 0 } = req.query
 
