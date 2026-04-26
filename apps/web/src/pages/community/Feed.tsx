@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { communityPosts, getCommunityMember } from '../../api/community'
 
 const NAVY = '#163B6D'
 const NAVY_LIGHT = '#EBF1FB'
-const NAVY_FAINT = '#F4F7FC'
 const BORDER = '#E2E8F0'
 const TEXT = '#0F172A'
 const TEXT_MID = '#334155'
