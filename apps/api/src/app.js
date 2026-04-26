@@ -51,6 +51,10 @@ app.get('/health', (req, res) => {
 app.use("/community/auth", require("./routes/community/auth"));
 app.use("/community", require("./routes/community/applications"));
 app.use("/community/posts", require("./routes/community/posts"));
+app.use("/community/playbook", require("./routes/community/playbook"));
+app.use("/community/crisis", require("./routes/community/crisis"));
+app.use("/community/events", require("./routes/community/events"));
+app.use("/community/admin", require("./routes/community/admin"));
 
 // Public auth routes (no tenant middleware)
 app.use('/auth',    require('./routes/auth'));
