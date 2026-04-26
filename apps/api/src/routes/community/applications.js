@@ -1,6 +1,6 @@
 const express = require('express')
 const router  = express.Router()
-const db      = require('../../db')
+const db      = require('../../community-db')
 
 // POST /api/community/apply — public, no auth required
 router.post('/apply', async (req, res) => {
