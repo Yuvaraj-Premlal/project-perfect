@@ -54,7 +54,7 @@ router.get('/', communityAuth, async (req, res) => {
 })
 
 // POST /api/community/posts — create a post (auth required)
-router.post('/', async (req, res) => {
+router.post('/', communityAuth, async (req, res) => {
   const { type, body, is_anonymous = false } = req.body
   const member_id = req.communityMember?.id
 
@@ -109,7 +109,7 @@ router.post('/', async (req, res) => {
 })
 
 // PATCH /api/community/posts/:id — edit post (within 30 min window)
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', communityAuth, async (req, res) => {
   const { id } = req.params
   const { body } = req.body
   const member_id = req.communityMember?.id
@@ -147,7 +147,7 @@ router.patch('/:id', async (req, res) => {
 })
 
 // POST /api/community/posts/:id/save — save to playbook
-router.post('/:id/save', async (req, res) => {
+router.post('/:id/save', communityAuth, async (req, res) => {
   const { id } = req.params
   const member_id = req.communityMember?.id
 
@@ -172,7 +172,7 @@ router.post('/:id/save', async (req, res) => {
 })
 
 // DELETE /api/community/posts/:id/save — unsave
-router.delete('/:id/save', async (req, res) => {
+router.delete('/:id/save', communityAuth, async (req, res) => {
   const { id } = req.params
   const member_id = req.communityMember?.id
 
@@ -195,7 +195,7 @@ router.delete('/:id/save', async (req, res) => {
 })
 
 // POST /api/community/posts/:id/flag — flag a post
-router.post('/:id/flag', async (req, res) => {
+router.post('/:id/flag', communityAuth, async (req, res) => {
   const { id } = req.params
   const { reason } = req.body
   const member_id = req.communityMember?.id
@@ -216,7 +216,7 @@ router.post('/:id/flag', async (req, res) => {
 })
 
 // GET /api/community/posts/:id/comments — get comments
-router.get('/:id/comments', async (req, res) => {
+router.get('/:id/comments', communityAuth, async (req, res) => {
   try {
     const result = await db.query(
       `SELECT c.*, m.name AS author_name, m.role AS author_role, m.tier AS author_tier
@@ -234,7 +234,7 @@ router.get('/:id/comments', async (req, res) => {
 })
 
 // POST /api/community/posts/:id/comments — add comment
-router.post('/:id/comments', async (req, res) => {
+router.post('/:id/comments', communityAuth, async (req, res) => {
   const { body } = req.body
   const member_id = req.communityMember?.id
 
@@ -256,7 +256,7 @@ router.post('/:id/comments', async (req, res) => {
 })
 
 // PATCH /api/community/posts/:id/resolve — resolve crisis (poster only)
-router.patch('/:id/resolve', async (req, res) => {
+router.patch('/:id/resolve', communityAuth, async (req, res) => {
   const member_id = req.communityMember?.id
 
   try {
