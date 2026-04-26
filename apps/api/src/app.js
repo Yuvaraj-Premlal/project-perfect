@@ -48,6 +48,7 @@ app.get('/health', (req, res) => {
 });
 
 // Community public route (no tenant middleware)
+app.use("/community/auth", require("./routes/community/auth"));
 app.use("/community", require("./routes/community/applications"));
 app.use("/community/posts", require("./routes/community/posts"));
 
