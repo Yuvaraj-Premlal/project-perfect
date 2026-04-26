@@ -1,9 +1,8 @@
-const jwt    = require('jsonwebtoken')
-const crypto = require('crypto')
-const db   = require('../community-db')
+const jwt = require('jsonwebtoken')
+const db  = require('../community-db')
 
-// Middleware to authenticate community members
-// Attaches req.communityMember on success
+const JWT_SECRET = process.env.COMMUNITY_JWT_SECRET || process.env.JWT_SECRET
+
 async function communityAuth(req, res, next) {
   try {
     const authHeader = req.headers.authorization
@@ -12,44 +11,35 @@ async function communityAuth(req, res, next) {
     }
 
     const token = authHeader.split(' ')[1]
-    const decoded = jwt.verify(token, process.env.COMMUNITY_JWT_SECRET || process.env.JWT_SECRET)
 
-    // Verify session exists and is not expired
-    const tokenHash = crypto.createHash('sha256').update(token).digest('hex')
+    let decoded
+    try {
+      decoded = jwt.verify(token, JWT_SECRET)
+    } catch (err) {
+      return res.status(401).json({ error: 'Invalid or expired token' })
+    }
 
-    const session = await db.query(
-      `SELECT s.*, m.id AS member_id, m.name, m.email, m.role,
-              m.company_sector, m.country, m.tier, m.status, m.is_admin
-       FROM sessions s
-       JOIN members m ON m.id = s.member_id
-       WHERE s.token_hash = $1 AND s.expires_at > NOW()`,
-      [tokenHash]
+    const result = await db.query(
+      `SELECT id, name, email, role, company_sector, country,
+              tier, status, is_admin, company_name
+       FROM members
+       WHERE id = $1 AND status = 'active'`,
+      [decoded.memberId]
     )
 
-    if (session.rows.length === 0) {
-      return res.status(401).json({ error: 'Session expired — please log in again' })
+    if (result.rows.length === 0) {
+      return res.status(401).json({ error: 'Member not found or inactive' })
     }
 
-    const member = session.rows[0]
-
-    // Check member is active
-    if (member.status !== 'active') {
-      return res.status(403).json({ error: 'Account is not active' })
-    }
-
-    req.communityMember = member
+    req.communityMember = result.rows[0]
     next()
 
   } catch (err) {
-    if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
-      return res.status(401).json({ error: 'Invalid or expired token' })
-    }
     console.error('Community auth error:', err)
     res.status(500).json({ error: 'Server error' })
   }
 }
 
-// Admin-only middleware — use after communityAuth
 function communityAdmin(req, res, next) {
   if (!req.communityMember?.is_admin) {
     return res.status(403).json({ error: 'Admin access required' })
