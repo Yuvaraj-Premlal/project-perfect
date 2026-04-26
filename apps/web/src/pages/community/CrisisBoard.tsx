@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { communityCrisis, communityPosts, getCommunityMember } from '../../api/community'
 
-const NAVY='#163B6D',NAVY_LIGHT='#EBF1FB',BORDER='#E2E8F0',TEXT='#0F172A',TEXT_MID='#334155'
+const NAVY='#163B6D',BORDER='#E2E8F0',TEXT='#0F172A',TEXT_MID='#334155'
 const TEXT_FAINT='#94A3B8',RED='#DC2626',RED_BG='#FEF2F2',RED_BORDER='#FECACA'
 
 interface Crisis {

@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { communityAdmin, communityApplications, getCommunityMember } from '../../api/community'
 
 const NAVY='#163B6D',NAVY_LIGHT='#EBF1FB',BORDER='#E2E8F0'
 const TEXT='#0F172A',TEXT_MID='#334155',TEXT_LIGHT='#64748B',TEXT_FAINT='#94A3B8'
 const GREEN='#059669',GREEN_BG='#ECFDF5',GREEN_BORDER='#A7F3D0'
-const RED='#DC2626',RED_BG='#FEF2F2',RED_BORDER='#FECACA'
+const RED='#DC2626'
 const AMBER='#D97706',AMBER_BG='#FFFBEB',AMBER_BORDER='#FCD34D'
 
 interface DashboardData {
@@ -77,7 +77,6 @@ export default function AdminDashboard() {
   }
 
   const priorityColor=(p:string)=>p==='high'?RED:p==='medium'?AMBER:GREEN
-  const priorityBg=(p:string)=>p==='high'?RED_BG:p==='medium'?AMBER_BG:GREEN_BG
 
   return(
     <div style={{minHeight:'100vh',background:'#F8FAFC'}}>

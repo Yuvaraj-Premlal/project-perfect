@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { communityPosts, getCommunityMember } from '../../api/community'
 
 const NAVY='#163B6D',NAVY_LIGHT='#EBF1FB',BORDER='#E2E8F0'
-const TEXT='#0F172A',TEXT_MID='#334155',TEXT_LIGHT='#64748B',TEXT_FAINT='#94A3B8'
+const TEXT='#0F172A',TEXT_MID='#334155',TEXT_FAINT='#94A3B8'
 const GREEN='#059669',GREEN_BG='#ECFDF5',GREEN_BORDER='#A7F3D0'
 
 interface Post {
