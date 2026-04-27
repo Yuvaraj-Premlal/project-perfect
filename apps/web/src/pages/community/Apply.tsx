@@ -8,8 +8,6 @@ const TEXT = '#0F172A'
 const TEXT_FAINT = '#94A3B8'
 const TEXT_LIGHT = '#64748B'
 const RED = '#DC2626'
-const GREEN = '#059669'
-const GREEN_BG = '#ECFDF5'
 
 const SECTORS = ['Auto Ancillary','Precision Engineering','Capital Goods','Process Manufacturing','Construction / EPC','General Manufacturing','Other']
 const COUNTRIES = [
