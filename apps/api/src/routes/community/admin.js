@@ -199,7 +199,7 @@ router.post('/members/:id/invite', async (req, res) => {
       return res.status(404).json({ error: 'Member not found' })
     }
 
-    const frontendUrl = process.env.FRONTEND_URL || 'https://app.projectperfect.in'
+    const frontendUrl = 'https://app.projectperfect.in'
     const inviteUrl = `${frontendUrl}/community/setup-password?token=${inviteToken}`
 
     res.json({
@@ -260,7 +260,7 @@ router.post('/applications/:id/approve-and-invite', async (req, res) => {
       [inviteToken, inviteExpires, memberId]
     )
 
-    const frontendUrl = process.env.FRONTEND_URL || 'https://app.projectperfect.in'
+    const frontendUrl = 'https://app.projectperfect.in'
     const inviteUrl = `${frontendUrl}/community/setup-password?token=${inviteToken}`
 
     res.json({
