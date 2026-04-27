@@ -1,8 +1,9 @@
 const express = require('express')
 const router  = express.Router()
 const db      = require('../../community-db')
+const crypto  = require('crypto')
 
-// POST /api/community/apply — public, no auth required
+// POST /community/apply — public, no auth required
 router.post('/apply', async (req, res) => {
   const {
     name, email, role, company_name,
@@ -56,7 +57,7 @@ router.post('/apply', async (req, res) => {
   }
 })
 
-// GET /api/community/applications — admin only
+// GET /community/ — admin only: view applications
 router.get('/', async (req, res) => {
   try {
     const { status = 'pending' } = req.query
@@ -73,7 +74,7 @@ router.get('/', async (req, res) => {
   }
 })
 
-// PATCH /api/community/applications/:id — admin only
+// PATCH /community/:id — admin only: approve/hold/decline
 router.patch('/:id', async (req, res) => {
   const { id } = req.params
   const { status, admin_note } = req.body
@@ -100,9 +101,46 @@ router.patch('/:id', async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Application not found' })
     }
-    res.json(result.rows[0])
+
+    const application = result.rows[0]
+
+    // On approval — create member record if not already exists
+    if (status === 'approved') {
+      const existingMember = await db.query(
+        'SELECT id FROM members WHERE email = $1',
+        [application.email]
+      )
+
+      if (existingMember.rows.length === 0) {
+        // Create member record
+        const newMember = await db.query(
+          `INSERT INTO members
+            (name, email, role, company_name, company_sector, country,
+             linkedin_url, status, tier)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', 'contributor')
+           RETURNING id`,
+          [
+            application.name,
+            application.email,
+            application.role,
+            application.company_name,
+            application.company_sector,
+            application.country,
+            application.linkedin_url
+          ]
+        )
+
+        // Link member to application
+        await db.query(
+          'UPDATE applications SET member_id = $1 WHERE id = $2',
+          [newMember.rows[0].id, id]
+        )
+      }
+    }
+
+    res.json(application)
   } catch (err) {
-    console.error(err)
+    console.error('Application update error:', err)
     res.status(500).json({ error: 'Server error' })
   }
 })

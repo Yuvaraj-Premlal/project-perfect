@@ -30,12 +30,12 @@ router.get('/dashboard', async (req, res) => {
     ])
 
     res.json({
-      active_members:  parseInt(members.rows[0].count),
-      posts_this_week: parseInt(posts.rows[0].count),
-      active_crises:   parseInt(crises.rows[0].count),
-      playbook_entries:parseInt(playbook.rows[0].count),
-      dormant_members: dormant.rows,
-      most_active:     active.rows
+      active_members:   parseInt(members.rows[0].count),
+      posts_this_week:  parseInt(posts.rows[0].count),
+      active_crises:    parseInt(crises.rows[0].count),
+      playbook_entries: parseInt(playbook.rows[0].count),
+      dormant_members:  dormant.rows,
+      most_active:      active.rows
     })
   } catch (err) {
     console.error('Dashboard error:', err)
@@ -121,6 +121,28 @@ router.get('/members', async (req, res) => {
   }
 })
 
+// GET /community/admin/members/all — all members regardless of status
+router.get('/members/all', async (req, res) => {
+  try {
+    const result = await db.query(
+      `SELECT m.*,
+        COUNT(DISTINCT p.id) AS post_count,
+        COUNT(DISTINCT s.id) AS saves_received,
+        COUNT(DISTINCT c.id) AS crises_helped
+       FROM members m
+       LEFT JOIN posts p ON p.member_id = m.id AND p.is_hidden = FALSE
+       LEFT JOIN saves s ON s.post_id = p.id
+       LEFT JOIN comments c ON c.member_id = m.id
+       GROUP BY m.id
+       ORDER BY m.created_at DESC`
+    )
+    res.json(result.rows)
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // PATCH /community/admin/members/:id — update status or tier
 router.patch('/members/:id', async (req, res) => {
   const { status, tier } = req.body
@@ -164,7 +186,7 @@ router.patch('/members/:id', async (req, res) => {
 router.post('/members/:id/invite', async (req, res) => {
   try {
     const inviteToken = crypto.randomBytes(32).toString('hex')
-    const inviteExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+    const inviteExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
 
     const result = await db.query(
       `UPDATE members
@@ -177,7 +199,8 @@ router.post('/members/:id/invite', async (req, res) => {
       return res.status(404).json({ error: 'Member not found' })
     }
 
-    const inviteUrl = `${process.env.FRONTEND_URL}/community/setup-password?token=${inviteToken}`
+    const frontendUrl = process.env.FRONTEND_URL || 'https://app.projectperfect.in'
+    const inviteUrl = `${frontendUrl}/community/setup-password?token=${inviteToken}`
 
     res.json({
       invite_url: inviteUrl,
@@ -186,6 +209,69 @@ router.post('/members/:id/invite', async (req, res) => {
     })
   } catch (err) {
     console.error(err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /community/admin/applications/:id/approve-and-invite — approve + create member + generate invite in one step
+router.post('/applications/:id/approve-and-invite', async (req, res) => {
+  const { admin_note } = req.body
+
+  try {
+    // Get application
+    const appResult = await db.query('SELECT * FROM applications WHERE id = $1', [req.params.id])
+    if (appResult.rows.length === 0) return res.status(404).json({ error: 'Application not found' })
+
+    const app = appResult.rows[0]
+
+    // Update application to approved
+    await db.query(
+      'UPDATE applications SET status = $1, admin_note = $2, updated_at = NOW() WHERE id = $3',
+      ['approved', admin_note, req.params.id]
+    )
+
+    // Check if member already exists
+    let memberId
+    const existing = await db.query('SELECT id FROM members WHERE email = $1', [app.email])
+
+    if (existing.rows.length > 0) {
+      memberId = existing.rows[0].id
+    } else {
+      // Create member record
+      const newMember = await db.query(
+        `INSERT INTO members
+          (name, email, role, company_name, company_sector, country, linkedin_url, status, tier)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', 'contributor')
+         RETURNING id`,
+        [app.name, app.email, app.role, app.company_name, app.company_sector, app.country, app.linkedin_url]
+      )
+      memberId = newMember.rows[0].id
+
+      // Link to application
+      await db.query('UPDATE applications SET member_id = $1 WHERE id = $2', [memberId, req.params.id])
+    }
+
+    // Generate invite token
+    const inviteToken = crypto.randomBytes(32).toString('hex')
+    const inviteExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+
+    await db.query(
+      'UPDATE members SET invite_token = $1, invite_expires = $2 WHERE id = $3',
+      [inviteToken, inviteExpires, memberId]
+    )
+
+    const frontendUrl = process.env.FRONTEND_URL || 'https://app.projectperfect.in'
+    const inviteUrl = `${frontendUrl}/community/setup-password?token=${inviteToken}`
+
+    res.json({
+      message: 'Application approved and invite link generated',
+      invite_url: inviteUrl,
+      member_id: memberId,
+      expires_at: inviteExpires
+    })
+
+  } catch (err) {
+    console.error('Approve and invite error:', err)
     res.status(500).json({ error: 'Server error' })
   }
 })

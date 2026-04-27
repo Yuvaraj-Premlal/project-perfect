@@ -8,9 +8,25 @@ const TEXT = '#0F172A'
 const TEXT_FAINT = '#94A3B8'
 const TEXT_LIGHT = '#64748B'
 const RED = '#DC2626'
+const GREEN = '#059669'
+const GREEN_BG = '#ECFDF5'
 
-const SECTORS = ['Auto Ancillary','Precision Engineering','Capital Goods','Process Manufacturing','Construction / EPC','General Manufacturing']
-const COUNTRIES = ['India','United States','United Kingdom','Germany','Other Europe','Other']
+const SECTORS = ['Auto Ancillary','Precision Engineering','Capital Goods','Process Manufacturing','Construction / EPC','General Manufacturing','Other']
+const COUNTRIES = [
+  'Afghanistan','Albania','Algeria','Argentina','Australia','Austria','Azerbaijan',
+  'Bahrain','Bangladesh','Belgium','Bolivia','Bosnia and Herzegovina','Brazil','Bulgaria',
+  'Cambodia','Canada','Chile','China','Colombia','Croatia','Czech Republic',
+  'Denmark','Ecuador','Egypt','Estonia','Ethiopia','Finland','France','Georgia',
+  'Germany','Ghana','Greece','Guatemala','Hungary','India','Indonesia','Iran',
+  'Iraq','Ireland','Israel','Italy','Japan','Jordan','Kazakhstan','Kenya',
+  'Kuwait','Latvia','Lebanon','Lithuania','Luxembourg','Malaysia','Mexico',
+  'Morocco','Netherlands','New Zealand','Nigeria','Norway','Oman','Pakistan',
+  'Panama','Peru','Philippines','Poland','Portugal','Qatar','Romania','Russia',
+  'Saudi Arabia','Serbia','Singapore','Slovakia','South Africa','South Korea',
+  'Spain','Sri Lanka','Sweden','Switzerland','Taiwan','Thailand','Tunisia',
+  'Turkey','UAE','Ukraine','United Kingdom','United States','Uruguay',
+  'Venezuela','Vietnam','Other'
+]
 const ROLES = ['VP Operations / Plant Head','Senior Project Manager','Programme Director','Manufacturing Consultant','Operations Director','Other senior ops role']
 
 export default function CommunityApply() {
@@ -161,7 +177,7 @@ export default function CommunityApply() {
 
           <div style={{ marginBottom: '1.5rem' }}>
             <label style={labelStyle}>LinkedIn profile URL <span style={{ color: RED }}>*</span></label>
-            <input required value={form.linkedin_url} onChange={e => set('linkedin_url', e.target.value)} style={inputStyle} placeholder="linkedin.com/in/yourprofile — for verification only" />
+            <input required value={form.linkedin_url} onChange={e => set('linkedin_url', e.target.value)} style={inputStyle} placeholder="linkedin.com/in/yourprofile" />
           </div>
 
           {/* Qualifying question */}

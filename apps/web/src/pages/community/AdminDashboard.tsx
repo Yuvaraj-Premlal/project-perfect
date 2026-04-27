@@ -53,18 +53,21 @@ export default function AdminDashboard() {
     }catch{showToast('Failed')}
   }
 
+  const [inviteUrl, setInviteUrl] = useState('')
+
   async function handleApplication(id:string,status:string){
     try{
       await communityApplications.update(id,{status,admin_note:notes[id]})
-      showToast(`Application ${status}`)
       if(status==='approved'){
         const inv=await communityAdmin.generateInvite(id)
-        showToast(`Invite link: ${inv.data.invite_url}`)
-        await navigator.clipboard.writeText(inv.data.invite_url)
-        showToast('Invite link copied to clipboard!')
+        setInviteUrl(inv.data.invite_url)
+        try{ await navigator.clipboard.writeText(inv.data.invite_url) }catch(e){}
+        showToast('Application approved — invite URL shown below')
+      } else {
+        showToast(`Application ${status}`)
       }
       loadData()
-    }catch{showToast('Failed')}
+    }catch(e){showToast('Failed — check console')}
   }
 
   async function handleExport(){
@@ -101,6 +104,17 @@ export default function AdminDashboard() {
           ))}
           <button onClick={handleExport} style={{marginLeft:'auto',fontFamily:'monospace',fontSize:10,letterSpacing:'.06em',color:TEXT_LIGHT,background:'#fff',border:`1px solid ${BORDER}`,padding:'.5rem 1rem',borderRadius:6,cursor:'pointer'}}>↓ Export CSV</button>
         </div>
+
+        {inviteUrl&&(
+          <div style={{background:'#ECFDF5',border:'1px solid #A7F3D0',borderRadius:10,padding:'1rem',marginBottom:'1rem'}}>
+            <div style={{fontFamily:'monospace',fontSize:9,color:'#059669',letterSpacing:'.08em',textTransform:'uppercase',marginBottom:'.5rem',fontWeight:500}}>✓ Invite link generated — send this to the member personally</div>
+            <div style={{background:'#fff',border:'1px solid #A7F3D0',borderRadius:6,padding:'.65rem .9rem',fontFamily:'monospace',fontSize:11,color:'#0F172A',wordBreak:'break-all',marginBottom:'.65rem'}}>{inviteUrl}</div>
+            <div style={{display:'flex',gap:'.5rem'}}>
+              <button onClick={()=>{navigator.clipboard.writeText(inviteUrl);showToast('Copied!')}} style={{background:'#059669',border:'none',color:'#fff',fontFamily:'monospace',fontSize:10,padding:'7px 14px',borderRadius:6,cursor:'pointer'}}>Copy Link</button>
+              <button onClick={()=>setInviteUrl('')} style={{background:'none',border:'1px solid #A7F3D0',color:'#059669',fontFamily:'monospace',fontSize:10,padding:'7px 14px',borderRadius:6,cursor:'pointer'}}>Dismiss</button>
+            </div>
+          </div>
+        )}
 
         {loading?<div style={{textAlign:'center',padding:'3rem',color:TEXT_FAINT,fontFamily:'monospace',fontSize:12}}>Loading...</div>:(
           <>
