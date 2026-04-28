@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { communityAdmin, communityApplications, getCommunityMember } from '../../api/community'
+import { communityAdmin, communityApplications, communityApi, getCommunityMember } from '../../api/community'
 
 const NAVY='#163B6D',NAVY_LIGHT='#EBF1FB',BORDER='#E2E8F0'
 const TEXT='#0F172A',TEXT_MID='#334155',TEXT_LIGHT='#64748B',TEXT_FAINT='#94A3B8'
@@ -23,6 +23,7 @@ export default function AdminDashboard() {
   const [dashboard,setDashboard] = useState<DashboardData|null>(null)
   const [tasks,setTasks] = useState<Task[]>([])
   const [applications,setApplications] = useState<Application[]>([])
+  const [members,setMembers] = useState<any[]>([])
   const [appStatus,setAppStatus] = useState('pending')
   const [notes,setNotes] = useState<Record<string,string>>({})
   const [loading,setLoading] = useState(true)
@@ -39,6 +40,7 @@ export default function AdminDashboard() {
       if(tab==='dashboard'){const r=await communityAdmin.getDashboard();setDashboard(r.data)}
       else if(tab==='tasks'){const r=await communityAdmin.getTasks();setTasks(r.data)}
       else if(tab==='applications'){const r=await communityApplications.getAll(appStatus);setApplications(r.data)}
+      else if(tab==='members'){const r=await communityApi.get('/community/admin/members/all');setMembers(r.data)}
     }catch{showToast('Failed to load')}
     finally{setLoading(false)}
   }
@@ -57,17 +59,20 @@ export default function AdminDashboard() {
 
   async function handleApplication(id:string,status:string){
     try{
-      await communityApplications.update(id,{status,admin_note:notes[id]})
       if(status==='approved'){
-        const inv=await communityAdmin.generateInvite(id)
+        const inv=await communityApi.post(`/community/admin/applications/${id}/approve-and-invite`,{admin_note:notes[id]||''})
         setInviteUrl(inv.data.invite_url)
         try{ await navigator.clipboard.writeText(inv.data.invite_url) }catch(e){}
-        showToast('Application approved — invite URL shown below')
+        showToast('Application approved — invite URL shown below, link copied to clipboard')
       } else {
+        await communityApplications.update(id,{status,admin_note:notes[id]})
         showToast(`Application ${status}`)
       }
       loadData()
-    }catch(e){showToast('Failed — check console')}
+    }catch(e:any){
+      console.error('handleApplication error:',e)
+      showToast('Failed: '+( e?.response?.data?.error || e.message || 'Unknown error'))
+    }
   }
 
   async function handleExport(){
@@ -175,6 +180,46 @@ export default function AdminDashboard() {
                   <div style={{display:'flex',gap:'.35rem',flexShrink:0}}>
                     <button onClick={()=>handleTask(task.id,'done')} style={{background:GREEN_BG,border:`1px solid ${GREEN_BORDER}`,color:GREEN,fontFamily:'monospace',fontSize:9,padding:'5px 11px',borderRadius:20,cursor:'pointer'}}>✓ Done</button>
                     <button onClick={()=>handleTask(task.id,'snoozed')} style={{background:'#F1F5F9',border:`1px solid ${BORDER}`,color:TEXT_FAINT,fontFamily:'monospace',fontSize:9,padding:'5px 11px',borderRadius:20,cursor:'pointer'}}>⏸ 24hrs</button>
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+
+          {/* MEMBERS TAB */}
+          {tab==='members'&&(
+            <>
+              <div style={{display:'flex',gap:'.5rem',marginBottom:'1rem',flexWrap:'wrap'}}>
+                {['active','pending','suspended','removed'].map(s=>(
+                  <button key={s} onClick={()=>setAppStatus(s)} style={{fontFamily:'monospace',fontSize:10,letterSpacing:'.04em',textTransform:'uppercase',color:appStatus===s?'#fff':TEXT_LIGHT,background:appStatus===s?NAVY:'#fff',border:`1px solid ${appStatus===s?NAVY:BORDER}`,padding:'.45rem .85rem',borderRadius:6,cursor:'pointer'}}>
+                    {s}
+                  </button>
+                ))}
+              </div>
+              {members.length===0?(
+                <div style={{textAlign:'center',padding:'3rem',color:TEXT_FAINT,fontFamily:'monospace',fontSize:12}}>No {appStatus} members</div>
+              ):members.map((m:any)=>(
+                <div key={m.id} style={{background:'#fff',border:`1px solid ${BORDER}`,borderRadius:10,padding:'1rem',marginBottom:'.65rem',boxShadow:'0 1px 3px rgba(22,59,109,0.06)'}}>
+                  <div style={{display:'flex',alignItems:'flex-start',gap:'.85rem'}}>
+                    <div style={{width:40,height:40,borderRadius:'50%',background:NAVY_LIGHT,color:NAVY,fontFamily:'monospace',fontSize:12,fontWeight:500,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,border:'1px solid rgba(22,59,109,0.15)'}}>
+                      {m.name.split(' ').map((n:string)=>n[0]).join('').slice(0,2).toUpperCase()}
+                    </div>
+                    <div style={{flex:1}}>
+                      <div style={{fontFamily:'serif',fontSize:15,fontWeight:500,color:TEXT,marginBottom:2}}>{m.name}</div>
+                      <div style={{fontFamily:'monospace',fontSize:10,color:TEXT_FAINT,letterSpacing:'.03em',marginBottom:'.5rem'}}>{m.role} · {m.company_name} · {m.country} · {m.email}</div>
+                      <div style={{display:'flex',gap:'.5rem',flexWrap:'wrap'}}>
+                        <span style={{fontFamily:'monospace',fontSize:9,color:NAVY,background:NAVY_LIGHT,padding:'2px 8px',borderRadius:20}}>{m.tier}</span>
+                        <span style={{fontFamily:'monospace',fontSize:9,color:m.status==='active'?GREEN:AMBER,background:m.status==='active'?GREEN_BG:AMBER_BG,padding:'2px 8px',borderRadius:20}}>{m.status}</span>
+                        <span style={{fontFamily:'monospace',fontSize:9,color:TEXT_FAINT}}>Posts: {m.post_count} · Saves: {m.saves_received}</span>
+                        {m.last_login_at&&<span style={{fontFamily:'monospace',fontSize:9,color:TEXT_FAINT}}>Last login: {new Date(m.last_login_at).toLocaleDateString()}</span>}
+                        {!m.last_login_at&&m.status==='pending'&&<span style={{fontFamily:'monospace',fontSize:9,color:AMBER}}>Awaiting first login</span>}
+                      </div>
+                    </div>
+                    <div style={{display:'flex',gap:'.35rem',flexShrink:0}}>
+                      {m.status==='active'&&<button onClick={()=>communityAdmin.updateMember(m.id,{status:'suspended'}).then(()=>{showToast('Member suspended');loadData()})} style={{background:'#FEF2F2',border:'1px solid #FECACA',color:'#DC2626',fontFamily:'monospace',fontSize:9,padding:'4px 10px',borderRadius:20,cursor:'pointer'}}>Suspend</button>}
+                      {m.status==='suspended'&&<button onClick={()=>communityAdmin.updateMember(m.id,{status:'active'}).then(()=>{showToast('Member reactivated');loadData()})} style={{background:GREEN_BG,border:`1px solid ${GREEN_BORDER}`,color:GREEN,fontFamily:'monospace',fontSize:9,padding:'4px 10px',borderRadius:20,cursor:'pointer'}}>Reactivate</button>}
+                      {m.status==='pending'&&<button onClick={()=>communityAdmin.generateInvite(m.id).then(r=>{setInviteUrl(r.data.invite_url);showToast('Invite link generated')})} style={{background:NAVY_LIGHT,border:'1px solid rgba(22,59,109,0.2)',color:NAVY,fontFamily:'monospace',fontSize:9,padding:'4px 10px',borderRadius:20,cursor:'pointer'}}>Resend Invite</button>}
+                    </div>
                   </div>
                 </div>
               ))}
