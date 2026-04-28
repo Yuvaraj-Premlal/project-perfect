@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { communityAdmin, communityApplications, communityApi, getCommunityMember } from '../../api/community'
+import { communityAdmin, communityApplications, communityApi, communityPlaybook, getCommunityMember } from '../../api/community'
 
 const NAVY='#163B6D',NAVY_LIGHT='#EBF1FB',BORDER='#E2E8F0'
 const TEXT='#0F172A',TEXT_MID='#334155',TEXT_LIGHT='#64748B',TEXT_FAINT='#94A3B8'
@@ -19,11 +19,14 @@ interface Application {id:string;name:string;email:string;role:string;company_na
 export default function AdminDashboard() {
   const navigate = useNavigate()
   const member = getCommunityMember()
-  const [tab,setTab] = useState<'dashboard'|'tasks'|'applications'|'members'>('dashboard')
+  const [tab,setTab] = useState<'dashboard'|'tasks'|'saved'|'applications'|'members'>('dashboard')
   const [dashboard,setDashboard] = useState<DashboardData|null>(null)
   const [tasks,setTasks] = useState<Task[]>([])
   const [applications,setApplications] = useState<Application[]>([])
   const [members,setMembers] = useState<any[]>([])
+  const [savedPosts,setSavedPosts] = useState<any[]>([])
+  const [playbookForm,setPlaybookForm] = useState<{postId:string,category:string,note:string}|null>(null)
+  const [addingToPlaybook,setAddingToPlaybook] = useState(false)
   const [appStatus,setAppStatus] = useState('pending')
   const [notes,setNotes] = useState<Record<string,string>>({})
   const [loading,setLoading] = useState(true)
@@ -41,6 +44,11 @@ export default function AdminDashboard() {
       else if(tab==='tasks'){const r=await communityAdmin.getTasks();setTasks(r.data)}
       else if(tab==='applications'){const r=await communityApplications.getAll(appStatus);setApplications(r.data)}
       else if(tab==='members'){const r=await communityApi.get('/community/admin/members/all');setMembers(r.data)}
+      else if(tab==='saved'){
+        const r=await communityApi.get('/community/posts?limit=50')
+        const withSaves=r.data.filter((p:any)=>parseInt(p.save_count)>0)
+        setSavedPosts(withSaves.sort((a:any,b:any)=>parseInt(b.save_count)-parseInt(a.save_count)))
+      }
     }catch{showToast('Failed to load')}
     finally{setLoading(false)}
   }
@@ -56,6 +64,30 @@ export default function AdminDashboard() {
   }
 
   const [inviteUrl, setInviteUrl] = useState('')
+
+  const PLAYBOOK_CATEGORIES=[
+    'supplier-risk','critical-path','review-culture','delay-cost',
+    'launch-mgmt','quality-ppap','customer-delivery','team-resources',
+    'tools-templates','scheduling'
+  ]
+
+  async function addToPlaybook(){
+    if(!playbookForm||!playbookForm.category||!playbookForm.note){
+      showToast('Please select a category and write a curator note');return
+    }
+    setAddingToPlaybook(true)
+    try{
+      await communityPlaybook.add({
+        post_id:playbookForm.postId,
+        category:playbookForm.category,
+        curator_note:playbookForm.note
+      })
+      showToast('Added to Playbook successfully')
+      setPlaybookForm(null)
+      loadData()
+    }catch(e:any){showToast('Failed: '+(e?.response?.data?.error||'Unknown error'))}
+    finally{setAddingToPlaybook(false)}
+  }
 
   async function handleApplication(id:string,status:string){
     try{
@@ -102,7 +134,7 @@ export default function AdminDashboard() {
       <div style={{maxWidth:980,margin:'0 auto',padding:'1.5rem 1rem'}}>
         {/* ADMIN TABS */}
         <div style={{display:'flex',gap:'.5rem',marginBottom:'1.25rem',flexWrap:'wrap'}}>
-          {(['dashboard','tasks','applications','members'] as const).map(t=>(
+          {(['dashboard','tasks','saved','applications','members'] as const).map(t=>(
             <button key={t} onClick={()=>setTab(t)} style={{fontFamily:'monospace',fontSize:10,letterSpacing:'.06em',textTransform:'uppercase',color:tab===t?'#fff':TEXT_LIGHT,background:tab===t?NAVY:'#fff',border:`1px solid ${tab===t?NAVY:BORDER}`,padding:'.5rem 1rem',borderRadius:6,cursor:'pointer'}}>
               {t==='applications'?`Applications`:t.charAt(0).toUpperCase()+t.slice(1)}
             </button>
@@ -180,6 +212,62 @@ export default function AdminDashboard() {
                   <div style={{display:'flex',gap:'.35rem',flexShrink:0}}>
                     <button onClick={()=>handleTask(task.id,'done')} style={{background:GREEN_BG,border:`1px solid ${GREEN_BORDER}`,color:GREEN,fontFamily:'monospace',fontSize:9,padding:'5px 11px',borderRadius:20,cursor:'pointer'}}>✓ Done</button>
                     <button onClick={()=>handleTask(task.id,'snoozed')} style={{background:'#F1F5F9',border:`1px solid ${BORDER}`,color:TEXT_FAINT,fontFamily:'monospace',fontSize:9,padding:'5px 11px',borderRadius:20,cursor:'pointer'}}>⏸ 24hrs</button>
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+
+          {/* SAVED POSTS TAB — PLAYBOOK CURATION */}
+          {tab==='saved'&&(
+            <>
+              <div style={{background:NAVY_LIGHT,border:'1px solid rgba(22,59,109,0.15)',borderRadius:6,padding:'.65rem 1rem',marginBottom:'.85rem',fontSize:12,color:TEXT_MID}}>
+                These are the most saved posts in the community. Select any post, choose a category, write your curator's note — and it appears in the Playbook immediately.
+              </div>
+
+              {playbookForm&&(
+                <div style={{background:'#fff',border:`1px solid ${NAVY}`,borderRadius:10,padding:'1.1rem',marginBottom:'1rem',boxShadow:'0 2px 8px rgba(22,59,109,0.12)'}}>
+                  <div style={{fontFamily:'monospace',fontSize:9,color:NAVY,letterSpacing:'.1em',textTransform:'uppercase',marginBottom:'.75rem',fontWeight:500}}>Add to Playbook</div>
+                  <div style={{marginBottom:'.75rem'}}>
+                    <label style={{display:'block',fontFamily:'monospace',fontSize:10,color:TEXT_FAINT,letterSpacing:'.08em',textTransform:'uppercase',marginBottom:'.4rem'}}>Category</label>
+                    <select value={playbookForm.category} onChange={e=>setPlaybookForm(p=>p?{...p,category:e.target.value}:null)}
+                      style={{width:'100%',background:'#F8FAFC',border:`1px solid ${BORDER}`,borderRadius:6,padding:'9px 14px',fontSize:13,color:TEXT,fontFamily:'inherit',outline:'none'}}>
+                      <option value="">Select category</option>
+                      {PLAYBOOK_CATEGORIES.map(c=><option key={c} value={c}>{c.split('-').map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(' ')}</option>)}
+                    </select>
+                  </div>
+                  <div style={{marginBottom:'.75rem'}}>
+                    <label style={{display:'block',fontFamily:'monospace',fontSize:10,color:TEXT_FAINT,letterSpacing:'.08em',textTransform:'uppercase',marginBottom:'.4rem'}}>Your curator's note — why does this matter?</label>
+                    <textarea value={playbookForm.note} onChange={e=>setPlaybookForm(p=>p?{...p,note:e.target.value}:null)}
+                      placeholder="e.g. This is the most actionable supplier risk signal I've seen in 25 years. Simple to implement, high sensitivity."
+                      style={{width:'100%',minHeight:70,background:'#F8FAFC',border:`1px solid ${BORDER}`,borderRadius:6,padding:'.75rem .9rem',color:TEXT,fontSize:13,fontFamily:'inherit',resize:'none',outline:'none',lineHeight:1.6}}/>
+                  </div>
+                  <div style={{display:'flex',gap:'.5rem'}}>
+                    <button onClick={addToPlaybook} disabled={addingToPlaybook} style={{background:NAVY,border:'none',color:'#fff',fontFamily:'monospace',fontSize:10,letterSpacing:'.08em',padding:'8px 18px',borderRadius:6,cursor:'pointer',opacity:addingToPlaybook?.7:1}}>
+                      {addingToPlaybook?'Adding...':'Add to Playbook →'}
+                    </button>
+                    <button onClick={()=>setPlaybookForm(null)} style={{background:'none',border:`1px solid ${BORDER}`,color:TEXT_FAINT,fontFamily:'monospace',fontSize:10,padding:'8px 14px',borderRadius:6,cursor:'pointer'}}>Cancel</button>
+                  </div>
+                </div>
+              )}
+
+              {savedPosts.length===0?(
+                <div style={{textAlign:'center',padding:'3rem',color:TEXT_FAINT,fontFamily:'monospace',fontSize:12}}>No saved posts yet. Members save posts using the ◈ button.</div>
+              ):savedPosts.map((post:any)=>(
+                <div key={post.id} style={{background:'#fff',border:`1px solid ${BORDER}`,borderRadius:10,padding:'1rem',marginBottom:'.65rem',boxShadow:'0 1px 3px rgba(22,59,109,0.06)'}}>
+                  <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:'1rem'}}>
+                    <div style={{flex:1}}>
+                      <div style={{display:'flex',alignItems:'center',gap:'.5rem',marginBottom:'.4rem'}}>
+                        <span style={{fontFamily:'monospace',fontSize:8,color:NAVY,background:NAVY_LIGHT,padding:'2px 8px',borderRadius:20,fontWeight:500,textTransform:'uppercase'}}>{post.type}</span>
+                        <span style={{fontFamily:'monospace',fontSize:9,color:GREEN,background:GREEN_BG,padding:'2px 8px',borderRadius:20,border:`1px solid ${GREEN_BORDER}`}}>◈ {post.save_count} saves</span>
+                        <span style={{fontFamily:'monospace',fontSize:9,color:TEXT_FAINT}}>{post.author_name} · {post.author_role}</span>
+                      </div>
+                      <div style={{fontSize:13,color:TEXT_MID,lineHeight:1.65}}>{post.body.substring(0,200)}{post.body.length>200?'...':''}</div>
+                    </div>
+                    <button onClick={()=>setPlaybookForm({postId:post.id,category:'',note:''})}
+                      style={{background:NAVY,border:'none',color:'#fff',fontFamily:'monospace',fontSize:9,letterSpacing:'.06em',padding:'7px 14px',borderRadius:6,cursor:'pointer',flexShrink:0,whiteSpace:'nowrap'}}>
+                      + Add to Playbook
+                    </button>
                   </div>
                 </div>
               ))}
