@@ -19,7 +19,7 @@ interface Application {id:string;name:string;email:string;role:string;company_na
 export default function AdminDashboard() {
   const navigate = useNavigate()
   const member = getCommunityMember()
-  const [tab,setTab] = useState<'dashboard'|'tasks'|'saved'|'applications'|'members'>('dashboard')
+  const [tab,setTab] = useState<'dashboard'|'tasks'|'saved'|'applications'|'members'|'events'>('dashboard')
   const [dashboard,setDashboard] = useState<DashboardData|null>(null)
   const [tasks,setTasks] = useState<Task[]>([])
   const [applications,setApplications] = useState<Application[]>([])
@@ -27,6 +27,13 @@ export default function AdminDashboard() {
   const [savedPosts,setSavedPosts] = useState<any[]>([])
   const [playbookForm,setPlaybookForm] = useState<{postId:string,category:string,note:string}|null>(null)
   const [addingToPlaybook,setAddingToPlaybook] = useState(false)
+  const [events,setEvents] = useState<any[]>([])
+  const [showEventForm,setShowEventForm] = useState(false)
+  const [eventForm,setEventForm] = useState({
+    type:'deep_dive',title:'',description:'',
+    scheduled_date:'',scheduled_time:'12:30',duration_mins:60
+  })
+  const [savingEvent,setSavingEvent] = useState(false)
   const [appStatus,setAppStatus] = useState('pending')
   const [notes,setNotes] = useState<Record<string,string>>({})
   const [loading,setLoading] = useState(true)
@@ -44,6 +51,10 @@ export default function AdminDashboard() {
       else if(tab==='tasks'){const r=await communityAdmin.getTasks();setTasks(r.data)}
       else if(tab==='applications'){const r=await communityApplications.getAll(appStatus);setApplications(r.data)}
       else if(tab==='members'){const r=await communityApi.get('/community/admin/members/all');setMembers(r.data)}
+      else if(tab==='events'){
+        const r=await communityApi.get('/community/events')
+        setEvents(r.data)
+      }
       else if(tab==='saved'){
         const r=await communityApi.get('/community/posts?limit=50')
         const withSaves=r.data.filter((p:any)=>parseInt(p.save_count)>0)
@@ -70,6 +81,29 @@ export default function AdminDashboard() {
     'launch-mgmt','quality-ppap','customer-delivery','team-resources',
     'tools-templates','scheduling'
   ]
+
+  async function createEvent(){
+    if(!eventForm.title||!eventForm.description||!eventForm.scheduled_date){
+      showToast('Please fill in all fields');return
+    }
+    setSavingEvent(true)
+    try{
+      const scheduled_at=new Date(`${eventForm.scheduled_date}T${eventForm.scheduled_time}:00.000Z`).toISOString()
+      await communityApi.post('/community/events',{
+        type:eventForm.type,
+        title:eventForm.title,
+        description:eventForm.description,
+        scheduled_at,
+        duration_mins:eventForm.duration_mins,
+        is_recorded:false
+      })
+      showToast('Event created successfully')
+      setShowEventForm(false)
+      setEventForm({type:'deep_dive',title:'',description:'',scheduled_date:'',scheduled_time:'12:30',duration_mins:60})
+      loadData()
+    }catch(e:any){showToast('Failed: '+(e?.response?.data?.error||'Unknown'))}
+    finally{setSavingEvent(false)}
+  }
 
   async function addToPlaybook(){
     if(!playbookForm||!playbookForm.category||!playbookForm.note){
@@ -134,7 +168,7 @@ export default function AdminDashboard() {
       <div style={{maxWidth:980,margin:'0 auto',padding:'1.5rem 1rem'}}>
         {/* ADMIN TABS */}
         <div style={{display:'flex',gap:'.5rem',marginBottom:'1.25rem',flexWrap:'wrap'}}>
-          {(['dashboard','tasks','saved','applications','members'] as const).map(t=>(
+          {(['dashboard','tasks','saved','applications','members','events'] as const).map(t=>(
             <button key={t} onClick={()=>setTab(t)} style={{fontFamily:'monospace',fontSize:10,letterSpacing:'.06em',textTransform:'uppercase',color:tab===t?'#fff':TEXT_LIGHT,background:tab===t?NAVY:'#fff',border:`1px solid ${tab===t?NAVY:BORDER}`,padding:'.5rem 1rem',borderRadius:6,cursor:'pointer'}}>
               {t==='applications'?`Applications`:t.charAt(0).toUpperCase()+t.slice(1)}
             </button>
@@ -268,6 +302,88 @@ export default function AdminDashboard() {
                       style={{background:NAVY,border:'none',color:'#fff',fontFamily:'monospace',fontSize:9,letterSpacing:'.06em',padding:'7px 14px',borderRadius:6,cursor:'pointer',flexShrink:0,whiteSpace:'nowrap'}}>
                       + Add to Playbook
                     </button>
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+
+          {/* EVENTS TAB */}
+          {tab==='events'&&(
+            <>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'1rem'}}>
+                <div style={{fontFamily:'monospace',fontSize:9,color:TEXT_FAINT,letterSpacing:'.08em',textTransform:'uppercase',display:'flex',alignItems:'center',gap:6}}>
+                  <span style={{width:10,height:2,background:NAVY,display:'inline-block',borderRadius:1}}></span>
+                  {events.length} upcoming events
+                </div>
+                <button onClick={()=>setShowEventForm(!showEventForm)} style={{background:NAVY,border:'none',color:'#fff',fontFamily:'monospace',fontSize:10,letterSpacing:'.08em',padding:'8px 16px',borderRadius:6,cursor:'pointer'}}>
+                  {showEventForm?'Cancel':'+ Create Event'}
+                </button>
+              </div>
+
+              {showEventForm&&(
+                <div style={{background:'#fff',border:`1px solid ${NAVY}`,borderRadius:10,padding:'1.25rem',marginBottom:'1rem',boxShadow:'0 2px 8px rgba(22,59,109,0.12)'}}>
+                  <div style={{fontFamily:'monospace',fontSize:9,color:NAVY,letterSpacing:'.1em',textTransform:'uppercase',marginBottom:'1rem',fontWeight:500}}>Create New Event</div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem',marginBottom:'1rem'}}>
+                    <div>
+                      <label style={{display:'block',fontFamily:'monospace',fontSize:10,color:TEXT_FAINT,letterSpacing:'.08em',textTransform:'uppercase',marginBottom:'.4rem'}}>Event Type</label>
+                      <select value={eventForm.type} onChange={e=>setEventForm(p=>({...p,type:e.target.value}))}
+                        style={{width:'100%',background:'#F8FAFC',border:`1px solid ${BORDER}`,borderRadius:6,padding:'9px 14px',fontSize:13,color:TEXT,fontFamily:'inherit',outline:'none'}}>
+                        <option value="deep_dive">Project Perfect Deep Dive</option>
+                        <option value="roundtable">Small Group Roundtable</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{display:'block',fontFamily:'monospace',fontSize:10,color:TEXT_FAINT,letterSpacing:'.08em',textTransform:'uppercase',marginBottom:'.4rem'}}>Duration (minutes)</label>
+                      <input type="number" value={eventForm.duration_mins} onChange={e=>setEventForm(p=>({...p,duration_mins:parseInt(e.target.value)}))}
+                        style={{width:'100%',background:'#F8FAFC',border:`1px solid ${BORDER}`,borderRadius:6,padding:'9px 14px',fontSize:13,color:TEXT,fontFamily:'inherit',outline:'none'}}/>
+                    </div>
+                  </div>
+                  <div style={{marginBottom:'1rem'}}>
+                    <label style={{display:'block',fontFamily:'monospace',fontSize:10,color:TEXT_FAINT,letterSpacing:'.08em',textTransform:'uppercase',marginBottom:'.4rem'}}>Title</label>
+                    <input value={eventForm.title} onChange={e=>setEventForm(p=>({...p,title:e.target.value}))}
+                      placeholder="e.g. When the data says fail and the status says on track"
+                      style={{width:'100%',background:'#F8FAFC',border:`1px solid ${BORDER}`,borderRadius:6,padding:'9px 14px',fontSize:13,color:TEXT,fontFamily:'inherit',outline:'none'}}/>
+                  </div>
+                  <div style={{marginBottom:'1rem'}}>
+                    <label style={{display:'block',fontFamily:'monospace',fontSize:10,color:TEXT_FAINT,letterSpacing:'.08em',textTransform:'uppercase',marginBottom:'.4rem'}}>Description</label>
+                    <textarea value={eventForm.description} onChange={e=>setEventForm(p=>({...p,description:e.target.value}))}
+                      placeholder="What will be covered in this session?"
+                      style={{width:'100%',minHeight:70,background:'#F8FAFC',border:`1px solid ${BORDER}`,borderRadius:6,padding:'.75rem .9rem',color:TEXT,fontSize:13,fontFamily:'inherit',resize:'none',outline:'none',lineHeight:1.6}}/>
+                  </div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem',marginBottom:'1rem'}}>
+                    <div>
+                      <label style={{display:'block',fontFamily:'monospace',fontSize:10,color:TEXT_FAINT,letterSpacing:'.08em',textTransform:'uppercase',marginBottom:'.4rem'}}>Date</label>
+                      <input type="date" value={eventForm.scheduled_date} onChange={e=>setEventForm(p=>({...p,scheduled_date:e.target.value}))}
+                        style={{width:'100%',background:'#F8FAFC',border:`1px solid ${BORDER}`,borderRadius:6,padding:'9px 14px',fontSize:13,color:TEXT,fontFamily:'inherit',outline:'none'}}/>
+                    </div>
+                    <div>
+                      <label style={{display:'block',fontFamily:'monospace',fontSize:10,color:TEXT_FAINT,letterSpacing:'.08em',textTransform:'uppercase',marginBottom:'.4rem'}}>Time (UTC)</label>
+                      <input type="time" value={eventForm.scheduled_time} onChange={e=>setEventForm(p=>({...p,scheduled_time:e.target.value}))}
+                        style={{width:'100%',background:'#F8FAFC',border:`1px solid ${BORDER}`,borderRadius:6,padding:'9px 14px',fontSize:13,color:TEXT,fontFamily:'inherit',outline:'none'}}/>
+                    </div>
+                  </div>
+                  <button onClick={createEvent} disabled={savingEvent} style={{background:NAVY,border:'none',color:'#fff',fontFamily:'monospace',fontSize:10,letterSpacing:'.08em',padding:'10px 20px',borderRadius:6,cursor:'pointer',opacity:savingEvent?.7:1}}>
+                    {savingEvent?'Creating...':'Create Event →'}
+                  </button>
+                </div>
+              )}
+
+              {events.length===0?(
+                <div style={{textAlign:'center',padding:'3rem',color:TEXT_FAINT,fontFamily:'monospace',fontSize:12}}>No upcoming events. Click + Create Event to add one.</div>
+              ):events.map((ev:any)=>(
+                <div key={ev.id} style={{background:'#fff',border:`1px solid ${BORDER}`,borderRadius:10,padding:'1rem',marginBottom:'.65rem',display:'flex',gap:'1rem',alignItems:'flex-start',boxShadow:'0 1px 3px rgba(22,59,109,0.06)'}}>
+                  <div style={{background:NAVY,borderRadius:8,padding:'.5rem .75rem',textAlign:'center',minWidth:52,flexShrink:0}}>
+                    <div style={{fontFamily:'monospace',fontSize:20,fontWeight:500,color:'#fff',lineHeight:1}}>{new Date(ev.scheduled_at).getDate()}</div>
+                    <div style={{fontFamily:'monospace',fontSize:9,color:'rgba(255,255,255,0.6)',letterSpacing:'.06em'}}>{new Date(ev.scheduled_at).toLocaleString('en',{month:'short'}).toUpperCase()}</div>
+                  </div>
+                  <div style={{flex:1}}>
+                    <div style={{fontFamily:'monospace',fontSize:8,color:NAVY,background:NAVY_LIGHT,padding:'2px 8px',borderRadius:20,display:'inline-block',marginBottom:'.3rem',fontWeight:500,textTransform:'uppercase'}}>
+                      {ev.type==='deep_dive'?'Project Perfect Deep Dive':'Small Group Roundtable'}
+                    </div>
+                    <div style={{fontFamily:'serif',fontSize:15,fontWeight:500,color:TEXT,marginBottom:'.25rem'}}>{ev.title}</div>
+                    <div style={{fontSize:12,color:TEXT_LIGHT,marginBottom:'.4rem'}}>{ev.description.substring(0,120)}...</div>
+                    <div style={{fontFamily:'monospace',fontSize:9,color:TEXT_FAINT}}>{new Date(ev.scheduled_at).toLocaleDateString()} · {ev.duration_mins} min · {ev.rsvp_count||0} RSVPs</div>
                   </div>
                 </div>
               ))}
