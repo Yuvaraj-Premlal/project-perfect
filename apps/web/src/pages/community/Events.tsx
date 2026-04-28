@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { communityEvents, getCommunityMember } from '../../api/community'
 
@@ -79,14 +79,14 @@ export default function EventsPage() {
         {/* EVENT CADENCE INFO */}
         <div style={{background:'#fff',border:`1px solid ${BORDER}`,borderRadius:10,padding:'1rem',marginBottom:'1rem',display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem',boxShadow:'0 1px 3px rgba(22,59,109,0.06)'}}>
           <div>
-            <div style={{fontFamily:'monospace',fontSize:9,color:NAVY,letterSpacing:'.08em',textTransform:'uppercase',marginBottom:'.35rem',fontWeight:500}}>Month 1, 3, 5...</div>
+            <div style={{fontFamily:'monospace',fontSize:9,color:NAVY,letterSpacing:'.08em',textTransform:'uppercase',marginBottom:'.35rem',fontWeight:500}}>Jan · Mar · May · Jul · Sep · Nov</div>
             <div style={{fontSize:13,fontWeight:500,color:TEXT,marginBottom:2}}>Project Perfect Deep Dive</div>
-            <div style={{fontSize:12,color:TEXT_LIGHT}}>Hosted by Yuvaraj · All members welcome · Recorded and shared</div>
+            <div style={{fontSize:12,color:TEXT_LIGHT}}>Hosted by Yuvaraj Premlal · All members</div>
           </div>
           <div>
-            <div style={{fontFamily:'monospace',fontSize:9,color:NAVY,letterSpacing:'.08em',textTransform:'uppercase',marginBottom:'.35rem',fontWeight:500}}>Month 2, 4, 6...</div>
+            <div style={{fontFamily:'monospace',fontSize:9,color:NAVY,letterSpacing:'.08em',textTransform:'uppercase',marginBottom:'.35rem',fontWeight:500}}>Feb · Apr · Jun · Aug · Oct · Dec</div>
             <div style={{fontSize:13,fontWeight:500,color:TEXT,marginBottom:2}}>Small Group Roundtable</div>
-            <div style={{fontSize:12,color:TEXT_LIGHT}}>6–8 selected members · Not recorded · Anonymous summary shared</div>
+            <div style={{fontSize:12,color:TEXT_LIGHT}}>6–8 members · Facilitated by Yuvaraj</div>
           </div>
         </div>
 
@@ -119,7 +119,7 @@ export default function EventsPage() {
                   <span style={{fontFamily:'monospace',fontSize:10,color:TEXT_FAINT}}>{event.duration_mins} min</span>
                   <span style={{fontFamily:'monospace',fontSize:10,color:TEXT_FAINT}}>{event.rsvp_count} attending</span>
                   {!isDeepDive&&<span style={{fontFamily:'monospace',fontSize:9,color:TEXT_FAINT}}>Yuvaraj selects participants</span>}
-                  {event.is_recorded&&<span style={{fontFamily:'monospace',fontSize:9,color:GREEN,background:GREEN_BG,padding:'1px 7px',borderRadius:20,border:`1px solid ${GREEN_BORDER}`}}>Recording shared</span>}
+
                 </div>
 
                 {/* Pre-session question for Deep Dive */}
@@ -138,8 +138,8 @@ export default function EventsPage() {
                   }}>
                     {rsvping===event.id?'...':(event.has_rsvp?'✓ RSVP\'d — Cancel':(isDeepDive?'RSVP →':'Express Interest →'))}
                   </button>
-                  {event.has_rsvp&&<span style={{fontFamily:'monospace',fontSize:10,color:TEXT_FAINT}}>Yuvaraj will send you the link personally 24hrs before.</span>}
-                  {!isDeepDive&&!event.has_rsvp&&<span style={{fontFamily:'monospace',fontSize:10,color:TEXT_FAINT}}>Yuvaraj will confirm selection personally.</span>}
+                  {event.has_rsvp&&<span style={{fontFamily:'monospace',fontSize:10,color:TEXT_FAINT}}>You will receive the link before the session.</span>}
+                  {!isDeepDive&&!event.has_rsvp&&<span style={{fontFamily:'monospace',fontSize:10,color:TEXT_FAINT}}>Seats are limited — expression of interest noted.</span>}
                 </div>
               </div>
             </div>
